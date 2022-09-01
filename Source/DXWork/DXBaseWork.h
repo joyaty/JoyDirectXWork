@@ -45,11 +45,11 @@ protected:
 	void SetCustomWindowText(LPCWSTR text);
 
 	/// <summary>
-	/// Helper function for acquiring the first available hardware adapter that supports Direct3D 12.
-	/// If no such adapter can be found, *ppAdapter will be set to nullptr.
+	/// 查找第一个支持DrectX12的显示适配器
+	/// 如果没有找着可用的显示适配器，则ppAdapter返回nullptr.
 	/// </summary>
 	/// <param name="pFactory"></param>
-	/// <param name="ppAdapter"></param>
+	/// <param name="ppAdapter">显示适配器指针</param>
 	/// <param name="requestHighPerforrmanceAdapter"></param>
 	void GetHardwareAdapter(_In_ IDXGIFactory1* pFactory
 		, _Outptr_result_maybenull_ IDXGIAdapter1** ppAdapter

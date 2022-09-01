@@ -27,8 +27,7 @@ std::wstring DXBaseWork::GetAssetFullPath(LPCWSTR assetName)
 	return m_AssetsPath + assetName;
 }
 
-// Helper function for acquiring the first available hardware adapter that supports Direct3D 12.
-// If no such adapter can be found, *ppAdapter will be set to nullptr.
+
 _Use_decl_annotations_
 void DXBaseWork::GetHardwareAdapter(IDXGIFactory1* pFactory
 	, IDXGIAdapter1** ppAdapter
