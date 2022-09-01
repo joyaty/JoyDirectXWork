@@ -1,24 +1,26 @@
-/**
- * Win32´°¿Ú´úÂë·â×°Í·ÎÄ¼ş
+ï»¿/**
+ * Win32çª—å£ä»£ç å°è£…å¤´æ–‡ä»¶
  */
 
 #pragma once
+
+class DXBaseWork;
 
 class Win32Application
 {
 public:
 	/// <summary>
-	/// ÔËĞĞWin32´°¿Ú
+	/// è¿è¡ŒWin32çª—å£
 	/// </summary>
 	/// <param name="hInstance"></param>
 	/// <param name="nCmdShow"></param>
 	/// <returns></returns>
-	static int Run(HINSTANCE hInstance, int nCmdShow);
+	static int Run(DXBaseWork* pDXWork, HINSTANCE hInstance, int nCmdShow);
 	static HWND GetHwnd() { return m_HWND; }
 
 protected:
 	/// <summary>
-	/// ´°¿Ú»Øµ÷ÏìÓ¦´¦Àí
+	/// çª—å£å›è°ƒå“åº”å¤„ç†
 	/// </summary>
 	/// <param name="hWnd"></param>
 	/// <param name="message"></param>
@@ -29,7 +31,7 @@ protected:
 
 private:
 	/// <summary>
-	/// Win32´°¿ÚHandle
+	/// Win32çª—å£Handle
 	/// </summary>
 	static HWND m_HWND;
 };

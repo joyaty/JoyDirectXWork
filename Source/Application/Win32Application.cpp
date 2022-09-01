@@ -1,94 +1,115 @@
-/**
- * Win32´°¿Ú´úÂë·â×°Ô´ÎÄ¼ş
+ï»¿/**
+ * Win32çª—å£ä»£ç å°è£…æºæ–‡ä»¶
  */
 
 #include "stdafx.h"
 #include "Win32Application.h"
 #include <tchar.h>
+#include "DXWork/DXBaseWork.h"
 
 HWND Win32Application::m_HWND = nullptr;
 
-int Win32Application::Run(HINSTANCE hInstance, int nCmdShow)
+int Win32Application::Run(DXBaseWork* pDXWork, HINSTANCE hInstance, int nCmdShow)
 {
-	// ¶¨ÒåÒ»¸öWNDCLASSEX½á¹¹Ìå£¬ÃèÊö´°¿ÚµÄÒ»Ğ©ÊôĞÔ£¬ºóĞø¸ù¾İÃèÊöµÄ´°¿ÚÊôĞÔ´´½¨´°¿Ú
+	// å®šä¹‰ä¸€ä¸ªWNDCLASSEXç»“æ„ä½“ï¼Œæè¿°çª—å£çš„ä¸€äº›å±æ€§ï¼Œåç»­æ ¹æ®æè¿°çš„çª—å£å±æ€§åˆ›å»ºçª—å£
 	WNDCLASSEX wndClsEx = { 0 };
 	wndClsEx.cbSize = sizeof(WNDCLASSEX);
-	wndClsEx.style = CS_HREDRAW | CS_VREDRAW;		// Ö¸¶¨´°¿ÚÀàµÄÑùÊ½£¬CS_HREDRAW | CS_VREDRAW£¬ÕâÁ½×é±ê¼Ç±íÊ¾µ¥¹¤×÷Çø¿í¸ß·¢Éú±ä»¯Ê±£¬ÖØ»æ´°¿Ú
-	wndClsEx.lpfnWndProc = WindowProc;				// ´°¿Ú¹ı³Ìº¯ÊıÖ¸Õë£¬½ÓÊÜWindowsÏûÏ¢²¢´¦Àí
-	wndClsEx.cbClsExtra = 0;						// Í¨¹ıÕâÁ½¸ö×Ö¶ÎÖ¸¶¨Ó¦ÓÃ·ÖÅä¶îÍâµÄÄÚ´æ¿Õ¼ä£¬Ä¿Ç°²»ĞèÒª£¬Ö¸¶¨Îª0
-	wndClsEx.cbWndExtra = 0;						// Í¨¹ıÕâÁ½¸ö×Ö¶ÎÖ¸¶¨Ó¦ÓÃ·ÖÅä¶îÍâµÄÄÚ´æ¿Õ¼ä£¬Ä¿Ç°²»ĞèÒª£¬Ö¸¶¨Îª0
-	wndClsEx.hInstance = hInstance;					// µ±Ç°Ó¦ÓÃÊµÀı¾ä±ú£¬Í¨¹ıWinMainº¯ÊıÈë¿Ú´«Èë
-	wndClsEx.hIcon = LoadIcon(0, IDI_APPLICATION);	// Ö¸¶¨´´½¨´°¿ÚµÄÍ¼±ê¾ä±ú
-	wndClsEx.hCursor = LoadCursor(NULL, IDC_ARROW);	// Ö¸¶¨Êó±êÑùÊ½
-	wndClsEx.hbrBackground = (HBRUSH)GetStockObject(GRAY_BRUSH); // Ö¸¶¨»­Ë¢¾ä±ú£¬ÒÔ´ËÖ¸¶¨´°¿Ú¹¤×÷Çø±³¾°ÑÕÉ«
-	wndClsEx.lpszMenuName = nullptr;				// Ö¸¶¨´°¿Ú²Ëµ¥£¬²»ĞèÒª£¬Òò´ËÖ¸¶¨Îªnull
-	wndClsEx.lpszClassName = _T("JoyDirectX12Work");	// Ö¸¶¨Ëù´´½¨´°¿ÚÀà½á¹¹ÌåÃû³Æ£¬¿ÉÒÔËæÒâÌîĞ´£¬ºóĞø¿ÉÒÔÔÚĞèÒª´Ë´°¿ÚÀà½á¹¹ÌåÊ±·½±ãµÄÒıÓÃ
-	// ÎªWNDCLASSEX×¢²áÊµÀı£¬½ÓÏÂÀ´¾Í¿É¸ù¾İÕâ¸öÊµÀı´´½¨´°¿Ú
+	wndClsEx.style = CS_HREDRAW | CS_VREDRAW;		// æŒ‡å®šçª—å£ç±»çš„æ ·å¼ï¼ŒCS_HREDRAW | CS_VREDRAWï¼Œè¿™ä¸¤ç»„æ ‡è®°è¡¨ç¤ºå•å·¥ä½œåŒºå®½é«˜å‘ç”Ÿå˜åŒ–æ—¶ï¼Œé‡ç»˜çª—å£
+	wndClsEx.lpfnWndProc = WindowProc;				// çª—å£è¿‡ç¨‹å‡½æ•°æŒ‡é’ˆï¼Œæ¥å—Windowsæ¶ˆæ¯å¹¶å¤„ç†
+	wndClsEx.cbClsExtra = 0;						// é€šè¿‡è¿™ä¸¤ä¸ªå­—æ®µæŒ‡å®šåº”ç”¨åˆ†é…é¢å¤–çš„å†…å­˜ç©ºé—´ï¼Œç›®å‰ä¸éœ€è¦ï¼ŒæŒ‡å®šä¸º0
+	wndClsEx.cbWndExtra = 0;						// é€šè¿‡è¿™ä¸¤ä¸ªå­—æ®µæŒ‡å®šåº”ç”¨åˆ†é…é¢å¤–çš„å†…å­˜ç©ºé—´ï¼Œç›®å‰ä¸éœ€è¦ï¼ŒæŒ‡å®šä¸º0
+	wndClsEx.hInstance = hInstance;					// å½“å‰åº”ç”¨å®ä¾‹å¥æŸ„ï¼Œé€šè¿‡WinMainå‡½æ•°å…¥å£ä¼ å…¥
+	wndClsEx.hIcon = LoadIcon(0, IDI_APPLICATION);	// æŒ‡å®šåˆ›å»ºçª—å£çš„å›¾æ ‡å¥æŸ„
+	wndClsEx.hCursor = LoadCursor(NULL, IDC_ARROW);	// æŒ‡å®šé¼ æ ‡æ ·å¼
+	wndClsEx.hbrBackground = (HBRUSH)GetStockObject(GRAY_BRUSH); // æŒ‡å®šç”»åˆ·å¥æŸ„ï¼Œä»¥æ­¤æŒ‡å®šçª—å£å·¥ä½œåŒºèƒŒæ™¯é¢œè‰²
+	wndClsEx.lpszMenuName = nullptr;				// æŒ‡å®šçª—å£èœå•ï¼Œä¸éœ€è¦ï¼Œå› æ­¤æŒ‡å®šä¸ºnull
+	wndClsEx.lpszClassName = _T("JoyDirectX12Work");	// æŒ‡å®šæ‰€åˆ›å»ºçª—å£ç±»ç»“æ„ä½“åç§°ï¼Œå¯ä»¥éšæ„å¡«å†™ï¼Œåç»­å¯ä»¥åœ¨éœ€è¦æ­¤çª—å£ç±»ç»“æ„ä½“æ—¶æ–¹ä¾¿çš„å¼•ç”¨
+	// ä¸ºWNDCLASSEXæ³¨å†Œå®ä¾‹ï¼Œæ¥ä¸‹æ¥å°±å¯æ ¹æ®è¿™ä¸ªå®ä¾‹åˆ›å»ºçª—å£
 	RegisterClassEx(&wndClsEx);
 
 	RECT wndRect = { 0, 0, 1280, 720 };
 	AdjustWindowRect(&wndRect, WS_OVERLAPPEDWINDOW, FALSE);
 
-	// ´´½¨´°¿Ú²¢ÇÒ±£´æ´°¿ÚHandle
+	// åˆ›å»ºçª—å£å¹¶ä¸”ä¿å­˜çª—å£Handle
 	m_HWND = CreateWindow(
-		wndClsEx.lpszClassName,			// Ê¹ÓÃÇ°Ãæ×¢²áµÄÊµÀı´´½¨´°¿Ú
-		_T("Joy DirectX Work"),			// ´°¿Ú±êÌâ£¬ÏÔÊ¾ÔÚ±êÌâÀ¸ÖĞ
-		WS_OVERLAPPEDWINDOW,			// ´°¿ÚÑùÊ½£¬
-		CW_USEDEFAULT,					// ×óÉÏ½ÇÎ»ÖÃX
-		CW_USEDEFAULT,					// ×óÉÏ½ÇÎ»ÖÃY
-		wndRect.right - wndRect.left,	// ´°¿Ú¿í¶È
-		wndRect.bottom - wndRect.top,	// ´°¿Ú¸ß¶È
-		nullptr,						// ÎŞ¸¸´°¿Ú
-		nullptr,						// ²»Ê¹ÓÃ²Ëµ¥
-		wndClsEx.hInstance,				// ´Ë´°¿Ú¹ØÁªµÄÓ¦ÓÃ¾ä±ú
-		nullptr);						// Ö¸ÏòÓÃ»§¶¨ÒåÊı¾İµÄÖ¸Õë£¬¿ÉÓÃ×÷WM_CREATEÏûÏ¢µÄlpParam²ÎÊı	
+		wndClsEx.lpszClassName,			// ä½¿ç”¨å‰é¢æ³¨å†Œçš„å®ä¾‹åˆ›å»ºçª—å£
+		pDXWork->GetTitle(),			// çª—å£æ ‡é¢˜ï¼Œæ˜¾ç¤ºåœ¨æ ‡é¢˜æ ä¸­
+		WS_OVERLAPPEDWINDOW,			// çª—å£æ ·å¼ï¼Œ
+		CW_USEDEFAULT,					// å·¦ä¸Šè§’ä½ç½®X
+		CW_USEDEFAULT,					// å·¦ä¸Šè§’ä½ç½®Y
+		wndRect.right - wndRect.left,	// çª—å£å®½åº¦
+		wndRect.bottom - wndRect.top,	// çª—å£é«˜åº¦
+		nullptr,						// æ— çˆ¶çª—å£
+		nullptr,						// ä¸ä½¿ç”¨èœå•
+		wndClsEx.hInstance,				// æ­¤çª—å£å…³è”çš„åº”ç”¨å¥æŸ„
+		pDXWork);						// æŒ‡å‘ç”¨æˆ·å®šä¹‰æ•°æ®çš„æŒ‡é’ˆï¼Œå¯ç”¨ä½œWM_CREATEæ¶ˆæ¯çš„lpParamå‚æ•°	
 
-	// ÏÔÊ¾´°¿Ú
+	// åˆå§‹åŒ–DXæ¸²æŸ“å·¥ä½œ
+	pDXWork->OnInit();
+	// æ˜¾ç¤ºçª—å£
 	ShowWindow(m_HWND, nCmdShow);
 	UpdateWindow(m_HWND);
-	// ´°¿ÚÖ÷Ñ­»·
+	// çª—å£ä¸»å¾ªç¯
 	MSG msg = { 0 };
 	while (msg.message != WM_QUIT)
 	{
-		// ´¦ÀíÏûÏ¢¶ÓÁĞ
+		// å¤„ç†æ¶ˆæ¯é˜Ÿåˆ—
 		if (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE))
 		{
 			TranslateMessage(&msg);
 			DispatchMessage(&msg);
 		}
-		// TODO Ö´ĞĞ³ÌĞòÂß¼­
+		// TODO æ‰§è¡Œç¨‹åºé€»è¾‘
 	}
-	// ·µ»ØÍË³öÏûÏ¢
+	// é”€æ¯DXæ¸²æŸ“å·¥ä½œ
+	pDXWork->OnDestroy();
+	// è¿”å›é€€å‡ºæ¶ˆæ¯
 	return static_cast<char>(msg.wParam);
 }
 
 LRESULT CALLBACK Win32Application::WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
+	DXBaseWork* pDXWork = reinterpret_cast<DXBaseWork*>(GetWindowLongPtr(hWnd, GWLP_USERDATA));
 	switch (message)
 	{
 	case WM_CREATE:
-		// TODO something
+		{
+		//
+			LPCREATESTRUCT pCreateStruct = reinterpret_cast<LPCREATESTRUCT>(lParam);
+			SetWindowLongPtr(hWnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(pCreateStruct->lpCreateParams));
+		}
 		return 0;
 	case WM_SIZE:
 		// TODO something
 		return 0;
 	case WM_KEYDOWN:
-		// °´ÏÂEsc°´Å¥£¬¹Ø±Õ³ÌĞò´°¿Ú
+		// æŒ‰ä¸‹EscæŒ‰é’®ï¼Œå…³é—­ç¨‹åºçª—å£
 		if (wParam == VK_ESCAPE)
 		{
 			DestroyWindow(hWnd);
 		}
+		else if (pDXWork != nullptr)
+		{
+			pDXWork->OnKeyDown(static_cast<UINT8>(wParam));
+		}
 		return 0;
 	case WM_KEYUP:
-		// TODO something
+		if (pDXWork != nullptr)
+		{
+			pDXWork->OnKeyUp(static_cast<UINT8>(wParam));
+		}
 		return 0;
 	case WM_PAINT:
-		// TODO something
+		if (pDXWork != nullptr)
+		{
+			pDXWork->OnUpdate();
+			pDXWork->OnRender();
+		}
 		return 0;
 	case WM_DESTROY:
 		PostQuitMessage(0);
 		return 0;
 	}
-	// ÆäËûÀàĞÍÊÂ¼ş½»ÓÉÏµÍ³Ä¬ÈÏ´°¿Ú¹ı³Ì´¦Àí
+	// å…¶ä»–ç±»å‹äº‹ä»¶äº¤ç”±ç³»ç»Ÿé»˜è®¤çª—å£è¿‡ç¨‹å¤„ç†
 	return DefWindowProc(hWnd, message, wParam, lParam);
 }

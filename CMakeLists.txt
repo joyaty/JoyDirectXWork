@@ -27,7 +27,9 @@ Source/Application/Win32Application.h
 Source/DXWork/d3dx12.h
 Source/DXWork/DXWorkHelper.h
 Source/DXWork/DXBaseWork.cpp
-Source/DXWork/DXBaseWork.h)
+Source/DXWork/DXBaseWork.h
+Source/DXWorkHelloWindow/D3D12HelloWindow.cpp
+Source/DXWorkHelloWindow/D3D12HelloWindow.h)
 
 ## 调用外部cmake定义的宏，将源文件按文件加分组
 source_group_by_dir("${ALL_FILES}")

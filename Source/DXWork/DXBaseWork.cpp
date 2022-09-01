@@ -1,10 +1,11 @@
-/***
- * DXÊ¾ÀıÏîÄ¿»ùÀàÔ´ÎÄ¼ş
+ï»¿/***
+ * DXç¤ºä¾‹é¡¹ç›®åŸºç±»æºæ–‡ä»¶
  */
 
 #include "stdafx.h"
 #include "DXBaseWork.h"
 #include "DXWorkHelper.h"
+#include "Application/Win32Application.h"
 
 using namespace Microsoft::WRL;
 
@@ -89,6 +90,12 @@ void DXBaseWork::GetHardwareAdapter(IDXGIFactory1* pFactory
 	}
 
 	*ppAdapter = adapter.Detach();
+}
+
+void DXBaseWork::SetCustomWindowText(LPCWSTR text)
+{
+	std::wstring windowText = m_Title + L": " + text;
+	SetWindowText(Win32Application::GetHwnd(), windowText.c_str());
 }
 
 _Use_decl_annotations_

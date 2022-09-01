@@ -1,5 +1,5 @@
-/***
- * DXÊ¾ÀıÏîÄ¿»ùÀàÍ·ÎÄ¼ş
+ï»¿/***
+ * DXç¤ºä¾‹é¡¹ç›®åŸºç±»å¤´æ–‡ä»¶
  */
 
 #pragma once
@@ -24,19 +24,25 @@ public:
 	const WCHAR* GetTitle() const { return m_Title.c_str(); }
 
 	/// <summary>
-	/// ½âÎöÃüÁîĞĞ²ÎÊı
+	/// è§£æå‘½ä»¤è¡Œå‚æ•°
 	/// </summary>
-	/// <param name="argv">ÃüÁîĞĞ²ÎÊı¼¯ºÏ</param>
-	/// <param name="argc">ÃüÁîĞĞ²ÎÊıÊıÁ¿</param>
+	/// <param name="argv">å‘½ä»¤è¡Œå‚æ•°é›†åˆ</param>
+	/// <param name="argc">å‘½ä»¤è¡Œå‚æ•°æ•°é‡</param>
 	void ParseCommandLineArgs(_In_reads_(argc) WCHAR* argv[], int argc);
 
 protected:
 	/// <summary>
-	/// »ñÈ¡×ÊÔ´È«Â·¾¶
+	/// è·å–èµ„æºå…¨è·¯å¾„
 	/// </summary>
-	/// <param name="assetName">×ÊÔ´Ãû</param>
+	/// <param name="assetName">èµ„æºå</param>
 	/// <returns></returns>
 	std::wstring GetAssetFullPath(LPCWSTR assetName);
+
+	/// <summary>
+	/// è®¾ç½®çª—å£æ ‡é¢˜
+	/// </summary>
+	/// <param name="text"></param>
+	void SetCustomWindowText(LPCWSTR text);
 
 	/// <summary>
 	/// Helper function for acquiring the first available hardware adapter that supports Direct3D 12.
@@ -49,14 +55,14 @@ protected:
 		, _Outptr_result_maybenull_ IDXGIAdapter1** ppAdapter
 		, bool requestHighPerforrmanceAdapter = false);
 
-private:
-	// ÊÓ¿Ú²ÎÊı
+protected:
+	// è§†å£å‚æ•°
 	UINT m_Width;
 	UINT m_Height;
 	float m_AspectRatio;
-	// ´°¿Ú±êÌâ
+	// çª—å£æ ‡é¢˜
 	std::wstring m_Title;
-	// ×ÊÔ´Â·¾¶
+	// èµ„æºè·¯å¾„
 	std::wstring m_AssetsPath;
 	// Adapter info.
 	bool m_UseWarpDevice;
