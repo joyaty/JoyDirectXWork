@@ -8,7 +8,7 @@ project(JoyDirectXWork)
 include("${PROJECT_SOURCE_DIR}/CMake/CMakeMacro.cmake")
 
 include_directories(${PROJECT_SOURCE_DIR}/Source/)
-
+## 添加UNICODE/_UNICODE宏 使用unicode字符集
 add_definitions(-DUNICODE -D_UNICODE)
 
 if(CMAKE_SYSTEM_NAME MATCHES "Windows")

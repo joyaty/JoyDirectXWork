@@ -58,28 +58,30 @@ void D3D12HelloWindow::LoadPipeline()
 		}
 	}
 #endif
-
+	// 创建设备
 	ComPtr<IDXGIFactory4> factory;
 	ThrowIfFailed(CreateDXGIFactory2(dxgiFactoryFlags, IID_PPV_ARGS(&factory)));
-
 	if (m_UseWarpDevice)
 	{
+		// 使用WARP设备，WARP = Windows Advanced Rasterization Platform（Windows高级光栅化平台），可将它当做是不依赖于任何硬件图形适配器的纯软件渲染器
+		// GPU硬件不能工作时，可以使用WARP
 		ComPtr<IDXGIAdapter> warpAdapter;
 		ThrowIfFailed(factory->EnumWarpAdapter(IID_PPV_ARGS(&warpAdapter)));
 		ThrowIfFailed(D3D12CreateDevice(warpAdapter.Get(), D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&m_Device)));
 	}
 	else
 	{
+		// 使用硬件设备
 		ComPtr<IDXGIAdapter1> hardwareAdapter;
 		GetHardwareAdapter(factory.Get(), &hardwareAdapter);
 		ThrowIfFailed(D3D12CreateDevice(hardwareAdapter.Get(), D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&m_Device)));
 	}
-	// Describe and create the command queue.
+	// 创建命令队列
 	D3D12_COMMAND_QUEUE_DESC queueDesc = {};
 	queueDesc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
 	queueDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
 	ThrowIfFailed(m_Device->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&m_CommandQueue)));
-	// Describe and create the swap chain.
+	// 创建前台缓冲区和后台缓冲区交换链
 	DXGI_SWAP_CHAIN_DESC1 swapChainDesc = {};
 	swapChainDesc.BufferCount = kFrameCount;
 	swapChainDesc.Width = m_Width;
@@ -88,10 +90,9 @@ void D3D12HelloWindow::LoadPipeline()
 	swapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
 	swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
 	swapChainDesc.SampleDesc.Count = 1;
-
 	ComPtr<IDXGISwapChain1> swapChain;
 	ThrowIfFailed(factory->CreateSwapChainForHwnd(
-		m_CommandQueue.Get(),	// Swap chain needs the queue so that it can force a flush on it.
+		m_CommandQueue.Get(),	// 交换链需要通过命令队列刷新，因此这里需要刷新交换链的命令队列
 		Win32Application::GetHwnd(),
 		&swapChainDesc,
 		nullptr,
@@ -101,9 +102,10 @@ void D3D12HelloWindow::LoadPipeline()
 	// This sample does not support fullscreen transitions.
 	ThrowIfFailed(factory->MakeWindowAssociation(Win32Application::GetHwnd(), DXGI_MWA_NO_ALT_ENTER));
 	ThrowIfFailed(swapChain.As(&m_SwapChain));
+	// 获取当前的后台缓冲区索引
 	m_FrameIndex = m_SwapChain->GetCurrentBackBufferIndex();
 
-	// Create descriptor heaps.
+	// 创建RenderTargetView的描述符堆
 	{
 		D3D12_DESCRIPTOR_HEAP_DESC rtvHeapDesc = {};
 		rtvHeapDesc.NumDescriptors = kFrameCount;

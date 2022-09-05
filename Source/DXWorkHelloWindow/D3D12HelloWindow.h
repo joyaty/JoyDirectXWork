@@ -19,6 +19,7 @@ public:
 	virtual void OnDestroy() override;
 
 private:
+	// 双缓冲，这里指定渲染目标缓冲区数量指定为2
 	static const UINT kFrameCount = 2;
 
 	// Pipeline Objects.
