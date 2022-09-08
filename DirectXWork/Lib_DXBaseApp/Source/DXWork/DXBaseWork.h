@@ -4,6 +4,8 @@
 
 #pragma once
 
+using namespace Microsoft::WRL;
+
 class DXBaseWork
 {
 public:
@@ -22,6 +24,10 @@ public:
 	UINT GetWidth() const { return m_Width; }
 	UINT GetHeight() const { return m_Height; }
 	const WCHAR* GetTitle() const { return m_Title.c_str(); }
+
+	ID3D12Device* GetD3D12Device() { return m_Device.Get(); }
+	ID3D12DescriptorHeap* GetD3D12DescriptorHeap() { return m_SrvHeap.Get(); }
+	virtual UINT GetFrameCount() = 0;
 
 	/// <summary>
 	/// 解析命令行参数
@@ -66,4 +72,10 @@ protected:
 	std::wstring m_AssetsPath;
 	// Adapter info.
 	bool m_UseWarpDevice;
+
+protected:
+	ComPtr<ID3D12Device> m_Device;
+	ComPtr<ID3D12DescriptorHeap> m_RtvHeap;
+	ComPtr<ID3D12DescriptorHeap> m_SrvHeap;
+
 };

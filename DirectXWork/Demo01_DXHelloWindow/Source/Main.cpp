@@ -4,6 +4,7 @@
 
 #include "Application/Win32Application.h"
 #include "DXWorkHelloWindow/D3D12HelloWindow.h"
+#include "DXWorkHelloWindow/IMGuiHelloWindow.h"
 
 /// <summary>
 /// Window程序入口函数
@@ -16,5 +17,6 @@
 int WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _In_ LPWSTR lpCmdLine, _In_ int nCmdShow)
 {
 	D3D12HelloWindow helloWindow(1280, 720, L"D3D12 Hello Window");
-	return Win32Application::Run(&helloWindow, hInstance, nCmdShow);
+	IMGuiHelloWindow imGuiWindow;
+	return Win32Application::Run(&helloWindow, hInstance, nCmdShow, &imGuiWindow);
 }

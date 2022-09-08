@@ -37,13 +37,13 @@ void DXBaseWork::GetHardwareAdapter(IDXGIFactory1* pFactory
 	ComPtr<IDXGIAdapter1> adapter;
 	ComPtr<IDXGIFactory6> factory6;
 
-	if (SUCCEEDED(pFactory->QueryInterface(IID_PPV_ARGS(&factory6))))
+	if (SUCCEEDED(pFactory->QueryInterface(IID_PPV_ARGS(factory6.GetAddressOf()))))
 	{
 		for (UINT adapterIndex = 0;
 			SUCCEEDED(factory6->EnumAdapterByGpuPreference(
 				adapterIndex,
 				requestHighPerformanceAdapter == true ? DXGI_GPU_PREFERENCE_HIGH_PERFORMANCE : DXGI_GPU_PREFERENCE_UNSPECIFIED,
-				IID_PPV_ARGS(&adapter)));
+				IID_PPV_ARGS(adapter.GetAddressOf())));
 			++adapterIndex)
 		{
 			DXGI_ADAPTER_DESC1 desc;

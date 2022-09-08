@@ -17,18 +17,18 @@ public:
 	virtual void OnUpdate() override;
 	virtual void OnRender() override;
 	virtual void OnDestroy() override;
+	virtual UINT GetFrameCount() override { return kFrameCount; }
 
 private:
 	// 双缓冲，这里指定渲染目标缓冲区数量指定为2
-	static const UINT kFrameCount = 2;
+	static const UINT kFrameCount = 3;
 
 	// Pipeline Objects.
 	ComPtr<IDXGISwapChain3> m_SwapChain;
-	ComPtr<ID3D12Device> m_Device;
 	ComPtr<ID3D12Resource> m_RenderTargets[kFrameCount];
+	D3D12_CPU_DESCRIPTOR_HANDLE  m_MainRenderTargetDescriptor[kFrameCount] = {};
 	ComPtr<ID3D12CommandAllocator> m_CommandAllocator;
 	ComPtr<ID3D12CommandQueue> m_CommandQueue;
-	ComPtr<ID3D12DescriptorHeap> m_RtvHeap;
 	ComPtr<ID3D12PipelineState> m_PipelineState;
 	ComPtr<ID3D12GraphicsCommandList> m_CommandList;
 	UINT m_RtvDescriptorSize;

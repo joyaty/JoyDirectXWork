@@ -6,10 +6,22 @@
 #include "Win32Application.h"
 #include <tchar.h>
 #include "DXWork/DXBaseWork.h"
+#include "DearIMGuiHelper/DearIMGuiBaseHelper.h"
+#include "imgui_impl_win32.h"
+
+/// <summary>
+/// 外部声明IMGui事件响应处理
+/// </summary>
+/// <param name="hwnd"></param>
+/// <param name="msg"></param>
+/// <param name="wParam"></param>
+/// <param name="lParam"></param>
+/// <returns></returns>
+extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
 HWND Win32Application::m_HWND = nullptr;
 
-int Win32Application::Run(DXBaseWork* pDXWork, HINSTANCE hInstance, int nCmdShow)
+int Win32Application::Run(DXBaseWork* pDXWork, HINSTANCE hInstance, int nCmdShow, DearIMGuiBaseHelper* pDearIMGuiHelper)
 {
 	// 定义一个WNDCLASSEX结构体，描述窗口的一些属性，后续根据描述的窗口属性创建窗口
 	WNDCLASSEX wndClsEx = { 0 };
@@ -46,6 +58,8 @@ int Win32Application::Run(DXBaseWork* pDXWork, HINSTANCE hInstance, int nCmdShow
 
 	// 初始化DX渲染工作
 	pDXWork->OnInit();
+	// 初始化DearIMGui
+	pDearIMGuiHelper->InitDearIMGui(m_HWND, pDXWork->GetD3D12Device(), pDXWork->GetFrameCount(), DXGI_FORMAT_R8G8B8A8_UNORM, pDXWork->GetD3D12DescriptorHeap());
 	// 显示窗口
 	ShowWindow(m_HWND, nCmdShow);
 	UpdateWindow(m_HWND);
@@ -61,6 +75,8 @@ int Win32Application::Run(DXBaseWork* pDXWork, HINSTANCE hInstance, int nCmdShow
 		}
 		// TODO 执行程序逻辑
 	}
+	// 销毁DearIMGui
+	pDearIMGuiHelper->TerminateIMGui();
 	// 销毁DX渲染工作
 	pDXWork->OnDestroy();
 	// 返回退出消息
@@ -69,6 +85,12 @@ int Win32Application::Run(DXBaseWork* pDXWork, HINSTANCE hInstance, int nCmdShow
 
 LRESULT CALLBACK Win32Application::WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
+	// 响应IMGui事件
+	if (ImGui_ImplWin32_WndProcHandler(hWnd, message, wParam, lParam))
+	{
+	 	return true;
+	}
+	// 响应IMGui外事件
 	DXBaseWork* pDXWork = reinterpret_cast<DXBaseWork*>(GetWindowLongPtr(hWnd, GWLP_USERDATA));
 	switch (message)
 	{

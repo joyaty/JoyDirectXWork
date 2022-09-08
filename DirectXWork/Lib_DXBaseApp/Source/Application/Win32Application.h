@@ -5,6 +5,7 @@
 #pragma once
 
 class DXBaseWork;
+class DearIMGuiBaseHelper;
 
 class Win32Application
 {
@@ -15,7 +16,7 @@ public:
 	/// <param name="hInstance"></param>
 	/// <param name="nCmdShow"></param>
 	/// <returns></returns>
-	static int Run(DXBaseWork* pDXWork, HINSTANCE hInstance, int nCmdShow);
+	static int Run(DXBaseWork* pDXWork, HINSTANCE hInstance, int nCmdShow, DearIMGuiBaseHelper* pDearIMGuiHelper);
 	static HWND GetHwnd() { return m_HWND; }
 
 protected:

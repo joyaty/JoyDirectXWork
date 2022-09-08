@@ -2,6 +2,7 @@
 
 #include "stdafx.h"
 #include "D3D12HelloWindow.h"
+#include "IMGuiHelloWindow.h"
 #include "DXWork/DXWorkHelper.h"
 #include "Application/Win32Application.h"
 
@@ -24,6 +25,10 @@ void D3D12HelloWindow::OnUpdate()
 
 void D3D12HelloWindow::OnRender()
 {
+	if (IMGuiHelloWindow::GetInstance() != nullptr)
+	{
+		IMGuiHelloWindow::GetInstance()->DrawDearIMGuiWindow();
+	}
 	// Record all the commands we need to render the scene into the command list.
 	PopulateCommandList();
 	// Execute the command list.
@@ -51,7 +56,7 @@ void D3D12HelloWindow::LoadPipeline()
 	// NOTE: Enabling the debug layger after device creation will invalidate the active device.
 	{
 		ComPtr<ID3D12Debug> debugController;
-		if (SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&debugController))))
+		if (SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(debugController.GetAddressOf()))))
 		{
 			debugController->EnableDebugLayer();
 			dxgiFactoryFlags |= DXGI_CREATE_FACTORY_DEBUG;
@@ -60,27 +65,27 @@ void D3D12HelloWindow::LoadPipeline()
 #endif
 	// 创建设备
 	ComPtr<IDXGIFactory4> factory;
-	ThrowIfFailed(CreateDXGIFactory2(dxgiFactoryFlags, IID_PPV_ARGS(&factory)));
+	ThrowIfFailed(CreateDXGIFactory2(dxgiFactoryFlags, IID_PPV_ARGS(factory.GetAddressOf())));
 	if (m_UseWarpDevice)
 	{
 		// 使用WARP设备，WARP = Windows Advanced Rasterization Platform（Windows高级光栅化平台），可将它当做是不依赖于任何硬件图形适配器的纯软件渲染器
 		// GPU硬件不能工作时，可以使用WARP
 		ComPtr<IDXGIAdapter> warpAdapter;
-		ThrowIfFailed(factory->EnumWarpAdapter(IID_PPV_ARGS(&warpAdapter)));
-		ThrowIfFailed(D3D12CreateDevice(warpAdapter.Get(), D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&m_Device)));
+		ThrowIfFailed(factory->EnumWarpAdapter(IID_PPV_ARGS(warpAdapter.GetAddressOf())));
+		ThrowIfFailed(D3D12CreateDevice(warpAdapter.Get(), D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(m_Device.GetAddressOf())));
 	}
 	else
 	{
 		// 使用硬件设备
 		ComPtr<IDXGIAdapter1> hardwareAdapter;
 		GetHardwareAdapter(factory.Get(), &hardwareAdapter);
-		ThrowIfFailed(D3D12CreateDevice(hardwareAdapter.Get(), D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&m_Device)));
+		ThrowIfFailed(D3D12CreateDevice(hardwareAdapter.Get(), D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(m_Device.GetAddressOf())));
 	}
 	// 创建命令队列
 	D3D12_COMMAND_QUEUE_DESC queueDesc = {};
 	queueDesc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
 	queueDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
-	ThrowIfFailed(m_Device->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&m_CommandQueue)));
+	ThrowIfFailed(m_Device->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(m_CommandQueue.GetAddressOf())));
 	// 创建前台缓冲区和后台缓冲区交换链
 	DXGI_SWAP_CHAIN_DESC1 swapChainDesc = {};
 	swapChainDesc.BufferCount = kFrameCount;
@@ -111,8 +116,16 @@ void D3D12HelloWindow::LoadPipeline()
 		rtvHeapDesc.NumDescriptors = kFrameCount;
 		rtvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
 		rtvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
-		ThrowIfFailed(m_Device->CreateDescriptorHeap(&rtvHeapDesc, IID_PPV_ARGS(&m_RtvHeap)));
+		ThrowIfFailed(m_Device->CreateDescriptorHeap(&rtvHeapDesc, IID_PPV_ARGS(m_RtvHeap.GetAddressOf())));
 		m_RtvDescriptorSize = m_Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+	}
+	// 创建ShaderResourceView的描述符堆
+	{
+		D3D12_DESCRIPTOR_HEAP_DESC srvHeapDesc = {};
+		srvHeapDesc.NumDescriptors = 1;
+		srvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+		srvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+		ThrowIfFailed(m_Device->CreateDescriptorHeap(&srvHeapDesc, IID_PPV_ARGS(m_SrvHeap.GetAddressOf())));
 	}
 
 	// Create frame resource.
@@ -121,24 +134,25 @@ void D3D12HelloWindow::LoadPipeline()
 		// Create a RTV for each frame.
 		for (UINT n = 0; n < kFrameCount; ++n)
 		{
-			ThrowIfFailed(m_SwapChain->GetBuffer(n, IID_PPV_ARGS(&m_RenderTargets[n])));
+			m_MainRenderTargetDescriptor[n] = rtvHandle;
+			ThrowIfFailed(m_SwapChain->GetBuffer(n, IID_PPV_ARGS(m_RenderTargets[n].GetAddressOf())));
 			m_Device->CreateRenderTargetView(m_RenderTargets[n].Get(), nullptr, rtvHandle);
 			rtvHandle.Offset(1, m_RtvDescriptorSize);
 		}
 	}
-	ThrowIfFailed(m_Device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&m_CommandAllocator)));
+	ThrowIfFailed(m_Device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(m_CommandAllocator.GetAddressOf())));
 }
 
 void D3D12HelloWindow::LoadAsset()
 {
 	// Create the command list.
-	ThrowIfFailed(m_Device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, m_CommandAllocator.Get(), nullptr, IID_PPV_ARGS(&m_CommandList)));
+	ThrowIfFailed(m_Device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, m_CommandAllocator.Get(), nullptr, IID_PPV_ARGS(m_CommandList.GetAddressOf())));
 	// Command lists are created in the recording state, but there is nothing to record yet. the main loop expects it to be closed, so close it now.
 	ThrowIfFailed(m_CommandList->Close());
 
 	// Creae synchroniztion objects.
 	{
-		ThrowIfFailed(m_Device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&m_Fence)));
+		ThrowIfFailed(m_Device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(m_Fence.GetAddressOf())));
 		m_FenceValue = 1;
 
 		m_FenceEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr);
@@ -160,10 +174,21 @@ void D3D12HelloWindow::PopulateCommandList()
 	m_CommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_RenderTargets[m_FrameIndex].Get()
 		, D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
 
-	CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHanle(m_RtvHeap->GetCPUDescriptorHandleForHeapStart(), m_FrameIndex, m_RtvDescriptorSize);
+	CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(m_RtvHeap->GetCPUDescriptorHandleForHeapStart(), m_FrameIndex, m_RtvDescriptorSize);
 	// Record commands.
-	const float clearColor[] = { 0.8f, 0.2f, 0.4f, 1.0f };
-	m_CommandList->ClearRenderTargetView(rtvHanle, clearColor, 0, nullptr);
+	ImVec4 backgroudColor = IMGuiHelloWindow::GetInstance()->GetBackColor();
+	const float clearColor[] = { backgroudColor.x, backgroudColor.y, backgroudColor.z, backgroudColor.w };
+	m_CommandList->ClearRenderTargetView(rtvHandle, clearColor, 0, nullptr);
+	m_CommandList->OMSetRenderTargets(1, &rtvHandle, FALSE, nullptr);
+	m_CommandList->SetDescriptorHeaps(1, m_SrvHeap.GetAddressOf());
+	// 提交DearIMGui的渲染命令
+	if (IMGuiHelloWindow::GetInstance() != nullptr)
+	{
+		// m_CommandList->OMSetRenderTargets(1, &rtvHanle, FALSE, NULL);
+		// m_CommandList->SetDescriptorHeaps(1, &m_SrvHeap);
+		IMGuiHelloWindow::GetInstance()->PopulateDearIMGuiCommand(m_CommandList.Get());
+	}
+
 	// Indicated that the back buffer will now be used to present.
 	m_CommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_RenderTargets[m_FrameIndex].Get()
 		, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
