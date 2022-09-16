@@ -128,7 +128,7 @@ void D3D12HelloWindow::LoadPipeline()
 		ThrowIfFailed(m_Device->CreateDescriptorHeap(&srvHeapDesc, IID_PPV_ARGS(m_SrvHeap.GetAddressOf())));
 	}
 
-	// Create frame resource.
+	// 创建RenderTargetView描述符，将描述符绑定到交换链的渲染缓冲区上
 	{
 		CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(m_RtvHeap->GetCPUDescriptorHandleForHeapStart());
 		// Create a RTV for each frame.
@@ -140,17 +140,14 @@ void D3D12HelloWindow::LoadPipeline()
 			rtvHandle.Offset(1, m_RtvDescriptorSize);
 		}
 	}
+	// 创建命令分配器
 	ThrowIfFailed(m_Device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(m_CommandAllocator.GetAddressOf())));
-}
-
-void D3D12HelloWindow::LoadAsset()
-{
-	// Create the command list.
+	// 通过命令分配器创建命令列表
 	ThrowIfFailed(m_Device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, m_CommandAllocator.Get(), nullptr, IID_PPV_ARGS(m_CommandList.GetAddressOf())));
-	// Command lists are created in the recording state, but there is nothing to record yet. the main loop expects it to be closed, so close it now.
+	// 命令列表创建结束后处于记录命令状态，此时不需要记录渲染命令，因此关闭
 	ThrowIfFailed(m_CommandList->Close());
 
-	// Creae synchroniztion objects.
+	// 创建Fence同步对象
 	{
 		ThrowIfFailed(m_Device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(m_Fence.GetAddressOf())));
 		m_FenceValue = 1;
@@ -161,6 +158,11 @@ void D3D12HelloWindow::LoadAsset()
 			ThrowIfFailed(HRESULT_FROM_WIN32(GetLastError()));
 		}
 	}
+}
+
+void D3D12HelloWindow::LoadAsset()
+{
+	
 }
 
 void D3D12HelloWindow::PopulateCommandList()
