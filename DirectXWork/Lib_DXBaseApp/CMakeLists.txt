@@ -32,6 +32,8 @@ Source/stdafx.cpp
 Source/stdafx.h
 Source/Application/Win32Application.cpp
 Source/Application/Win32Application.h
+Source/Application/GameTimer.cpp
+Source/Application/GameTimer.h
 Source/DXWork/d3dx12.h
 Source/DXWork/DXWorkHelper.h
 Source/DXWork/DXBaseWork.cpp

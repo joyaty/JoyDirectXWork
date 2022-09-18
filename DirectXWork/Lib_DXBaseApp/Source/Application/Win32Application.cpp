@@ -8,6 +8,7 @@
 #include "DXWork/DXBaseWork.h"
 #include "DearIMGuiHelper/DearIMGuiBaseHelper.h"
 #include "imgui_impl_win32.h"
+#include "GameTimer.h"
 
 /// <summary>
 /// 外部声明IMGui事件响应处理
@@ -20,6 +21,7 @@
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
 HWND Win32Application::m_HWND = nullptr;
+GameTimer Win32Application::m_GameTimer;
 
 int Win32Application::Run(DXBaseWork* pDXWork, HINSTANCE hInstance, int nCmdShow, DearIMGuiBaseHelper* pDearIMGuiHelper)
 {
@@ -63,6 +65,8 @@ int Win32Application::Run(DXBaseWork* pDXWork, HINSTANCE hInstance, int nCmdShow
 	// 显示窗口
 	ShowWindow(m_HWND, nCmdShow);
 	UpdateWindow(m_HWND);
+	// 初始化计时器
+	m_GameTimer.Reset();
 	// 窗口主循环
 	MSG msg = { 0 };
 	while (msg.message != WM_QUIT)
@@ -74,6 +78,7 @@ int Win32Application::Run(DXBaseWork* pDXWork, HINSTANCE hInstance, int nCmdShow
 			DispatchMessage(&msg);
 		}
 		// TODO 执行程序逻辑
+		m_GameTimer.Tick();
 	}
 	// 销毁DearIMGui
 	pDearIMGuiHelper->TerminateIMGui();
@@ -101,6 +106,18 @@ LRESULT CALLBACK Win32Application::WindowProc(HWND hWnd, UINT message, WPARAM wP
 			SetWindowLongPtr(hWnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(pCreateStruct->lpCreateParams));
 		}
 		return 0;
+	case WM_ACTIVATE:
+	{
+		if (LOWORD(lParam) == WA_INACTIVE)
+		{
+			m_GameTimer.Stop();
+		}
+		else
+		{
+			m_GameTimer.Start();
+		}
+	}
+	return 0;
 	case WM_SIZE:
 		// TODO something
 		return 0;

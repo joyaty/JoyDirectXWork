@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include "GameTimer.h"
+
 class DXBaseWork;
 class DearIMGuiBaseHelper;
 
@@ -35,4 +37,5 @@ private:
 	/// Win32窗口Handle
 	/// </summary>
 	static HWND m_HWND;
+	static GameTimer m_GameTimer;
 };

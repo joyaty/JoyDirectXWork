@@ -21,7 +21,7 @@ public:
 
 private:
 	// 双缓冲，这里指定渲染目标缓冲区数量指定为2
-	static const UINT kFrameCount = 3;
+	static const UINT kFrameCount = 2;
 
 	// Pipeline Objects.
 	ComPtr<IDXGISwapChain3> m_SwapChain;
@@ -31,7 +31,16 @@ private:
 	ComPtr<ID3D12CommandQueue> m_CommandQueue;
 	ComPtr<ID3D12PipelineState> m_PipelineState;
 	ComPtr<ID3D12GraphicsCommandList> m_CommandList;
+
+	/// <summary>
+	/// RenderTargetView描述符的大小，可用于从描述符堆获取描述符时计算相应描述符的偏移
+	/// </summary>
 	UINT m_RtvDescriptorSize;
+
+	/// <summary>
+	/// ShaderResourceView描述符大小
+	/// </summary>
+	UINT m_SrvDescriptorSize;
 
 	// Synchronization Objects.
 	UINT m_FrameIndex;

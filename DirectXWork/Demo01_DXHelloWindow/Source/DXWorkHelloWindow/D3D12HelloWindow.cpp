@@ -87,6 +87,7 @@ void D3D12HelloWindow::LoadPipeline()
 	queueDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
 	ThrowIfFailed(m_Device->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(m_CommandQueue.GetAddressOf())));
 	// 创建前台缓冲区和后台缓冲区交换链
+	
 	DXGI_SWAP_CHAIN_DESC1 swapChainDesc = {};
 	swapChainDesc.BufferCount = kFrameCount;
 	swapChainDesc.Width = m_Width;
@@ -95,6 +96,7 @@ void D3D12HelloWindow::LoadPipeline()
 	swapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
 	swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
 	swapChainDesc.SampleDesc.Count = 1;
+
 	ComPtr<IDXGISwapChain1> swapChain;
 	ThrowIfFailed(factory->CreateSwapChainForHwnd(
 		m_CommandQueue.Get(),	// 交换链需要通过命令队列刷新，因此这里需要刷新交换链的命令队列
@@ -128,7 +130,7 @@ void D3D12HelloWindow::LoadPipeline()
 		ThrowIfFailed(m_Device->CreateDescriptorHeap(&srvHeapDesc, IID_PPV_ARGS(m_SrvHeap.GetAddressOf())));
 	}
 
-	// 创建RenderTargetView描述符，将描述符绑定到交换链的渲染缓冲区上
+	// 创建RenderTargetView描述符，将描述符绑定到后台缓冲区上
 	{
 		CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(m_RtvHeap->GetCPUDescriptorHandleForHeapStart());
 		// Create a RTV for each frame.
