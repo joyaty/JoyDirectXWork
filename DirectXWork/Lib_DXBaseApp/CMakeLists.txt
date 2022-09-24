@@ -38,6 +38,8 @@ Source/DXWork/d3dx12.h
 Source/DXWork/DXWorkHelper.h
 Source/DXWork/DXBaseWork.cpp
 Source/DXWork/DXBaseWork.h
+Source/DirectXBaseWork/DirectXBaseWork.cpp
+Source/DirectXBaseWork/DirectXBaseWork.h
 Source/DearIMGuiHelper/DearIMGuiBaseHelper.cpp
 Source/DearIMGuiHelper/DearIMGuiBaseHelper.h
 )
