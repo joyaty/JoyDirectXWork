@@ -29,7 +29,7 @@ private:
 	static IMGuiHelloWindow* s_IMGUIWindowInstance;
 
 private:
-	float m_FloatValue;
-	int m_Counter;
+	float m_FloatValue = 0.f;
+	int m_Counter = 0;
 	ImVec4 m_ClearColor = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
 };

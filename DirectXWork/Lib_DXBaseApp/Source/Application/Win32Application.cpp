@@ -4,26 +4,36 @@
 
 #include "stdafx.h"
 #include "Win32Application.h"
+#include <windowsx.h>
 #include <tchar.h>
-#include "DXWork/DXBaseWork.h"
-#include "DearIMGuiHelper/DearIMGuiBaseHelper.h"
 #include "imgui_impl_win32.h"
+#include "DXWork/DXBaseWork.h"
+#include "DirectXBaseWork/DirectXBaseWork.h"
+#include "DearIMGuiHelper/DearIMGuiBaseHelper.h"
 #include "GameTimer.h"
 
-/// <summary>
-/// 外部声明IMGui事件响应处理
-/// </summary>
-/// <param name="hwnd"></param>
-/// <param name="msg"></param>
-/// <param name="wParam"></param>
-/// <param name="lParam"></param>
-/// <returns></returns>
+ /// <summary>
+ /// 外部声明IMGui事件响应处理
+ /// </summary>
+ /// <param name="hwnd"></param>
+ /// <param name="msg"></param>
+ /// <param name="wParam"></param>
+ /// <param name="lParam"></param>
+ /// <returns></returns>
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
-HWND Win32Application::m_HWND = nullptr;
-GameTimer Win32Application::m_GameTimer;
+Win32Application::Win32Application(HINSTANCE hInstance, DirectXBaseWork* pDirectXWork, DearIMGuiBaseHelper* pDearIMGuiHelper)
+	: m_HInstance(hInstance)
+	, m_DirectXWork(pDirectXWork)
+	, m_DearIMGuiHelper(pDearIMGuiHelper)
+{
+}
 
-int Win32Application::Run(DXBaseWork* pDXWork, HINSTANCE hInstance, int nCmdShow, DearIMGuiBaseHelper* pDearIMGuiHelper)
+Win32Application::~Win32Application()
+{
+}
+
+bool Win32Application::InitializeMainWindow()
 {
 	// 定义一个WNDCLASSEX结构体，描述窗口的一些属性，后续根据描述的窗口属性创建窗口
 	WNDCLASSEX wndClsEx = { 0 };
@@ -32,7 +42,7 @@ int Win32Application::Run(DXBaseWork* pDXWork, HINSTANCE hInstance, int nCmdShow
 	wndClsEx.lpfnWndProc = WindowProc;				// 窗口过程函数指针，接受Windows消息并处理
 	wndClsEx.cbClsExtra = 0;						// 通过这两个字段指定应用分配额外的内存空间，目前不需要，指定为0
 	wndClsEx.cbWndExtra = 0;						// 通过这两个字段指定应用分配额外的内存空间，目前不需要，指定为0
-	wndClsEx.hInstance = hInstance;					// 当前应用实例句柄，通过WinMain函数入口传入
+	wndClsEx.hInstance = m_HInstance;				// 当前应用实例句柄，通过WinMain函数入口传入
 	wndClsEx.hIcon = LoadIcon(0, IDI_APPLICATION);	// 指定创建窗口的图标句柄
 	wndClsEx.hCursor = LoadCursor(NULL, IDC_ARROW);	// 指定鼠标样式
 	wndClsEx.hbrBackground = (HBRUSH)GetStockObject(GRAY_BRUSH); // 指定画刷句柄，以此指定窗口工作区背景颜色
@@ -41,13 +51,13 @@ int Win32Application::Run(DXBaseWork* pDXWork, HINSTANCE hInstance, int nCmdShow
 	// 为WNDCLASSEX注册实例，接下来就可根据这个实例创建窗口
 	RegisterClassEx(&wndClsEx);
 
-	RECT wndRect = { 0, 0, 1280, 720 };
+	RECT wndRect = { 0, 0, static_cast<LONG>(m_DirectXWork->GetWidth()), static_cast<LONG>(m_DirectXWork->GetHeight()) };
 	AdjustWindowRect(&wndRect, WS_OVERLAPPEDWINDOW, FALSE);
 
 	// 创建窗口并且保存窗口Handle
 	m_HWND = CreateWindow(
 		wndClsEx.lpszClassName,			// 使用前面注册的实例创建窗口
-		pDXWork->GetTitle(),			// 窗口标题，显示在标题栏中
+		m_DirectXWork->GetTitle(),		// 窗口标题，显示在标题栏中
 		WS_OVERLAPPEDWINDOW,			// 窗口样式，
 		CW_USEDEFAULT,					// 左上角位置X
 		CW_USEDEFAULT,					// 左上角位置Y
@@ -56,15 +66,23 @@ int Win32Application::Run(DXBaseWork* pDXWork, HINSTANCE hInstance, int nCmdShow
 		nullptr,						// 无父窗口
 		nullptr,						// 不使用菜单
 		wndClsEx.hInstance,				// 此窗口关联的应用句柄
-		pDXWork);						// 指向用户定义数据的指针，可用作WM_CREATE消息的lpParam参数	
+		this);							// 指向用户定义数据的指针，可用作WM_CREATE消息的lpParam参数
 
 	// 初始化DX渲染工作
-	pDXWork->OnInit();
+	m_DirectXWork->Initialize(m_HWND);
 	// 初始化DearIMGui
-	pDearIMGuiHelper->InitDearIMGui(m_HWND, pDXWork->GetD3D12Device(), pDXWork->GetFrameCount(), DXGI_FORMAT_R8G8B8A8_UNORM, pDXWork->GetD3D12DescriptorHeap());
+	m_DearIMGuiHelper->InitDearIMGui(m_HWND
+		, m_DirectXWork->GetD3D12Device()
+		, m_DirectXWork->GetBackBufferCount()
+		, m_DirectXWork->GetBackBufferFormat());
 	// 显示窗口
-	ShowWindow(m_HWND, nCmdShow);
+	ShowWindow(m_HWND, SW_SHOW);
 	UpdateWindow(m_HWND);
+	return true;
+}
+
+int Win32Application::Run()
+{
 	// 初始化计时器
 	m_GameTimer.Reset();
 	// 窗口主循环
@@ -77,15 +95,132 @@ int Win32Application::Run(DXBaseWork* pDXWork, HINSTANCE hInstance, int nCmdShow
 			TranslateMessage(&msg);
 			DispatchMessage(&msg);
 		}
-		// TODO 执行程序逻辑
-		m_GameTimer.Tick();
+		else
+		{
+			m_GameTimer.Tick();
+			if (!m_AppPaused)
+			{
+				m_DirectXWork->Update(m_GameTimer.DeltaTime());
+				m_DirectXWork->Render();
+			}
+			else
+			{
+				Sleep(100);
+			}
+		}
 	}
 	// 销毁DearIMGui
-	pDearIMGuiHelper->TerminateIMGui();
+	m_DearIMGuiHelper->TerminateIMGui();
 	// 销毁DX渲染工作
-	pDXWork->OnDestroy();
+	m_DirectXWork->Terminate();
 	// 返回退出消息
-	return static_cast<char>(msg.wParam);
+	return static_cast<int>(msg.wParam);
+}
+
+void Win32Application::OnKeyDown(UINT8 keyCode)
+{
+	if (m_DirectXWork != nullptr)
+	{
+		m_DirectXWork->OnKeyDown(keyCode);
+	}
+}
+
+void Win32Application::OnKeyUp(UINT8 keyCode)
+{
+	if (m_DirectXWork != nullptr)
+	{
+		m_DirectXWork->OnKeyUp(keyCode);
+	}
+}
+
+void Win32Application::OnMouseDown(UINT8 keyCode, int x, int y)
+{
+	if (m_DirectXWork != nullptr)
+	{
+		m_DirectXWork->OnMouseDown(keyCode, x, y);
+	}
+}
+
+void Win32Application::OnMouseUp(UINT8 keyCode, int x, int y)
+{
+	if (m_DirectXWork != nullptr)
+	{
+		m_DirectXWork->OnMouseUp(keyCode, x, y);
+	}
+}
+
+void Win32Application::OnMouseMove(UINT8 keyCode, int x, int y)
+{
+	if (m_DirectXWork != nullptr)
+	{
+		m_DirectXWork->OnMouseMove(keyCode, x, y);
+	}
+}
+
+LRESULT CALLBACK Win32Application::WnMsgProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
+{
+	switch (message)
+	{
+	case WM_ACTIVATE:
+	{
+		if (LOWORD(wParam) == WA_INACTIVE)
+		{
+			m_AppPaused = true;
+			m_GameTimer.Stop();
+		}
+		else
+		{
+			m_AppPaused = false;
+			m_GameTimer.Start();
+		}
+		return 0;
+	}
+	case WM_SIZE:
+		// TODO something
+		return 0;
+	case WM_KEYDOWN:
+	{
+		// 按下Esc按钮，关闭程序窗口
+		if (wParam == VK_ESCAPE)
+		{
+			DestroyWindow(hWnd);
+		}
+		else
+		{
+			OnKeyDown(static_cast<UINT8>(wParam));
+		}
+		return 0;
+	}
+	case WM_KEYUP:
+	{
+		OnKeyUp(static_cast<UINT8>(wParam));
+		return 0;
+	}
+	case WM_LBUTTONDOWN:
+	case WM_MBUTTONDOWN:
+	case WM_RBUTTONDOWN:
+	{
+		OnMouseDown(static_cast<UINT8>(wParam), GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
+		return 0;
+	}
+	case WM_LBUTTONUP:
+	case WM_MBUTTONUP:
+	case WM_RBUTTONUP:
+	{
+		OnMouseUp(static_cast<UINT8>(wParam), GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
+		return 0;
+	}
+	case WM_MOUSEMOVE:
+	{
+		OnMouseMove(static_cast<UINT8>(wParam), GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
+		return 0;
+	}
+	case WM_DESTROY:
+		PostQuitMessage(0);
+		return 0;
+	}
+	// 其他类型事件交由系统默认窗口过程处理
+	return DefWindowProc(hWnd, message, wParam, lParam);
 }
 
 LRESULT CALLBACK Win32Application::WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
@@ -93,62 +228,27 @@ LRESULT CALLBACK Win32Application::WindowProc(HWND hWnd, UINT message, WPARAM wP
 	// 响应IMGui事件
 	if (ImGui_ImplWin32_WndProcHandler(hWnd, message, wParam, lParam))
 	{
-	 	return true;
+		return true;
 	}
-	// 响应IMGui外事件
-	DXBaseWork* pDXWork = reinterpret_cast<DXBaseWork*>(GetWindowLongPtr(hWnd, GWLP_USERDATA));
+
 	switch (message)
 	{
 	case WM_CREATE:
-		{
-		//
-			LPCREATESTRUCT pCreateStruct = reinterpret_cast<LPCREATESTRUCT>(lParam);
-			SetWindowLongPtr(hWnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(pCreateStruct->lpCreateParams));
-		}
-		return 0;
-	case WM_ACTIVATE:
 	{
-		if (LOWORD(lParam) == WA_INACTIVE)
-		{
-			m_GameTimer.Stop();
-		}
-		else
-		{
-			m_GameTimer.Start();
-		}
-	}
-	return 0;
-	case WM_SIZE:
-		// TODO something
-		return 0;
-	case WM_KEYDOWN:
-		// 按下Esc按钮，关闭程序窗口
-		if (wParam == VK_ESCAPE)
-		{
-			DestroyWindow(hWnd);
-		}
-		else if (pDXWork != nullptr)
-		{
-			pDXWork->OnKeyDown(static_cast<UINT8>(wParam));
-		}
-		return 0;
-	case WM_KEYUP:
-		if (pDXWork != nullptr)
-		{
-			pDXWork->OnKeyUp(static_cast<UINT8>(wParam));
-		}
-		return 0;
-	case WM_PAINT:
-		if (pDXWork != nullptr)
-		{
-			pDXWork->OnUpdate();
-			pDXWork->OnRender();
-		}
-		return 0;
-	case WM_DESTROY:
-		PostQuitMessage(0);
+		// WM_CREATE的lParam为用户自定义数据，本例为Win32Application实例，设置到GWLP_USERDATA中，备后续使用
+		LPCREATESTRUCT pCreateStruct = reinterpret_cast<LPCREATESTRUCT>(lParam);
+		SetWindowLongPtr(hWnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(pCreateStruct->lpCreateParams));
 		return 0;
 	}
-	// 其他类型事件交由系统默认窗口过程处理
-	return DefWindowProc(hWnd, message, wParam, lParam);
+	}
+	// 获取Win32App，事件交由Win32App实例处理
+	Win32Application* pWin32App = reinterpret_cast<Win32Application*>(GetWindowLongPtr(hWnd, GWLP_USERDATA));
+	if (pWin32App != nullptr)
+	{
+		return pWin32App->WnMsgProc(hWnd, message, wParam, lParam);
+	}
+	else
+	{
+		return DefWindowProc(hWnd, message, wParam, lParam);
+	}
 }

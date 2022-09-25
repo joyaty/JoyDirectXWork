@@ -16,7 +16,10 @@
 /// <returns></returns>
 int WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _In_ LPWSTR lpCmdLine, _In_ int nCmdShow)
 {
-	D3D12HelloWindow helloWindow(1280, 720, L"D3D12 Hello Window");
-	IMGuiHelloWindow imGuiWindow;
-	return Win32Application::Run(&helloWindow, hInstance, nCmdShow, &imGuiWindow);
+	D3D12HelloWindow helloWindow(L"D3D12 Hello Window", 1280, 720);
+
+	Win32Application application(hInstance, &helloWindow, IMGuiHelloWindow::GetInstance());
+	application.InitializeMainWindow();
+
+	return application.Run();
 }

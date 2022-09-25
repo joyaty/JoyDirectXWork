@@ -25,12 +25,27 @@ public:
 	const wchar_t* GetTitle() const { return m_Title.c_str(); }
 	UINT GetWidth() const { return m_Width; }
 	UINT GetHeight() const { return m_Height; }
+	float GetAspectRatio() const { return m_AspectRatio; }
+	
+	ID3D12Device* GetD3D12Device() const { return m_Device.Get(); }
+	DXGI_FORMAT GetBackBufferFormat() const { return m_BackBufferFormat; }
+	UINT GetBackBufferCount() const { return kFrameBufferCount; }
 
 public:
-	void Initialize(HWND hWnd);
+	bool Initialize(HWND hWnd);
+	void Terminate();
+	void Update(float deltaTime);
+	void Render();
+
+public:
+	virtual void OnKeyDown(UINT8 keyCode) {}
+	virtual void OnKeyUp(UINT8 keyCode) {}
+	virtual void OnMouseDown(UINT8 keyCode, int x, int y) {}
+	virtual void OnMouseUp(UINT8 keyCode, int x, int y) {}
+	virtual void OnMouseMove(UINT8 keyCode, int x, int y) {}
 
 protected:
-	virtual void OnInit() = 0;
+	virtual bool OnInit() = 0;
 	virtual void OnUpdate() = 0;
 	virtual void OnRender() = 0;
 	virtual void OnDestroy() = 0;
@@ -41,7 +56,7 @@ protected:
 	/// </summary>
 	virtual void CreateDescriptorHeaps();
 
-private:
+protected:
 	/// <summary>
 	/// 创建D3D12设备
 	/// </summary>
@@ -58,6 +73,21 @@ private:
 	void CreateSwapChain();
 
 	/// <summary>
+	/// 创建渲染目标视图
+	/// </summary>
+	void CreateRenderTargetView();
+
+	/// <summary>
+	/// 创建深度/模板缓冲区
+	/// </summary>
+	void CreateDepthStencilView();
+
+	/// <summary>
+	/// 刷新命令队列，令CPU等待GPU执行到指定的围栏点
+	/// </summary>
+	void FlushCommandQueue();
+
+	/// <summary>
 	/// 解析命令行参数
 	/// </summary>
 	/// <param name="argv">命令行指令</param>
@@ -65,6 +95,11 @@ private:
 	void ParseCommandLineArgs(WCHAR* argv[], int argc);
 
 protected:
+	/// <summary>
+	/// 双缓冲，指定交换链缓冲区数量为2
+	/// </summary>
+	static const UINT kFrameBufferCount = 2;
+
 	/// <summary>
 	/// IDXGIFactory接口对象，需要使用该对象枚举显示适配器，创建交换链等
 	/// DX12应该使用IDXGIFactory4以上
@@ -74,6 +109,18 @@ protected:
 	/// D3D12设备
 	/// </summary>
 	Microsoft::WRL::ComPtr<ID3D12Device> m_Device{};
+	/// <summary>
+	/// D3D12栅栏，负责同步CPU和GPU
+	/// </summary>
+	Microsoft::WRL::ComPtr<ID3D12Fence> m_Fence{};
+	/// <summary>
+	/// 围栏激发事件
+	/// </summary>
+	HANDLE m_FenceEvent{};
+	/// <summary>
+	/// 当前的围栏值
+	/// </summary>
+	UINT64 m_FenceValue{ 0ul };
 
 	/// <summary>
 	/// D3D12命令队列，GPU读取命令队列中的渲染命令进行渲染
@@ -103,6 +150,24 @@ protected:
 	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> m_DSVDescriptorHeap{};
 
 	/// <summary>
+	/// 渲染目标缓冲区资源
+	/// </summary>
+	Microsoft::WRL::ComPtr<ID3D12Resource> m_RenderTargets[kFrameBufferCount];
+	/// <summary>
+	/// 渲染目标缓冲区描述符句柄
+	/// </summary>
+	D3D12_CPU_DESCRIPTOR_HANDLE m_RenderTargetDesciptorHandles[kFrameBufferCount] = {};
+
+	/// <summary>
+	/// 深度/模板缓冲区资源
+	/// </summary>
+	Microsoft::WRL::ComPtr<ID3D12Resource> m_DepthStencilBuffer{};
+	/// <summary>
+	/// 深度/模板缓冲区描述符句柄
+	/// </summary>
+	D3D12_CPU_DESCRIPTOR_HANDLE m_DepthStencilDescriptorHandle = {};
+
+	/// <summary>
 	/// RenderTargetView描述符大小
 	/// </summary>
 	UINT m_RTVDescriptorSize = 0U;
@@ -118,12 +183,12 @@ protected:
 	/// <summary>
 	/// 图像质量等级，对于某种纹理格式和采样数量的组合来说，其质量级别的有效范围为[0, NumQualityLevels - 1]
 	/// </summary>
-	UINT m_4XMSAAQualityLevel = 0;
+	UINT m_4XMSAAQualityLevel = 0U;
 
 	/// <summary>
 	/// 当前的后台缓冲区索引，作为渲染目标时需要知道数据写入到那个缓冲区上
 	/// </summary>
-	UINT m_CurrentBackBufferIndex;
+	UINT m_CurrentBackBufferIndex = 0U;
 
 private:
 	/// <summary>
@@ -140,11 +205,14 @@ private:
 	/// 视口宽度，默认1280
 	/// </summary>
 	UINT m_Width = 1280U;
-
 	/// <summary>
 	/// 视口高度，默认720
 	/// </summary>
 	UINT m_Height = 720U;
+	/// <summary>
+	/// 窗口纵横比
+	/// </summary>
+	float m_AspectRatio = 0.f;
 
 	/// <summary>
 	/// 是否使用WARP软件适配器
@@ -152,19 +220,13 @@ private:
 	bool m_UseWarpDevice = false;
 
 	/// <summary>
-	/// 是否使用4XMSAA
+	/// 是否启用4XMSAA
 	/// </summary>
-	bool m_Use4XMSAA = false;
+	bool m_Enable4XMSAA = false;
 
 	/// <summary>
 	/// 后台缓冲区格式
 	/// </summary>
-	DXGI_FORMAT m_BackbufferFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
-
-private:
-	/// <summary>
-	/// 双缓冲，指定交换链缓冲区数量为2
-	/// </summary>
-	static const UINT kFrameBufferCount = 2;
+	DXGI_FORMAT m_BackBufferFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
 };
 

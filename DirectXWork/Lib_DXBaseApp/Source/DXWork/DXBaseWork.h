@@ -18,8 +18,11 @@ public:
 	virtual void OnRender() = 0;
 	virtual void OnDestroy() = 0;
 
-	virtual void OnKeyDown(UINT8 key) {}
-	virtual void OnKeyUp(UINT8 key) {}
+	virtual void OnKeyDown(UINT8 keyCode) {}
+	virtual void OnKeyUp(UINT8 keyCode) {}
+	virtual void OnMouseDown(UINT8 keyCode, int x, int y) {}
+	virtual void OnMouseUp(UINT8 keyCode, int x, int y) {}
+	virtual void OnMouseMove(UINT8 keyCode, int x, int y) {}
 
 	UINT GetWidth() const { return m_Width; }
 	UINT GetHeight() const { return m_Height; }

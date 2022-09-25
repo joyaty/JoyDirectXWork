@@ -34,12 +34,12 @@ Source/Application/Win32Application.cpp
 Source/Application/Win32Application.h
 Source/Application/GameTimer.cpp
 Source/Application/GameTimer.h
-Source/DXWork/d3dx12.h
-Source/DXWork/DXWorkHelper.h
-Source/DXWork/DXBaseWork.cpp
-Source/DXWork/DXBaseWork.h
+# Source/DXWork/DXBaseWork.cpp
+# Source/DXWork/DXBaseWork.h
 Source/DirectXBaseWork/DirectXBaseWork.cpp
 Source/DirectXBaseWork/DirectXBaseWork.h
+Source/DirectXBaseWork/d3dx12.h
+Source/DirectXBaseWork/DXWorkHelper.h
 Source/DearIMGuiHelper/DearIMGuiBaseHelper.cpp
 Source/DearIMGuiHelper/DearIMGuiBaseHelper.h
 )

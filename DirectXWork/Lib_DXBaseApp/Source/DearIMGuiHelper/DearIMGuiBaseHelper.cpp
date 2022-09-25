@@ -7,8 +7,9 @@
 #include "imgui.h"
 #include "imgui_impl_win32.h"
 #include "imgui_impl_dx12.h"
+#include "DirectXBaseWork/DXWorkHelper.h"
 
-bool DearIMGuiBaseHelper::InitDearIMGui(HWND hwnd, ID3D12Device* pD3D12Device, int nFrameCount, DXGI_FORMAT rtvFormat, ID3D12DescriptorHeap* pSrvDescHeap)
+bool DearIMGuiBaseHelper::InitDearIMGui(HWND hwnd, ID3D12Device* pD3D12Device, int nRTVCount, DXGI_FORMAT rtvFormat)
 {
 	// 创建DearIMGui上下文
 	IMGUI_CHECKVERSION();
@@ -23,9 +24,17 @@ bool DearIMGuiBaseHelper::InitDearIMGui(HWND hwnd, ID3D12Device* pD3D12Device, i
 	
 	// 初始化平台和渲染API
 	ImGui_ImplWin32_Init(hwnd);
-	ImGui_ImplDX12_Init(pD3D12Device, nFrameCount, rtvFormat, pSrvDescHeap
-		, pSrvDescHeap->GetCPUDescriptorHandleForHeapStart()
-		, pSrvDescHeap->GetGPUDescriptorHandleForHeapStart());
+	// 创建DearIMGUI专属的ShaderResourceView
+	D3D12_DESCRIPTOR_HEAP_DESC srvHeapDesc{};
+	srvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+	srvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+	srvHeapDesc.NumDescriptors = 1;
+	srvHeapDesc.NodeMask = 0U;
+	ThrowIfFailed(pD3D12Device->CreateDescriptorHeap(&srvHeapDesc, IID_PPV_ARGS(m_SRVDescriptorHeap.GetAddressOf())));
+	// 初始化DearIMGui DX12渲染
+	ImGui_ImplDX12_Init(pD3D12Device, nRTVCount, rtvFormat, m_SRVDescriptorHeap.Get()
+		, m_SRVDescriptorHeap.Get()->GetCPUDescriptorHandleForHeapStart()
+		, m_SRVDescriptorHeap.Get()->GetGPUDescriptorHandleForHeapStart());
 
 	// 加载字体
 	// - If no fonts are loaded, dear imgui will use the default font. You can also load multiple fonts and use ImGui::PushFont()/PopFont() to select them.
@@ -66,5 +75,6 @@ void DearIMGuiBaseHelper::DrawDearIMGuiWindow()
 
 void DearIMGuiBaseHelper::PopulateDearIMGuiCommand(ID3D12GraphicsCommandList* pCommandList)
 {
+	pCommandList->SetDescriptorHeaps(1, m_SRVDescriptorHeap.GetAddressOf());
 	ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), pCommandList);
 }

@@ -26,6 +26,8 @@ set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 ## 添加UNICODE/_UNICODE宏 使用unicode字符集
 add_definitions(-DUNICODE -D_UNICODE)
+## 忽略4819警告
+add_definitions(/wd"4819")
 
 # 添加子项目路径
 add_subdirectory(${PROJECT_SOURCE_DIR}/ThirdParts/DearIMGui)

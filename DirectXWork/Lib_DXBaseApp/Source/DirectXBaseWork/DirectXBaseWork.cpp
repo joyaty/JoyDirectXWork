@@ -5,7 +5,7 @@
 
 #include "stdafx.h"
 #include "DirectXBaseWork.h"
-#include "DXWork/DXWorkHelper.h"
+#include "DirectXBaseWork/DXWorkHelper.h"
 
 using namespace Microsoft::WRL;
 
@@ -15,6 +15,7 @@ DirectXBaseWork::DirectXBaseWork(std::wstring title, UINT width, UINT height)
 	, m_Height(height)
 	, m_UseWarpDevice(false)
 {
+	m_AspectRatio = static_cast<float>(m_Width) / static_cast<float>(m_Height);
 }
 
 DirectXBaseWork::~DirectXBaseWork()
@@ -79,13 +80,41 @@ void DirectXBaseWork::GetHardwardAdapter(IDXGIFactory1* pDXGIFactory, IDXGIAdapt
 	}
 }
 
-void DirectXBaseWork::Initialize(HWND hWnd)
+bool DirectXBaseWork::Initialize(HWND hWnd)
 {
 	m_Hwnd = hWnd;
 	CreateD3D12Device();
 	CreateCommandObjects();
 	CreateSwapChain();
+	CreateDescriptorHeaps();
+	CreateRenderTargetView();
+	CreateDepthStencilView();
+
+	OnInit();
+	return true;
 }
+
+void DirectXBaseWork::Terminate()
+{
+	OnDestroy();
+	// 确保退出时，GPU执行完所有指令，避免退出释放资源，GPU仍执行命令，引用到被释放的资源报错
+	FlushCommandQueue();
+	CloseHandle(m_FenceEvent);
+}
+
+void DirectXBaseWork::Update(float deltaTime)
+{
+	OnUpdate();
+}
+
+void DirectXBaseWork::Render()
+{
+	OnRender();
+	// 切换渲染目标缓冲区索引
+	m_CurrentBackBufferIndex = m_SwapChain->GetCurrentBackBufferIndex();
+}
+
+
 
 void DirectXBaseWork::CreateD3D12Device()
 {
@@ -130,7 +159,7 @@ void DirectXBaseWork::CreateD3D12Device()
 		msQualityLevels.SampleCount = 4;
 		msQualityLevels.Flags = D3D12_MULTISAMPLE_QUALITY_LEVELS_FLAG_NONE;
 		msQualityLevels.NumQualityLevels = 0;
-		msQualityLevels.Format = m_BackbufferFormat; // 需要与后台缓冲区格式一致
+		msQualityLevels.Format = m_BackBufferFormat; // 需要与后台缓冲区格式一致
 		ThrowIfFailed(m_Device->CheckFeatureSupport(D3D12_FEATURE_MULTISAMPLE_QUALITY_LEVELS, &msQualityLevels, sizeof(msQualityLevels)));
 		m_4XMSAAQualityLevel = msQualityLevels.NumQualityLevels;
 
@@ -140,6 +169,15 @@ void DirectXBaseWork::CreateD3D12Device()
 		m_DSVDescriptorSize = m_Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
 		// 获取ConstantBufferView/ShaderResourceView/UnorderAccessView描述符大小
 		m_CBVUAVDescriptorSize = m_Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+
+		// 创建围栏
+		ThrowIfFailed(m_Device->CreateFence(m_FenceValue, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(m_Fence.GetAddressOf())));
+		// 创建围栏触发事件
+		m_FenceEvent = CreateEventEx(nullptr, false, false, EVENT_ALL_ACCESS);
+		if (m_FenceEvent == nullptr)
+		{
+			ThrowIfFailed(HRESULT_FROM_WIN32(GetLastError()));
+		}
 	}
 }
 
@@ -165,10 +203,10 @@ void DirectXBaseWork::CreateSwapChain()
 	desc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;		// 作为渲染目标输出
 	desc.Width = m_Width;				// 交换链缓冲区宽度
 	desc.Height = m_Height;				// 交换链缓冲区高度
-	desc.Format = m_BackbufferFormat;	// 交换链缓冲区格式
+	desc.Format = m_BackBufferFormat;	// 交换链缓冲区格式
 	desc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
-	desc.SampleDesc.Count = m_Use4XMSAA ? 4 : 1;			// 多重采样数量
-	desc.SampleDesc.Quality = m_Use4XMSAA ? m_4XMSAAQualityLevel : 0;	// 多重采样质量级别
+	desc.SampleDesc.Count = m_Enable4XMSAA ? 4 : 1;			// 多重采样数量
+	desc.SampleDesc.Quality = m_Enable4XMSAA ? (m_4XMSAAQualityLevel - 1) : 0;	// 多重采样质量级别
 	// 使用描述创建交换链
 	ComPtr<IDXGISwapChain1> pSwapChain{};
 	ThrowIfFailed(m_DXGIFactory->CreateSwapChainForHwnd(
@@ -202,6 +240,83 @@ void DirectXBaseWork::CreateDescriptorHeaps()
 	dsvDescriptorDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
 	rtvDescriptorDesc.NodeMask = 0U;
 	ThrowIfFailed(m_Device->CreateDescriptorHeap(&dsvDescriptorDesc, IID_PPV_ARGS(m_DSVDescriptorHeap.GetAddressOf())));
+}
+
+void DirectXBaseWork::CreateRenderTargetView()
+{
+	D3D12_RENDER_TARGET_VIEW_DESC rtvDesc{};
+	// 获取RTV描述符堆的第一个描述符Handle
+	CD3DX12_CPU_DESCRIPTOR_HANDLE rtvDescriptorHandle{ m_RTVDescriptorHeap->GetCPUDescriptorHandleForHeapStart() };
+	for (UINT i = 0; i < kFrameBufferCount; ++i)
+	{
+		// 从交换链中获取缓冲区资源
+		ThrowIfFailed(m_SwapChain->GetBuffer(i, IID_PPV_ARGS(m_RenderTargets[i].GetAddressOf())));
+		m_RenderTargetDesciptorHandles[i] = rtvDescriptorHandle;
+		// 创建渲染目标缓冲区视图
+		m_Device->CreateRenderTargetView(m_RenderTargets[i].Get(), nullptr, rtvDescriptorHandle);
+		// handle偏移，获取下一个描述符handle
+		rtvDescriptorHandle.Offset(1, m_RTVDescriptorSize);
+	}
+}
+
+void DirectXBaseWork::CreateDepthStencilView()
+{
+	// 深度/模板缓冲区资源描述
+	D3D12_RESOURCE_DESC dsvResourceDesc{};
+	dsvResourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;						// 深度模板缓冲区本质上是一种2D纹理
+	dsvResourceDesc.Alignment = 0;
+	dsvResourceDesc.Width = m_Width;
+	dsvResourceDesc.Height = m_Height;
+	dsvResourceDesc.DepthOrArraySize = 1;
+	dsvResourceDesc.MipLevels = 1;														// 深度模板缓冲区只能有一个MipLevels
+	dsvResourceDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;								// 深度/模板缓冲区纹素格式
+	dsvResourceDesc.SampleDesc.Count = m_Enable4XMSAA ? 4 : 1;							// 多重采样设置需要与渲染目标设置保持一致
+	dsvResourceDesc.SampleDesc.Quality = m_Enable4XMSAA ? (m_4XMSAAQualityLevel - 1) : 0;		// 多重采样设置需要与渲染目标设置保持一致
+	dsvResourceDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;					// 深度/模板缓冲区资源的杂项标记
+	
+	// 堆属性，GPU资源都在堆中，本质是具有特定属性的GPU显存块。ID3D12Device::CreateCommittedResource会创建一个资源和一个堆，并将资源提交到堆上。
+	// 这里指定堆属性为默认堆，只有GPU可以读写
+	CD3DX12_HEAP_PROPERTIES heapProperties(D3D12_HEAP_TYPE_DEFAULT);
+	// 深度模板缓冲区清除值，选择合适的清除优化值，可以提高清除操作的执行速度
+	CD3DX12_CLEAR_VALUE clearValue{ DXGI_FORMAT_D24_UNORM_S8_UINT, 1.f, 0};
+	// 创建深度/目标缓冲区资源
+	ThrowIfFailed(m_Device->CreateCommittedResource(
+		&heapProperties
+		, D3D12_HEAP_FLAG_NONE
+		, &dsvResourceDesc
+		, D3D12_RESOURCE_STATE_COMMON
+		, &clearValue
+		, IID_PPV_ARGS(m_DepthStencilBuffer.GetAddressOf())));
+
+	// 获取深度/模板缓冲区描述符句柄
+	m_DepthStencilDescriptorHandle = m_DSVDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
+	// 创建深度/模板缓冲区描述符
+	m_Device->CreateDepthStencilView(
+		m_DepthStencilBuffer.Get()
+		, nullptr				// 深度/模板资源创建时指定了具体的格式，不是无格式资源，则创建深度模板缓冲图描述符时，描述符描述结构体可以为空
+		, m_DepthStencilDescriptorHandle);
+	// 将资源从初始状态转换为深度/模板缓冲区状态
+	m_CommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(
+		m_DepthStencilBuffer.Get(),
+		D3D12_RESOURCE_STATE_COMMON,
+		D3D12_RESOURCE_STATE_DEPTH_WRITE
+	));
+}
+
+void DirectXBaseWork::FlushCommandQueue()
+{
+	// 围栏值递增
+	++m_FenceValue;
+	// 通知GPU设置围栏值
+	ThrowIfFailed(m_CommandQueue->Signal(m_Fence.Get(), m_FenceValue));
+	// 在CPU端等待GPU，直到GPU执行完这个围栏值之前的命令
+	if (m_Fence->GetCompletedValue() < m_FenceValue)
+	{
+		// 若GPU命中当前的围栏，即执行到Signal指令，修改了围栏值，则激发预定事件
+		ThrowIfFailed(m_Fence->SetEventOnCompletion(m_FenceValue, m_FenceEvent));
+		// 等待GPU命中围栏，激发事件
+		WaitForSingleObject(m_FenceEvent, INFINITE);
+	}
 }
 
 // _Use_decl_annotations_
