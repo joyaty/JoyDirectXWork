@@ -1,5 +1,5 @@
 /**
- * HelloWindow·¶ÀıµÄDearIMGuiÃæ°åÍ·ÎÄ¼ş 
+ * HelloWindowèŒƒä¾‹çš„DearIMGuié¢æ¿å¤´æ–‡ä»¶ 
  */
 
 #pragma once

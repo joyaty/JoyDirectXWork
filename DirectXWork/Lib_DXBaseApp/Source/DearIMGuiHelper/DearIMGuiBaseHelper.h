@@ -1,5 +1,5 @@
 /**
- * DearIMGui¶Ô½ÓÀàÍ·ÎÄ¼ş
+ * DearIMGuiå¯¹æ¥ç±»å¤´æ–‡ä»¶
  */
 
 #pragma once
@@ -8,35 +8,35 @@ class DearIMGuiBaseHelper
 {
 public:
 	/// <summary>
-	/// ³õÊ¼»¯DearIMGui
+	/// åˆå§‹åŒ–DearIMGui
 	/// </summary>
-	/// <param name="hwnd">Windows´°¿Ú</param>
-	/// <param name="pD3D12Device">DXÏÔÊ¾ÊÊÅäÉè±¸</param>
-	/// <param name="nFrameCount">»º³åÇøÊıÁ¿</param>
-	/// <param name="rtvFormat">RenderTargetView¸ñÊ½</param>
-	/// <param name="pSrvDescHeap">ÃèÊö·û¶Ñ</param>
+	/// <param name="hwnd">Windowsçª—å£</param>
+	/// <param name="pD3D12Device">DXæ˜¾ç¤ºé€‚é…è®¾å¤‡</param>
+	/// <param name="nFrameCount">ç¼“å†²åŒºæ•°é‡</param>
+	/// <param name="rtvFormat">RenderTargetViewæ ¼å¼</param>
+	/// <param name="pSrvDescHeap">æè¿°ç¬¦å †</param>
 	/// <returns></returns>
 	bool InitDearIMGui(HWND hwnd, ID3D12Device* pD3D12Device, int nFrameCount, DXGI_FORMAT rtvFormat, ID3D12DescriptorHeap* pSrvDescHeap);
 	
 	/// <summary>
-	/// ÇåÀíDearIMGui
+	/// æ¸…ç†DearIMGui
 	/// </summary>
 	void TerminateIMGui();
 
 	/// <summary>
-	/// »æÖÆDearIMGui´°¿Ú
+	/// ç»˜åˆ¶DearIMGuiçª—å£
 	/// </summary>
 	void DrawDearIMGuiWindow();
 
 	/// <summary>
-	/// Ìá½»DearIMGuiäÖÈ¾Ö¸Áî
+	/// æäº¤DearIMGuiæ¸²æŸ“æŒ‡ä»¤
 	/// </summary>
-	/// <param name="pCommandList">DirectXäÖÈ¾¶ÓÁĞ</param>
+	/// <param name="pCommandList">DirectXæ¸²æŸ“é˜Ÿåˆ—</param>
 	void PopulateDearIMGuiCommand(ID3D12GraphicsCommandList* pCommandList);
 
 protected:
 	/// <summary>
-	/// ×ÓÀà»æÖÆ×Ô¶¨Òå´°¿Ú
+	/// å­ç±»ç»˜åˆ¶è‡ªå®šä¹‰çª—å£
 	/// </summary>
 	virtual void OnDrawWindow() = 0;
 };

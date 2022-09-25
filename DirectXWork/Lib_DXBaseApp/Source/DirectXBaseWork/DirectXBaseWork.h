@@ -1,7 +1,7 @@
 
 /**
  * DirectXBaseWork.h
- * ³õÊ¼»¯Direct3D
+ * åˆå§‹åŒ–Direct3D
  */
 
 #pragma once
@@ -14,11 +14,11 @@ public:
 
 public:
 	/// <summary>
-	/// »ñÈ¡Ó²¼þÏÔÊ¾ÊÊÅäÆ÷
+	/// èŽ·å–ç¡¬ä»¶æ˜¾ç¤ºé€‚é…å™¨
 	/// </summary>
-	/// <param name="pDXGIFactory">DXGIFactory½Ó¿Ú¶ÔÏó£¬ÐèÒªÊ¹ÓÃ¸Ã¶ÔÏóÃ¶¾ÙÏÔÊ¾ÊÊÅäÆ÷</param>
-	/// <param name="ppTargetDXGIAdapter">·µ»ØÖ¸ÏòÏÔÊ¾ÊÊÅäÆ÷Ö¸ÕëµÄÖ¸Õë</param>
-	/// <param name="requestHightPerformanceAdapter">ÊÇ·ñÐèÒª¸ßÐÔÄÜÏÔÊ¾ÊÊÅäÆ÷£¬Ä¬ÈÏfalse</param>
+	/// <param name="pDXGIFactory">DXGIFactoryæŽ¥å£å¯¹è±¡ï¼Œéœ€è¦ä½¿ç”¨è¯¥å¯¹è±¡æžšä¸¾æ˜¾ç¤ºé€‚é…å™¨</param>
+	/// <param name="ppTargetDXGIAdapter">è¿”å›žæŒ‡å‘æ˜¾ç¤ºé€‚é…å™¨æŒ‡é’ˆçš„æŒ‡é’ˆ</param>
+	/// <param name="requestHightPerformanceAdapter">æ˜¯å¦éœ€è¦é«˜æ€§èƒ½æ˜¾ç¤ºé€‚é…å™¨ï¼Œé»˜è®¤false</param>
 	static void GetHardwardAdapter(IDXGIFactory1* pDXGIFactory, IDXGIAdapter1** ppTargetDXGIAdapter, bool requestHightPerformanceAdapter = false);
 
 public:
@@ -37,133 +37,133 @@ protected:
 
 protected:
 	/// <summary>
-	/// ´´½¨ÃèÊö·û¶Ñ
+	/// åˆ›å»ºæè¿°ç¬¦å †
 	/// </summary>
 	virtual void CreateDescriptorHeaps();
 
 private:
 	/// <summary>
-	/// ´´½¨D3D12Éè±¸
+	/// åˆ›å»ºD3D12è®¾å¤‡
 	/// </summary>
 	void CreateD3D12Device();
 
 	/// <summary>
-	/// ´´½¨ÃüÁî¶ÓÁÐºÍÃüÁîÁÐ±í
+	/// åˆ›å»ºå‘½ä»¤é˜Ÿåˆ—å’Œå‘½ä»¤åˆ—è¡¨
 	/// </summary>
 	void CreateCommandObjects();
 
 	/// <summary>
-	/// ´´½¨½»»»Á´
+	/// åˆ›å»ºäº¤æ¢é“¾
 	/// </summary>
 	void CreateSwapChain();
 
 	/// <summary>
-	/// ½âÎöÃüÁîÐÐ²ÎÊý
+	/// è§£æžå‘½ä»¤è¡Œå‚æ•°
 	/// </summary>
-	/// <param name="argv">ÃüÁîÐÐÖ¸Áî</param>
-	/// <param name="argc">ÃüÁîÐÐÖ¸ÁîÊýÁ¿</param>
+	/// <param name="argv">å‘½ä»¤è¡ŒæŒ‡ä»¤</param>
+	/// <param name="argc">å‘½ä»¤è¡ŒæŒ‡ä»¤æ•°é‡</param>
 	void ParseCommandLineArgs(WCHAR* argv[], int argc);
 
 protected:
 	/// <summary>
-	/// IDXGIFactory½Ó¿Ú¶ÔÏó£¬ÐèÒªÊ¹ÓÃ¸Ã¶ÔÏóÃ¶¾ÙÏÔÊ¾ÊÊÅäÆ÷£¬´´½¨½»»»Á´µÈ
-	/// DX12Ó¦¸ÃÊ¹ÓÃIDXGIFactory4ÒÔÉÏ
+	/// IDXGIFactoryæŽ¥å£å¯¹è±¡ï¼Œéœ€è¦ä½¿ç”¨è¯¥å¯¹è±¡æžšä¸¾æ˜¾ç¤ºé€‚é…å™¨ï¼Œåˆ›å»ºäº¤æ¢é“¾ç­‰
+	/// DX12åº”è¯¥ä½¿ç”¨IDXGIFactory4ä»¥ä¸Š
 	/// </summary>
 	Microsoft::WRL::ComPtr<IDXGIFactory4> m_DXGIFactory{};
 	/// <summary>
-	/// D3D12Éè±¸
+	/// D3D12è®¾å¤‡
 	/// </summary>
 	Microsoft::WRL::ComPtr<ID3D12Device> m_Device{};
 
 	/// <summary>
-	/// D3D12ÃüÁî¶ÓÁÐ£¬GPU¶ÁÈ¡ÃüÁî¶ÓÁÐÖÐµÄäÖÈ¾ÃüÁî½øÐÐäÖÈ¾
+	/// D3D12å‘½ä»¤é˜Ÿåˆ—ï¼ŒGPUè¯»å–å‘½ä»¤é˜Ÿåˆ—ä¸­çš„æ¸²æŸ“å‘½ä»¤è¿›è¡Œæ¸²æŸ“
 	/// </summary>
 	Microsoft::WRL::ComPtr<ID3D12CommandQueue> m_CommandQueue{};
 	/// <summary>
-	/// D3D12ÃüÁîÁÐ±í£¬CPUÍ¨¹ýÃüÁîÁÐ±í½«äÖÈ¾ÃüÁîÌá½»µ½ÃüÁî¶ÓÁÐ
+	/// D3D12å‘½ä»¤åˆ—è¡¨ï¼ŒCPUé€šè¿‡å‘½ä»¤åˆ—è¡¨å°†æ¸²æŸ“å‘½ä»¤æäº¤åˆ°å‘½ä»¤é˜Ÿåˆ—
 	/// </summary>
 	Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList> m_CommandList{};
 	/// <summary>
-	/// D3D12ÃüÁî·ÖÅäÆ÷£¬ÃüÁîÁÐ±í¼ÇÂ¼ÃüÁî»áÊµ¼Ê¼ÇÂ¼ÔÚ¹ØÁªµÄÃüÁî·ÖÅäÆ÷ÉÏ£¬ÃüÁî¶ÓÁÐ»áÒýÓÃÃüÁî·ÖÅäÆ÷ÖÐµÄÃüÁî
+	/// D3D12å‘½ä»¤åˆ†é…å™¨ï¼Œå‘½ä»¤åˆ—è¡¨è®°å½•å‘½ä»¤ä¼šå®žé™…è®°å½•åœ¨å…³è”çš„å‘½ä»¤åˆ†é…å™¨ä¸Šï¼Œå‘½ä»¤é˜Ÿåˆ—ä¼šå¼•ç”¨å‘½ä»¤åˆ†é…å™¨ä¸­çš„å‘½ä»¤
 	/// </summary>
 	Microsoft::WRL::ComPtr<ID3D12CommandAllocator> m_CommandAllocator{};
 
 	/// <summary>
-	/// ½»»»Á´¶ÔÏó
+	/// äº¤æ¢é“¾å¯¹è±¡
 	/// </summary>
 	Microsoft::WRL::ComPtr<IDXGISwapChain3> m_SwapChain{};
 
 	/// <summary>
-	/// RenderTargetViewÃèÊö·û¶Ñ¶ÔÏó
+	/// RenderTargetViewæè¿°ç¬¦å †å¯¹è±¡
 	/// </summary>
 	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> m_RTVDescriptorHeap{};
 	/// <summary>
-	/// Depth/StencilÃèÊö·û¶Ñ¶ÔÏó
+	/// Depth/Stencilæè¿°ç¬¦å †å¯¹è±¡
 	/// </summary>
 	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> m_DSVDescriptorHeap{};
 
 	/// <summary>
-	/// RenderTargetViewÃèÊö·û´óÐ¡
+	/// RenderTargetViewæè¿°ç¬¦å¤§å°
 	/// </summary>
 	UINT m_RTVDescriptorSize = 0U;
 	/// <summary>
-	/// Depth/StencilÃèÊö·û´óÐ¡
+	/// Depth/Stencilæè¿°ç¬¦å¤§å°
 	/// </summary>
 	UINT m_DSVDescriptorSize = 0U;
 	/// <summary>
-	/// ConstantBufferView/ShaderResourceView/UnorderedAccessViewÃèÊö·û´óÐ¡
+	/// ConstantBufferView/ShaderResourceView/UnorderedAccessViewæè¿°ç¬¦å¤§å°
 	/// </summary>
 	UINT m_CBVUAVDescriptorSize = 0U;
 
 	/// <summary>
-	/// Í¼ÏñÖÊÁ¿µÈ¼¶£¬¶ÔÓÚÄ³ÖÖÎÆÀí¸ñÊ½ºÍ²ÉÑùÊýÁ¿µÄ×éºÏÀ´Ëµ£¬ÆäÖÊÁ¿¼¶±ðµÄÓÐÐ§·¶Î§Îª[0, NumQualityLevels - 1]
+	/// å›¾åƒè´¨é‡ç­‰çº§ï¼Œå¯¹äºŽæŸç§çº¹ç†æ ¼å¼å’Œé‡‡æ ·æ•°é‡çš„ç»„åˆæ¥è¯´ï¼Œå…¶è´¨é‡çº§åˆ«çš„æœ‰æ•ˆèŒƒå›´ä¸º[0, NumQualityLevels - 1]
 	/// </summary>
 	UINT m_4XMSAAQualityLevel = 0;
 
 	/// <summary>
-	/// µ±Ç°µÄºóÌ¨»º³åÇøË÷Òý£¬×÷ÎªäÖÈ¾Ä¿±êÊ±ÐèÒªÖªµÀÊý¾ÝÐ´Èëµ½ÄÇ¸ö»º³åÇøÉÏ
+	/// å½“å‰çš„åŽå°ç¼“å†²åŒºç´¢å¼•ï¼Œä½œä¸ºæ¸²æŸ“ç›®æ ‡æ—¶éœ€è¦çŸ¥é“æ•°æ®å†™å…¥åˆ°é‚£ä¸ªç¼“å†²åŒºä¸Š
 	/// </summary>
 	UINT m_CurrentBackBufferIndex;
 
 private:
 	/// <summary>
-	/// ´°¿Ú¾ä±ú
+	/// çª—å£å¥æŸ„
 	/// </summary>
 	HWND m_Hwnd{};
 
 	/// <summary>
-	/// DirectXÊ¾ÀýÃû³Æ£¬ÏÔÊ¾ÔÚ´°¿Ú±êÌâÉÏ
+	/// DirectXç¤ºä¾‹åç§°ï¼Œæ˜¾ç¤ºåœ¨çª—å£æ ‡é¢˜ä¸Š
 	/// </summary>
 	std::wstring m_Title;
 
 	/// <summary>
-	/// ÊÓ¿Ú¿í¶È£¬Ä¬ÈÏ1280
+	/// è§†å£å®½åº¦ï¼Œé»˜è®¤1280
 	/// </summary>
 	UINT m_Width = 1280U;
 
 	/// <summary>
-	/// ÊÓ¿Ú¸ß¶È£¬Ä¬ÈÏ720
+	/// è§†å£é«˜åº¦ï¼Œé»˜è®¤720
 	/// </summary>
 	UINT m_Height = 720U;
 
 	/// <summary>
-	/// ÊÇ·ñÊ¹ÓÃWARPÈí¼þÊÊÅäÆ÷
+	/// æ˜¯å¦ä½¿ç”¨WARPè½¯ä»¶é€‚é…å™¨
 	/// </summary>
 	bool m_UseWarpDevice = false;
 
 	/// <summary>
-	/// ÊÇ·ñÊ¹ÓÃ4XMSAA
+	/// æ˜¯å¦ä½¿ç”¨4XMSAA
 	/// </summary>
 	bool m_Use4XMSAA = false;
 
 	/// <summary>
-	/// ºóÌ¨»º³åÇø¸ñÊ½
+	/// åŽå°ç¼“å†²åŒºæ ¼å¼
 	/// </summary>
 	DXGI_FORMAT m_BackbufferFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
 
 private:
 	/// <summary>
-	/// Ë«»º³å£¬Ö¸¶¨½»»»Á´»º³åÇøÊýÁ¿Îª2
+	/// åŒç¼“å†²ï¼ŒæŒ‡å®šäº¤æ¢é“¾ç¼“å†²åŒºæ•°é‡ä¸º2
 	/// </summary>
 	static const UINT kFrameBufferCount = 2;
 };

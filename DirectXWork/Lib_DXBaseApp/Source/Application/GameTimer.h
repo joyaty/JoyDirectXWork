@@ -1,5 +1,6 @@
 /*
- * GameTimer.h ʱ�丨�������ඨ��
+ * GameTimer.h
+ * 时间辅助工具类定义
  */
 
 #pragma once
@@ -8,73 +9,73 @@ class GameTimer
 {
 public:
 	/// <summary>
-	/// ���캯������ʼʱ��¼������ʾ�ļ��
+	/// 构造函数，初始时记录计数表示的间隔
 	/// </summary>
 	GameTimer();
 
 	/// <summary>
-	/// ��ȡ���е���ʱ����������ֹͣʱ��
+	/// 获取运行的总时长，不包含停止时长
 	/// </summary>
 	/// <returns></returns>
-	float TotalTime() const;	// ��λ: ��
+	float TotalTime() const;	// 单位: 秒
 
 	/// <summary>
-	/// ��ȡ֡�������λ��
+	/// 获取帧间隔，单位秒
 	/// </summary>
 	/// <returns></returns>
-	float DeltaTime() const { return m_DeltaTime; };
+	float DeltaTime() const { return (float)m_DeltaTime; };
 
 	/// <summary>
-	/// ���ü�����������ʱ����һ��
+	/// 重置计数器，启动时调用一次
 	/// </summary>
 	void Reset();
 	/// <summary>
-	/// ��ֹͣʱ�ָ̻�
+	/// 从停止时刻恢复
 	/// </summary>
 	void Start();
 	/// <summary>
-	/// ����ֹͣʱ�̵���
+	/// 进入停止时刻调用
 	/// </summary>
 	void Stop();
 	/// <summary>
-	/// ����ʱÿ֡����
+	/// 运行时每帧更新
 	/// </summary>
 	void Tick();
 
 private:
 	/// <summary>
-	/// ÿ��������ʱ����
+	/// 每个计数的时间间隔
 	/// </summary>
 	double m_SecondsPerCount;
 
 	/// <summary>
-	/// ֡���ʱ��
+	/// 帧间隔时间
 	/// </summary>
 	double m_DeltaTime;
 
 	/// <summary>
-	/// ��Ϸ��ʱ��ֹͣ���
+	/// 游戏计时器停止标记
 	/// </summary>
 	bool m_Stoped;
 
 	/// <summary>
-	/// ֹͣ��ʱ���ۼ�
+	/// 停止的时长累计
 	/// </summary>
 	__int64 m_PauseTime;
 	/// <summary>
-	/// ����ʱ�̣�������ʱ��¼һ��
+	/// 启动时刻，在启动时记录一次
 	/// </summary>
 	__int64 m_BaseTime;
 	/// <summary>
-	/// ֹͣʱ�̣�����ֹͣʱ��ʱ��¼һ�Σ��ظ�����ֹͣʱ�̲���¼
+	/// 停止时刻，进入停止时刻时记录一次，重复进入停止时刻不记录
 	/// </summary>
 	__int64 m_StopTime;
 	/// <summary>
-	/// ǰһ֡ʱ��
+	/// 前一帧时刻
 	/// </summary>
 	__int64 m_PrevTime;
 	/// <summary>
-	/// ��ǰ֡ʱ��
+	/// 当前帧时刻
 	/// </summary>
 	__int64 m_CurrTime;
 };

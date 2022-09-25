@@ -1,5 +1,5 @@
 /**
- * HelloWindow范例的DearIMGui面板CPP文件
+ * HelloWindow鑼冧緥鐨凞earIMGui闈㈡澘CPP鏂囦欢
  */
 
 #include "stdafx.h"

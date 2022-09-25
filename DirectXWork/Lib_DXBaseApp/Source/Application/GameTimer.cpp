@@ -1,5 +1,6 @@
 /*
- * GameTimer.cpp Ê±¼ä¸¨Öú¹¤¾ßÀàÊµÏÖ
+ * GameTimer.cpp
+ * æ—¶é—´è¾…åŠ©å·¥å…·ç±»å®ç°
  */
 
 #include "stdafx.h"
@@ -17,9 +18,9 @@ GameTimer::GameTimer()
 {
 	
 	__int64 countsPerSec = 0;
-	// »ñÈ¡ĞÔÄÜ¼ÆÊ±Æ÷µÄÆµÂÊ(µ¥Î»: ¸öÊı/Ãë)
+	// è·å–æ€§èƒ½è®¡æ—¶å™¨çš„é¢‘ç‡(å•ä½: ä¸ªæ•°/ç§’)
 	QueryPerformanceFrequency((LARGE_INTEGER*)&countsPerSec);
-	// Çóµ¹Êı£¬µÃµ½Ã¿¸ö¼ÆÊı´ú±íµÄÃëÊı
+	// æ±‚å€’æ•°ï¼Œå¾—åˆ°æ¯ä¸ªè®¡æ•°ä»£è¡¨çš„ç§’æ•°
 	m_SecondsPerCount = 1.0 / (double)countsPerSec;
 }
 
@@ -27,12 +28,12 @@ float GameTimer::TotalTime() const
 {
 	if (m_Stoped)
 	{
-		// ÔİÍ£×´Ì¬£¬±¾´ÎÔİÍ£µÄÊ±¿Ì - Æô¶¯Ê±¿Ì - Ö®Ç°ÀÛ¼ÆµÄÔİÍ£Ê±¿ÌÊı = ÔËĞĞ×ÜÊ±¿ÌÊı
+		// æš‚åœçŠ¶æ€ï¼Œæœ¬æ¬¡æš‚åœçš„æ—¶åˆ» - å¯åŠ¨æ—¶åˆ» - ä¹‹å‰ç´¯è®¡çš„æš‚åœæ—¶åˆ»æ•° = è¿è¡Œæ€»æ—¶åˆ»æ•°
 		return (float)((m_StopTime - m_BaseTime - m_PauseTime) * m_SecondsPerCount);
 	}
 	else
 	{
-		// ÔËĞĞ×´Ì¬£¬µ±Ç°Ê±¿Ì - Æô¶¯Ê±¿Ì - ÀÛ¼ÆµÄÔİÍ£Ê±¿ÌÊı = ÔËĞĞ×ÜÊ±¿ÌÊı
+		// è¿è¡ŒçŠ¶æ€ï¼Œå½“å‰æ—¶åˆ» - å¯åŠ¨æ—¶åˆ» - ç´¯è®¡çš„æš‚åœæ—¶åˆ»æ•° = è¿è¡Œæ€»æ—¶åˆ»æ•°
 		return (float)((m_CurrTime - m_BaseTime - m_PauseTime) * m_SecondsPerCount);
 	}
 }
@@ -52,11 +53,11 @@ void GameTimer::Start()
 	if (!m_Stoped) { return; }
 	__int64 currTime = 0;
 	QueryPerformanceCounter((LARGE_INTEGER*)&currTime);
-	// ÀÛ¼ÓÍ£Ö¹µÄÊ±¿Ì¼ÆÊı
+	// ç´¯åŠ åœæ­¢çš„æ—¶åˆ»è®¡æ•°
 	m_PauseTime += (currTime - m_StopTime);
-	// µ±Ç°Ê±¼ä×÷ÎªÉÏÒ»Ö¡Ê±¼ä
+	// å½“å‰æ—¶é—´ä½œä¸ºä¸Šä¸€å¸§æ—¶é—´
 	m_PrevTime = currTime;
-	// ÇåÀíÍ£Ö¹Ê±¿ÌºÍÍ£Ö¹±ê¼Ç
+	// æ¸…ç†åœæ­¢æ—¶åˆ»å’Œåœæ­¢æ ‡è®°
 	m_StopTime = 0;
 	m_Stoped = false;
 }
@@ -64,7 +65,7 @@ void GameTimer::Start()
 void GameTimer::Stop()
 {
 	if (m_Stoped) { return; }
-	// ²éÑ¯µ±Ç°Ê±¿Ì£¬²¢±£´æÎªÍ£Ö¹Ê±¿Ì£¬±ê¼Ç¼ÆÊ±Æ÷ÒÑÍ£Ö¹
+	// æŸ¥è¯¢å½“å‰æ—¶åˆ»ï¼Œå¹¶ä¿å­˜ä¸ºåœæ­¢æ—¶åˆ»ï¼Œæ ‡è®°è®¡æ—¶å™¨å·²åœæ­¢
 	__int64 currTime = 0;
 	QueryPerformanceCounter((LARGE_INTEGER*)&currTime);
 	m_StopTime = currTime;
@@ -78,15 +79,15 @@ void GameTimer::Tick()
 		m_DeltaTime = 0.0;
 		return;
 	}
-	// ²éÑ¯µ±Ç°µÄĞÔÄÜ¼ÆÊıÆ÷¼ÆÊı
+	// æŸ¥è¯¢å½“å‰çš„æ€§èƒ½è®¡æ•°å™¨è®¡æ•°
 	__int64 currTime = 0;
 	QueryPerformanceCounter((LARGE_INTEGER*)&currTime);
 	m_CurrTime = currTime;
-	// ¼ÆËã±¾Ö¡ÓëÉÏÒ»Ö¡µÄÊ±¼ä¼ä¸ô
+	// è®¡ç®—æœ¬å¸§ä¸ä¸Šä¸€å¸§çš„æ—¶é—´é—´éš”
 	m_DeltaTime = (m_CurrTime - m_PrevTime) * m_SecondsPerCount;
-	// ¸üĞÂ
+	// æ›´æ–°
 	m_PrevTime = m_CurrTime;
-	// ×èÖ¹Ö¡¼ä¸ôÎª¸ºÖµ(Èç¹û´¦ÀíÆ÷´¦ÓÚ½ÚÄÜÄ£Ê½£¬»òÊÇÁ½Ö¡¼äÇĞ»»µ½ÁËÁíÍâµÄ´¦ÀíÆ÷ÉÏ£¬¼´Á½´ÎQueryPerformanceCounterµ÷ÓÃÔÚ²»Í¬´¦ÀíÆ÷ÉÏ£¬Ôòm_DeltaTime¿ÉÄÜÎª¸ºÖµ)
+	// é˜»æ­¢å¸§é—´éš”ä¸ºè´Ÿå€¼(å¦‚æœå¤„ç†å™¨å¤„äºèŠ‚èƒ½æ¨¡å¼ï¼Œæˆ–æ˜¯ä¸¤å¸§é—´åˆ‡æ¢åˆ°äº†å¦å¤–çš„å¤„ç†å™¨ä¸Šï¼Œå³ä¸¤æ¬¡QueryPerformanceCounterè°ƒç”¨åœ¨ä¸åŒå¤„ç†å™¨ä¸Šï¼Œåˆ™m_DeltaTimeå¯èƒ½ä¸ºè´Ÿå€¼)
 	if (m_DeltaTime < 0.0)
 	{
 		m_DeltaTime = 0.0;

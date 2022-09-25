@@ -1,5 +1,5 @@
 /***
- * DearIMGui¶Ô½ÓÀàCPPÎÄ¼ş
+ * DearIMGuiå¯¹æ¥ç±»CPPæ–‡ä»¶
  */
 
 #include "stdafx.h"
@@ -10,24 +10,24 @@
 
 bool DearIMGuiBaseHelper::InitDearIMGui(HWND hwnd, ID3D12Device* pD3D12Device, int nFrameCount, DXGI_FORMAT rtvFormat, ID3D12DescriptorHeap* pSrvDescHeap)
 {
-	// ´´½¨DearIMGuiÉÏÏÂÎÄ
+	// åˆ›å»ºDearIMGuiä¸Šä¸‹æ–‡
 	IMGUI_CHECKVERSION();
 	ImGui::CreateContext();
 	ImGuiIO& io = ImGui::GetIO();
-	//io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;	// ÆôÓÃ¼üÅÌ¿ØÖÆ
-	//io.ConfigFlags != ImGuiConfigFlags_NavEnableGamepad;	// ÆôÓÃÊÖ±ú¿ØÖÆ
+	//io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;	// å¯ç”¨é”®ç›˜æ§åˆ¶
+	//io.ConfigFlags != ImGuiConfigFlags_NavEnableGamepad;	// å¯ç”¨æ‰‹æŸ„æ§åˆ¶
 	
-	// ³õÊ¼»¯DearIMGuiÖ÷ÌâÑÕÉ«
-	ImGui::StyleColorsDark();		// ºÚÉ«Ö÷Ìâ
-	// ImGui::StyleColorsLight();	// °×É«Ö÷Ìâ
+	// åˆå§‹åŒ–DearIMGuiä¸»é¢˜é¢œè‰²
+	ImGui::StyleColorsDark();		// é»‘è‰²ä¸»é¢˜
+	// ImGui::StyleColorsLight();	// ç™½è‰²ä¸»é¢˜
 	
-	// ³õÊ¼»¯Æ½Ì¨ºÍäÖÈ¾API
+	// åˆå§‹åŒ–å¹³å°å’Œæ¸²æŸ“API
 	ImGui_ImplWin32_Init(hwnd);
 	ImGui_ImplDX12_Init(pD3D12Device, nFrameCount, rtvFormat, pSrvDescHeap
 		, pSrvDescHeap->GetCPUDescriptorHandleForHeapStart()
 		, pSrvDescHeap->GetGPUDescriptorHandleForHeapStart());
 
-	// ¼ÓÔØ×ÖÌå
+	// åŠ è½½å­—ä½“
 	// - If no fonts are loaded, dear imgui will use the default font. You can also load multiple fonts and use ImGui::PushFont()/PopFont() to select them.
 	// - AddFontFromFileTTF() will return the ImFont* so you can store it if you need to select the font among multiple.
 	// - If the file cannot be loaded, the function will return NULL. Please handle those errors in your application (e.g. use an assertion, or display an error and quit).
@@ -54,13 +54,13 @@ void DearIMGuiBaseHelper::TerminateIMGui()
 
 void DearIMGuiBaseHelper::DrawDearIMGuiWindow()
 {
-	// ¿ªÊ¼DearIMGuiäÖÈ¾Ö¡
+	// å¼€å§‹DearIMGuiæ¸²æŸ“å¸§
 	ImGui_ImplDX12_NewFrame();
 	ImGui_ImplWin32_NewFrame();
 	ImGui::NewFrame();
-	// »æÖÆ×Ô¶¨ÒåµÄDearIMGUI´°¿Ú
+	// ç»˜åˆ¶è‡ªå®šä¹‰çš„DearIMGUIçª—å£
 	OnDrawWindow();
-	// äÖÈ¾
+	// æ¸²æŸ“
 	ImGui::Render();
 }
 
