@@ -102,6 +102,11 @@ void DirectXBaseWork::Terminate()
 	CloseHandle(m_FenceEvent);
 }
 
+void DirectXBaseWork::OnResize(UINT width, UINT height)
+{
+
+}
+
 void DirectXBaseWork::Update(float deltaTime)
 {
 	OnUpdate();
@@ -113,8 +118,6 @@ void DirectXBaseWork::Render()
 	// 切换渲染目标缓冲区索引
 	m_CurrentBackBufferIndex = m_SwapChain->GetCurrentBackBufferIndex();
 }
-
-
 
 void DirectXBaseWork::CreateD3D12Device()
 {

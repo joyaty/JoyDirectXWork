@@ -27,6 +27,8 @@ Win32Application::Win32Application(HINSTANCE hInstance, DirectXBaseWork* pDirect
 	, m_DirectXWork(pDirectXWork)
 	, m_DearIMGuiHelper(pDearIMGuiHelper)
 {
+	m_Width = pDirectXWork->GetWidth();
+	m_Height = pDirectXWork->GetHeight();
 }
 
 Win32Application::~Win32Application()
@@ -51,7 +53,7 @@ bool Win32Application::InitializeMainWindow()
 	// 为WNDCLASSEX注册实例，接下来就可根据这个实例创建窗口
 	RegisterClassEx(&wndClsEx);
 
-	RECT wndRect = { 0, 0, static_cast<LONG>(m_DirectXWork->GetWidth()), static_cast<LONG>(m_DirectXWork->GetHeight()) };
+	RECT wndRect = { 0, 0, static_cast<LONG>(m_Width), static_cast<LONG>(m_Height) };
 	AdjustWindowRect(&wndRect, WS_OVERLAPPEDWINDOW, FALSE);
 
 	// 创建窗口并且保存窗口Handle
@@ -117,6 +119,14 @@ int Win32Application::Run()
 	return static_cast<int>(msg.wParam);
 }
 
+void Win32Application::OnResize()
+{
+	if (m_DirectXWork != nullptr)
+	{
+		m_DirectXWork->OnResize(m_Width, m_Height);
+	}
+}
+
 void Win32Application::OnKeyDown(UINT8 keyCode)
 {
 	if (m_DirectXWork != nullptr)
@@ -176,8 +186,60 @@ LRESULT CALLBACK Win32Application::WnMsgProc(HWND hWnd, UINT message, WPARAM wPa
 		return 0;
 	}
 	case WM_SIZE:
-		// TODO something
+	{
+		m_Width = LOWORD(lParam);
+		m_Height = HIWORD(lParam);
+		if (wParam == SIZE_MINIMIZED)
+		{
+			m_AppPaused = true;
+			m_AppMinimized = true;
+			m_AppMaximized = false;
+		}
+		else if (wParam == SIZE_MAXIMIZED)
+		{
+			m_AppPaused = false;
+			m_AppMinimized = false;
+			m_AppMaximized = true;
+			OnResize();
+		}
+		else if (wParam == SIZE_RESTORED)
+		{
+			if (m_AppMinimized || m_AppMaximized)
+			{
+				m_AppPaused = false;
+				m_AppMinimized = false;
+				m_AppMaximized = false;
+				OnResize();
+			}
+			else if (!m_Resizing)
+			{
+				OnResize();
+			}
+		}
 		return 0;
+	}
+	case WM_ENTERSIZEMOVE:
+	{
+		m_AppPaused = true;
+		m_Resizing = true;
+		m_GameTimer.Stop();
+		return 0;
+	}
+	case WM_EXITSIZEMOVE:
+	{
+		m_AppPaused = false;
+		m_Resizing = false;
+		m_GameTimer.Start();
+		OnResize();
+		return 0;
+	}
+	case WM_GETMINMAXINFO:
+	{
+		// 处理此消息避免当前窗口尺寸过小
+		((MINMAXINFO*)lParam)->ptMinTrackSize.x = 200;
+		((MINMAXINFO*)lParam)->ptMinTrackSize.y = 200;
+		return 0;
+	}
 	case WM_KEYDOWN:
 	{
 		// 按下Esc按钮，关闭程序窗口

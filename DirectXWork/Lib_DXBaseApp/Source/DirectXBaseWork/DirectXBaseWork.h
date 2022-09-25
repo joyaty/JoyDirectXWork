@@ -43,6 +43,7 @@ public:
 	virtual void OnMouseDown(UINT8 keyCode, int x, int y) {}
 	virtual void OnMouseUp(UINT8 keyCode, int x, int y) {}
 	virtual void OnMouseMove(UINT8 keyCode, int x, int y) {}
+	virtual void OnResize(UINT width, UINT height);
 
 protected:
 	virtual bool OnInit() = 0;

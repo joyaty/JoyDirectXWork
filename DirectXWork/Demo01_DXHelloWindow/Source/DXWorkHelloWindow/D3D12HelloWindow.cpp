@@ -61,8 +61,6 @@ void D3D12HelloWindow::PopulateCommandList()
 	// 提交DearIMGui的渲染命令
 	if (IMGuiHelloWindow::GetInstance() != nullptr)
 	{
-		// m_CommandList->OMSetRenderTargets(1, &rtvHanle, FALSE, NULL);
-		// m_CommandList->SetDescriptorHeaps(1, &m_SrvHeap);
 		IMGuiHelloWindow::GetInstance()->PopulateDearIMGuiCommand(m_CommandList.Get());
 	}
 	// 当前后台缓冲区切换到显示状态

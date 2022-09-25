@@ -59,6 +59,11 @@ public:
 	/// <param name="x">鼠标位置X</param>
 	/// <param name="y">鼠标位置Y</param>
 	void OnMouseMove(UINT8 keyCode, int x, int y);
+
+	/// <summary>
+	/// 界面宽高变更
+	/// </summary>
+	void OnResize();
 	
 public:
 	/// <summary>
@@ -91,6 +96,15 @@ private:
 	/// 窗口句柄
 	/// </summary>
 	HWND m_HWND{ nullptr };
+
+	/// <summary>
+	/// 窗口宽度
+	/// </summary>
+	UINT m_Width;
+	/// <summary>
+	/// 窗口高度
+	/// </summary>
+	UINT m_Height;
 
 	/// <summary>
 	/// Application是否暂停
