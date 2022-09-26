@@ -9,7 +9,7 @@
 #include "imgui_impl_dx12.h"
 #include "DirectXBaseWork/DXWorkHelper.h"
 
-bool DearIMGuiBaseHelper::InitDearIMGui(HWND hwnd, ID3D12Device* pD3D12Device, int nRTVCount, DXGI_FORMAT rtvFormat)
+bool DearIMGuiBaseHelper::InitDearIMGui(HWND hwnd, ID3D12Device* pD3D12Device, int nRTVCount, DXGI_FORMAT rtvFormat, DXGI_ADAPTER_DESC adapterDesc)
 {
 	// 创建DearIMGui上下文
 	IMGUI_CHECKVERSION();
@@ -22,8 +22,6 @@ bool DearIMGuiBaseHelper::InitDearIMGui(HWND hwnd, ID3D12Device* pD3D12Device, i
 	ImGui::StyleColorsDark();		// 黑色主题
 	// ImGui::StyleColorsLight();	// 白色主题
 	
-	// 初始化平台和渲染API
-	ImGui_ImplWin32_Init(hwnd);
 	// 创建DearIMGUI专属的ShaderResourceView
 	D3D12_DESCRIPTOR_HEAP_DESC srvHeapDesc{};
 	srvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
@@ -31,6 +29,8 @@ bool DearIMGuiBaseHelper::InitDearIMGui(HWND hwnd, ID3D12Device* pD3D12Device, i
 	srvHeapDesc.NumDescriptors = 1;
 	srvHeapDesc.NodeMask = 0U;
 	ThrowIfFailed(pD3D12Device->CreateDescriptorHeap(&srvHeapDesc, IID_PPV_ARGS(m_SRVDescriptorHeap.GetAddressOf())));
+	// 初始化平台和渲染API
+	ImGui_ImplWin32_Init(hwnd);
 	// 初始化DearIMGui DX12渲染
 	ImGui_ImplDX12_Init(pD3D12Device, nRTVCount, rtvFormat, m_SRVDescriptorHeap.Get()
 		, m_SRVDescriptorHeap.Get()->GetCPUDescriptorHandleForHeapStart()
@@ -50,6 +50,10 @@ bool DearIMGuiBaseHelper::InitDearIMGui(HWND hwnd, ID3D12Device* pD3D12Device, i
 	//io.Fonts->AddFontFromFileTTF("../../misc/fonts/ProggyTiny.ttf", 10.0f);
 	//ImFont* font = io.Fonts->AddFontFromFileTTF("c:\\Windows\\Fonts\\ArialUni.ttf", 18.0f, NULL, io.Fonts->GetGlyphRangesJapanese());
 	//IM_ASSERT(font != NULL);
+
+	m_AdapterName = adapterDesc.Description;
+	m_VideoMemorySize = static_cast<float>(adapterDesc.DedicatedVideoMemory) / 1024.f / 1024.f;
+	m_SystemMemorySize = static_cast<float>(adapterDesc.SharedSystemMemory) / 1024.f / 1024.f;
 
 	return true;
 }
@@ -71,6 +75,14 @@ void DearIMGuiBaseHelper::DrawDearIMGuiWindow()
 	OnDrawWindow();
 	// 渲染
 	ImGui::Render();
+}
+
+void DearIMGuiBaseHelper::DrawAdapterInfo()
+{
+	ImGui::Text("GPU: %ws", m_AdapterName.c_str());
+	ImGui::Text("Video Memory: %.2f MB", m_VideoMemorySize);
+	ImGui::Text("Syatem Memory: %.2f MB", m_SystemMemorySize);
+	ImGui::Separator();
 }
 
 void DearIMGuiBaseHelper::PopulateDearIMGuiCommand(ID3D12GraphicsCommandList* pCommandList)

@@ -76,7 +76,8 @@ bool Win32Application::InitializeMainWindow()
 	m_DearIMGuiHelper->InitDearIMGui(m_HWND
 		, m_DirectXWork->GetD3D12Device()
 		, m_DirectXWork->GetBackBufferCount()
-		, m_DirectXWork->GetBackBufferFormat());
+		, m_DirectXWork->GetBackBufferFormat()
+		, m_DirectXWork->GetAdapterDesc());
 	// 显示窗口
 	ShowWindow(m_HWND, SW_SHOW);
 	UpdateWindow(m_HWND);
@@ -102,6 +103,7 @@ int Win32Application::Run()
 			m_GameTimer.Tick();
 			if (!m_AppPaused)
 			{
+				m_DearIMGuiHelper->DrawDearIMGuiWindow();
 				m_DirectXWork->Update(m_GameTimer.DeltaTime());
 				m_DirectXWork->Render();
 			}

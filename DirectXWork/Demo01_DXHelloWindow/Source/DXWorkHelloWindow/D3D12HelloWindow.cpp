@@ -22,13 +22,9 @@ void D3D12HelloWindow::OnUpdate()
 
 void D3D12HelloWindow::OnRender()
 {
-	if (IMGuiHelloWindow::GetInstance() != nullptr)
-	{
-		IMGuiHelloWindow::GetInstance()->DrawDearIMGuiWindow();
-	}
-	// Record all the commands we need to render the scene into the command list.
+	// 记录所有的渲染指令
 	PopulateCommandList();
-	// Execute the command list.
+	// 提交指令列表
 	ID3D12CommandList* ppCommandList[] = { m_CommandList.Get() };
 	m_CommandQueue->ExecuteCommandLists(_countof(ppCommandList), ppCommandList);
 	// 交换缓冲区

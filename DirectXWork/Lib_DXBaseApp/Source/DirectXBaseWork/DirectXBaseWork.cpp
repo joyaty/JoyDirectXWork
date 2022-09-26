@@ -141,18 +141,22 @@ void DirectXBaseWork::CreateD3D12Device()
 		// GPU硬件不能工作时，可以使用WARP
 		ComPtr<IDXGIAdapter> pDXGIAdapter{};
 		ThrowIfFailed(m_DXGIFactory->EnumWarpAdapter(IID_PPV_ARGS(pDXGIAdapter.GetAddressOf())));
-		D3D12CreateDevice(pDXGIAdapter.Get()				// 指定使用的显示适配器，nullptr则为默认显示适配器
+		ThrowIfFailed(D3D12CreateDevice(pDXGIAdapter.Get()	// 指定使用的显示适配器，nullptr则为默认显示适配器
 			, D3D_FEATURE_LEVEL_11_0						// 功能级别
-			, IID_PPV_ARGS(m_Device.GetAddressOf()));		// COMID
+			, IID_PPV_ARGS(m_Device.GetAddressOf())));		// COMID
+		// 获取当前使用的显示适配器描述
+		pDXGIAdapter->GetDesc(&m_AdapterDesc);
 	}
 	else
 	{
 		// 使用硬件设备
 		ComPtr<IDXGIAdapter1> pDXGIAdapter{};
 		GetHardwardAdapter(m_DXGIFactory.Get(), pDXGIAdapter.GetAddressOf());
-		D3D12CreateDevice(pDXGIAdapter.Get()							// 指定使用的显示适配器，nullptr则为默认显示适配器
+		ThrowIfFailed(D3D12CreateDevice(pDXGIAdapter.Get()	// 指定使用的显示适配器，nullptr则为默认显示适配器
 			, D3D_FEATURE_LEVEL_11_0						// 功能级别
-			, IID_PPV_ARGS(m_Device.GetAddressOf()));		// COMID
+			, IID_PPV_ARGS(m_Device.GetAddressOf())));		// COMID
+		// 获取当前使用的显示适配器描述
+		pDXGIAdapter->GetDesc(&m_AdapterDesc);
 	}
 
 	if (m_Device.Get() != nullptr)
@@ -276,12 +280,12 @@ void DirectXBaseWork::CreateDepthStencilView()
 	dsvResourceDesc.SampleDesc.Count = m_Enable4XMSAA ? 4 : 1;							// 多重采样设置需要与渲染目标设置保持一致
 	dsvResourceDesc.SampleDesc.Quality = m_Enable4XMSAA ? (m_4XMSAAQualityLevel - 1) : 0;		// 多重采样设置需要与渲染目标设置保持一致
 	dsvResourceDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;					// 深度/模板缓冲区资源的杂项标记
-	
+
 	// 堆属性，GPU资源都在堆中，本质是具有特定属性的GPU显存块。ID3D12Device::CreateCommittedResource会创建一个资源和一个堆，并将资源提交到堆上。
 	// 这里指定堆属性为默认堆，只有GPU可以读写
 	CD3DX12_HEAP_PROPERTIES heapProperties(D3D12_HEAP_TYPE_DEFAULT);
 	// 深度模板缓冲区清除值，选择合适的清除优化值，可以提高清除操作的执行速度
-	CD3DX12_CLEAR_VALUE clearValue{ DXGI_FORMAT_D24_UNORM_S8_UINT, 1.f, 0};
+	CD3DX12_CLEAR_VALUE clearValue{ DXGI_FORMAT_D24_UNORM_S8_UINT, 1.f, 0 };
 	// 创建深度/目标缓冲区资源
 	ThrowIfFailed(m_Device->CreateCommittedResource(
 		&heapProperties

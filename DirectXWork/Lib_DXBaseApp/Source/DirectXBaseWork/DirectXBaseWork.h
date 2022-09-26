@@ -29,6 +29,7 @@ public:
 	
 	ID3D12Device* GetD3D12Device() const { return m_Device.Get(); }
 	DXGI_FORMAT GetBackBufferFormat() const { return m_BackBufferFormat; }
+	DXGI_ADAPTER_DESC GetAdapterDesc() const { return m_AdapterDesc; }
 	UINT GetBackBufferCount() const { return kFrameBufferCount; }
 
 public:
@@ -201,6 +202,11 @@ private:
 	/// DirectX示例名称，显示在窗口标题上
 	/// </summary>
 	std::wstring m_Title;
+
+	/// <summary>
+	/// 使用的显示适配器描述
+	/// </summary>
+	DXGI_ADAPTER_DESC m_AdapterDesc;
 
 	/// <summary>
 	/// 视口宽度，默认1280
