@@ -20,6 +20,10 @@ set(ALL_FILES
 Source/Main.cpp
 Source/stdafx.cpp
 Source/stdafx.h
+Source/DXWorkHelloCube/D3D12HelloCube.cpp
+Source/DXWorkHelloCube/D3D12HelloCube.h
+Source/DXWorkHelloCube/IMGuiHelloCube.cpp
+Source/DXWorkHelloCube/IMGuiHelloCube.h
 )
 
 # 设置链接的依赖库
