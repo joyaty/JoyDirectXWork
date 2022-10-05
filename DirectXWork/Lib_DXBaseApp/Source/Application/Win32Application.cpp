@@ -7,7 +7,6 @@
 #include <windowsx.h>
 #include <tchar.h>
 #include "imgui_impl_win32.h"
-#include "DXWork/DXBaseWork.h"
 #include "DirectXBaseWork/DirectXBaseWork.h"
 #include "DearIMGuiHelper/DearIMGuiBaseHelper.h"
 #include "GameTimer.h"
