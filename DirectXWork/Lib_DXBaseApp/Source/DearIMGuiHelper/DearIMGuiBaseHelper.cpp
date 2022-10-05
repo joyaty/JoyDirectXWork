@@ -81,7 +81,7 @@ void DearIMGuiBaseHelper::DrawAdapterInfo()
 {
 	ImGui::Text("GPU: %ws", m_AdapterName.c_str());
 	ImGui::Text("Video Memory: %.2f MB", m_VideoMemorySize);
-	ImGui::Text("Syatem Memory: %.2f MB", m_SystemMemorySize);
+	ImGui::Text("System Memory: %.2f MB", m_SystemMemorySize);
 	ImGui::Separator();
 }
 
