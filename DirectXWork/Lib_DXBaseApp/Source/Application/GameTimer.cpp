@@ -15,8 +15,7 @@ GameTimer::GameTimer()
 	, m_StopTime(0)
 	, m_PrevTime(0)
 	, m_CurrTime(0)
-{
-	
+{	
 	__int64 countsPerSec = 0;
 	// 获取性能计时器的频率(单位: 个数/秒)
 	QueryPerformanceFrequency((LARGE_INTEGER*)&countsPerSec);

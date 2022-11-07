@@ -251,7 +251,6 @@ void DirectXBaseWork::CreateDescriptorHeaps()
 
 void DirectXBaseWork::CreateRenderTargetView()
 {
-	D3D12_RENDER_TARGET_VIEW_DESC rtvDesc{};
 	// 获取RTV描述符堆的第一个描述符Handle
 	CD3DX12_CPU_DESCRIPTOR_HANDLE rtvDescriptorHandle{ m_RTVDescriptorHeap->GetCPUDescriptorHandleForHeapStart() };
 	for (UINT i = 0; i < kFrameBufferCount; ++i)

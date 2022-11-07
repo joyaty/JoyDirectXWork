@@ -26,7 +26,7 @@ public:
 	bool InitializeMainWindow();
 	int Run();
 
-public:
+protected:
 	/// <summary>
 	/// 键盘按下事件
 	/// </summary>
@@ -65,7 +65,7 @@ public:
 	/// </summary>
 	void OnResize();
 	
-public:
+protected:
 	/// <summary>
 	/// 处理Windows窗口消息
 	/// </summary>
