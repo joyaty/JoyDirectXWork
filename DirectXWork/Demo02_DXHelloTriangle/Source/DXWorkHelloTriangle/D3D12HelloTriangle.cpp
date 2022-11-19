@@ -76,11 +76,13 @@ void D3D12HelloTriangle::CreateInputLayout()
 
 void D3D12HelloTriangle::CreateTriangleMesh()
 {
+	// 在默认光栅器设置下(默认光栅器设置，开启背面剔除，顺时针顶点顺序为三角形正面)，要注意顶点顺序需要注意顺时针还是逆时针
+	// 如果顶点顺序为逆时针，则看不到三角形了，因为判断为三角形背面，被剔除
 	std::array<HelloTriangle::Vertex, 3> vertices = 
 	{
-		HelloTriangle::Vertex({DirectX::XMFLOAT3(-0.5f, -0.5f, 0.f), DirectX::XMFLOAT4(DirectX::Colors::Red)}),
-		HelloTriangle::Vertex({DirectX::XMFLOAT3(-0.5f, 0.5f, 0.f), DirectX::XMFLOAT4(DirectX::Colors::Red)}),
-		HelloTriangle::Vertex({DirectX::XMFLOAT3(-0.5f, 0.5f, 0.f), DirectX::XMFLOAT4(DirectX::Colors::Red)})
+		HelloTriangle::Vertex({DirectX::XMFLOAT3(0.f, 0.5f, 0.f), DirectX::XMFLOAT4(DirectX::Colors::Red)}),
+		HelloTriangle::Vertex({DirectX::XMFLOAT3(0.5f, -0.5f, 0.f), DirectX::XMFLOAT4(DirectX::Colors::Green)}),
+		HelloTriangle::Vertex({DirectX::XMFLOAT3(-0.5f, -0.5f, 0.f), DirectX::XMFLOAT4(DirectX::Colors::Blue)})
 	};
 	// 顶点数据的字节数
 	const UINT vbByteSize = (UINT)vertices.size() * sizeof(HelloTriangle::Vertex);
@@ -169,30 +171,29 @@ void D3D12HelloTriangle::PopulateCommandList()
 	ThrowIfFailed(m_CommandAllocator->Reset());
 	// However, when ExecuteCommandList() is called on a particular command list, that command list can the be reset at any time and must be before re-recording.
 	ThrowIfFailed(m_CommandList->Reset(m_CommandAllocator.Get(), m_PSO.Get()));
+	// Record commands.
+	m_CommandList->SetGraphicsRootSignature(m_RootSignature.Get());
+	m_CommandList->RSSetViewports(1, &m_Viewport);
+	m_CommandList->RSSetScissorRects(1, &m_ScissorRect);
 	// 当前后台缓冲区切换到渲染目标状态
 	m_CommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_RenderTargets[m_CurrentBackBufferIndex].Get()
 		, D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
-
 	CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(m_RTVDescriptorHeap->GetCPUDescriptorHandleForHeapStart(), m_CurrentBackBufferIndex, m_RTVDescriptorSize);
+	m_CommandList->OMSetRenderTargets(1, &rtvHandle, false, nullptr/*&m_DSVDescriptorHeap->GetCPUDescriptorHandleForHeapStart()*/);
 	
-	// Record commands.
-	m_CommandList->RSSetViewports(1, &m_Viewport);
-	m_CommandList->RSSetScissorRects(1, &m_ScissorRect);
 	// 清除后台缓冲区和深度缓冲区
 	m_CommandList->ClearRenderTargetView(rtvHandle, DirectX::Colors::LightBlue, 0, nullptr);
 	// m_CommandList->ClearDepthStencilView(m_DSVDescriptorHeap->GetCPUDescriptorHandleForHeapStart(), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
 	// 指定将要渲染的目标缓冲区
-	m_CommandList->OMSetRenderTargets(1, &rtvHandle, false, nullptr/*&m_DSVDescriptorHeap->GetCPUDescriptorHandleForHeapStart()*/);
-	m_CommandList->SetGraphicsRootSignature(m_RootSignature.Get());
-	m_CommandList->IASetVertexBuffers(0, 1, &m_VertexBufferView);
 	m_CommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	m_CommandList->IASetVertexBuffers(0, 1, &m_VertexBufferView);
 	m_CommandList->DrawInstanced(3, 1, 0, 0);
 
-	//// 提交DearIMGui的渲染命令
-	//if (IMGuiHelloTriangle::GetInstance() != nullptr)
-	//{
-	//	IMGuiHelloTriangle::GetInstance()->PopulateDearIMGuiCommand(m_CommandList.Get());
-	//}
+	// 提交DearIMGui的渲染命令
+	if (IMGuiHelloTriangle::GetInstance() != nullptr)
+	{
+		IMGuiHelloTriangle::GetInstance()->PopulateDearIMGuiCommand(m_CommandList.Get());
+	}
 	// 当前后台缓冲区切换到显示状态
 	m_CommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_RenderTargets[m_CurrentBackBufferIndex].Get()
 		, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
