@@ -1,4 +1,4 @@
-## 最小CMake版本要求
+## 最小CMake需求版本
 cmake_minimum_required(VERSION 3.0)
 
 # 包含CMake宏定义文件
@@ -13,30 +13,30 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/Source)
 set(STDAFX_PCH_H ${CMAKE_CURRENT_SOURCE_DIR}/Source/stdafx.h)
 set(STDAFX_PCH_C ${CMAKE_CURRENT_SOURCE_DIR}/Source/stdafx.cpp)
 
-set(SUB_PROJECT_NAME Demo02_DXHelloCube)
+# 设置子工程名字
+set(SUB_PROJECT_NAME Demo02_DXHelloTriangle)
 
 # 将所有源码设置到ALL_FILES变量上
 set(ALL_FILES 
 Source/Main.cpp
 Source/stdafx.cpp
 Source/stdafx.h
-Source/DXWorkHelloCube/D3D12HelloCube.cpp
-Source/DXWorkHelloCube/D3D12HelloCube.h
-Source/DXWorkHelloCube/IMGuiHelloCube.cpp
-Source/DXWorkHelloCube/IMGuiHelloCube.h
-Source/DXWorkHelloCube/HelloCubeShader.hlsl
+Source/DXWorkHelloTriangle/D3D12HelloTriangle.cpp
+Source/DXWorkHelloTriangle/D3D12HelloTriangle.h
+Source/DXWorkHelloTriangle/IMGuiHelloTriangle.cpp
+Source/DXWorkHelloTriangle/IMGuiHelloTriangle.h
+Source/DXWorkHelloTriangle/HelloTriangle.hlsl
 )
 
 # 将所有Shader文件设置到SHADER_FILES变量上
 set(SHADER_FILES
-Source/DXWorkHelloCube/HelloCubeShader.hlsl
+Source/DXWorkHelloTriangle/HelloTriangle.hlsl
 )
-
 # 排除编辑HLSL文件
 set_source_files_properties(${SHADER_FILES} PROPERTIES VS_TOOL_OVERRIDE "None")
 
 # 设置链接的依赖库
-set(COMMON_LIB 
+set(COMMON_LIB
 DearIMGui
 Lib_DXBaseApp
 )

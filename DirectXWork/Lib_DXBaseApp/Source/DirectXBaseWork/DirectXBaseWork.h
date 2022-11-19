@@ -29,8 +29,10 @@ public:
 	
 	ID3D12Device* GetD3D12Device() const { return m_Device.Get(); }
 	DXGI_FORMAT GetBackBufferFormat() const { return m_BackBufferFormat; }
+	DXGI_FORMAT GetDepthStencilBufferFormat() const { return m_DepthStencilFormat; }
 	DXGI_ADAPTER_DESC GetAdapterDesc() const { return m_AdapterDesc; }
 	UINT GetBackBufferCount() const { return kFrameBufferCount; }
+	bool Get4XMSAAEnable() const { return m_Enable4XMSAA; }
 
 public:
 	bool Initialize(HWND hWnd);
@@ -192,6 +194,21 @@ protected:
 	/// </summary>
 	UINT m_CurrentBackBufferIndex = 0U;
 
+	/// <summary>
+	/// 资源路径
+	/// </summary>
+	std::wstring m_AssetPath;
+
+	/// <summary>
+	/// 视口大小
+	/// </summary>
+	D3D12_VIEWPORT m_Viewport;
+
+	/// <summary>
+	/// 裁剪区域
+	/// </summary>
+	D3D12_RECT m_ScissorRect;
+
 private:
 	/// <summary>
 	/// 窗口句柄
@@ -235,5 +252,10 @@ private:
 	/// 后台缓冲区格式
 	/// </summary>
 	DXGI_FORMAT m_BackBufferFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
+
+	/// <summary>
+	/// 深度模板缓冲区格式
+	/// </summary>
+	DXGI_FORMAT m_DepthStencilFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
 };
 

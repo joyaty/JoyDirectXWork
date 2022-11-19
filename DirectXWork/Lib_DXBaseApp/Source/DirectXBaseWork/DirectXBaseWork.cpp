@@ -15,6 +15,12 @@ DirectXBaseWork::DirectXBaseWork(std::wstring title, UINT width, UINT height)
 	, m_Height(height)
 	, m_UseWarpDevice(false)
 {
+	WCHAR assetPath[512];
+	GetAssetsPath(assetPath, _countof(assetPath));
+	m_AssetPath = assetPath;
+	size_t rootFolderIndex = m_AssetPath.find(L"\\Build", 0);
+	m_AssetPath = m_AssetPath.substr(0, rootFolderIndex);
+
 	m_AspectRatio = static_cast<float>(m_Width) / static_cast<float>(m_Height);
 }
 
@@ -89,6 +95,15 @@ bool DirectXBaseWork::Initialize(HWND hWnd)
 	CreateDescriptorHeaps();
 	CreateRenderTargetView();
 	CreateDepthStencilView();
+
+	m_Viewport.TopLeftX = 0;
+	m_Viewport.TopLeftY = 0;
+	m_Viewport.MaxDepth = 1.0f;
+	m_Viewport.MinDepth = 0.0f;
+	m_Viewport.Width = static_cast<float>(m_Width);
+	m_Viewport.Height = static_cast<float>(m_Height);
+
+	m_ScissorRect = { 0, 0, static_cast<int>(m_Width), static_cast<int>(m_Height) };
 
 	OnInit();
 	return true;
@@ -275,7 +290,7 @@ void DirectXBaseWork::CreateDepthStencilView()
 	dsvResourceDesc.Height = m_Height;
 	dsvResourceDesc.DepthOrArraySize = 1;
 	dsvResourceDesc.MipLevels = 1;														// 深度模板缓冲区只能有一个MipLevels
-	dsvResourceDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;								// 深度/模板缓冲区纹素格式
+	dsvResourceDesc.Format = m_DepthStencilFormat;										// 深度/模板缓冲区纹素格式
 	dsvResourceDesc.SampleDesc.Count = m_Enable4XMSAA ? 4 : 1;							// 多重采样设置需要与渲染目标设置保持一致
 	dsvResourceDesc.SampleDesc.Quality = m_Enable4XMSAA ? (m_4XMSAAQualityLevel - 1) : 0;		// 多重采样设置需要与渲染目标设置保持一致
 	dsvResourceDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;					// 深度/模板缓冲区资源的杂项标记
@@ -284,8 +299,8 @@ void DirectXBaseWork::CreateDepthStencilView()
 	// 这里指定堆属性为默认堆，只有GPU可以读写
 	CD3DX12_HEAP_PROPERTIES heapProperties(D3D12_HEAP_TYPE_DEFAULT);
 	// 深度模板缓冲区清除值，选择合适的清除优化值，可以提高清除操作的执行速度
-	CD3DX12_CLEAR_VALUE clearValue{ DXGI_FORMAT_D24_UNORM_S8_UINT, 1.f, 0 };
-	// 创建深度/目标缓冲区资源
+	CD3DX12_CLEAR_VALUE clearValue{ m_DepthStencilFormat, 1.f, 0 };
+	// 创建深度/模板缓冲区资源
 	ThrowIfFailed(m_Device->CreateCommittedResource(
 		&heapProperties
 		, D3D12_HEAP_FLAG_NONE
@@ -301,12 +316,23 @@ void DirectXBaseWork::CreateDepthStencilView()
 		m_DepthStencilBuffer.Get()
 		, nullptr				// 深度/模板资源创建时指定了具体的格式，不是无格式资源，则创建深度模板缓冲图描述符时，描述符描述结构体可以为空
 		, m_DepthStencilDescriptorHandle);
+
+	FlushCommandQueue();
+	ThrowIfFailed(m_CommandList->Reset(m_CommandAllocator.Get(), nullptr));
+
 	// 将资源从初始状态转换为深度/模板缓冲区状态
 	m_CommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(
 		m_DepthStencilBuffer.Get(),
 		D3D12_RESOURCE_STATE_COMMON,
 		D3D12_RESOURCE_STATE_DEPTH_WRITE
 	));
+
+	ThrowIfFailed(m_CommandList->Close());
+	// 执行初始化指令
+	ID3D12CommandList* cmdLists[] = { m_CommandList.Get() };
+	m_CommandQueue->ExecuteCommandLists(_countof(cmdLists), cmdLists);
+
+	FlushCommandQueue();
 }
 
 void DirectXBaseWork::FlushCommandQueue()
@@ -338,5 +364,3 @@ void DirectXBaseWork::ParseCommandLineArgs(WCHAR* argv[], int argc)
 		}
 	}
 }
-
-

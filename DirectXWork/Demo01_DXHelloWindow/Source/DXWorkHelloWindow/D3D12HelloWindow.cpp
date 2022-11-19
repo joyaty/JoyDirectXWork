@@ -5,6 +5,13 @@
 #include "IMGuiHelloWindow.h"
 #include "DirectXBaseWork/DXWorkHelper.h"
 #include "Application/Win32Application.h"
+#include <array>
+#include <DirectXMath.h>
+#include <DirectXPackedVector.h>
+#include <DirectXColors.h>
+#include "DirectXBaseWork/D3D12Util.h"
+
+using namespace DirectX;
 
 D3D12HelloWindow::D3D12HelloWindow(std::wstring name, UINT width, UINT height)
 	: DirectXBaseWork(name, width, height)

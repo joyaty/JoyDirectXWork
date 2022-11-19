@@ -1,5 +1,6 @@
 /**
- * DirectX12学习工程入口文件
+ * 范例01 - 构建Win32窗口和初始化Direct3D 12
+ * Main.cpp
  */
 
 #include "Application/Win32Application.h"

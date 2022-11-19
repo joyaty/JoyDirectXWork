@@ -36,12 +36,15 @@ Source/Application/Win32Application.cpp
 Source/Application/Win32Application.h
 Source/Application/GameTimer.cpp
 Source/Application/GameTimer.h
-# Source/DXWork/DXBaseWork.cpp
-# Source/DXWork/DXBaseWork.h
 Source/DirectXBaseWork/DirectXBaseWork.cpp
 Source/DirectXBaseWork/DirectXBaseWork.h
 Source/DirectXBaseWork/d3dx12.h
 Source/DirectXBaseWork/DXWorkHelper.h
+Source/DirectXBaseWork/UploadBuffer.h
+Source/DirectXBaseWork/D3D12Util.cpp
+Source/DirectXBaseWork/D3D12Util.h
+Source/DirectXBaseWork/MathUtil.cpp
+Source/DirectXBaseWork/MathUtil.h
 Source/DearIMGuiHelper/DearIMGuiBaseHelper.cpp
 Source/DearIMGuiHelper/DearIMGuiBaseHelper.h
 )
@@ -56,7 +59,7 @@ source_group_by_dir("${ALL_FILES}")
 ## 添加编译静态库
 add_library(${SUB_PROJECT_NAME} STATIC ${ALL_FILES})
 ## 添加DX链接库
-target_link_libraries(${SUB_PROJECT_NAME} ${COMMON_LIBS} d3d12 dxgi d3dcompiler)
+target_link_libraries(${SUB_PROJECT_NAME} ${COMMON_LIBS} d3d12 dxgi d3dcompiler dxguid)
 # 项目添加在JoyDirectXSample文件夹下
 set_target_properties(${SUB_PROJECT_NAME} PROPERTIES FOLDER JoyDirectXSample)
 
