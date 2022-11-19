@@ -80,9 +80,9 @@ void D3D12HelloTriangle::CreateTriangleMesh()
 	// 如果顶点顺序为逆时针，则看不到三角形了，因为判断为三角形背面，被剔除
 	std::array<HelloTriangle::Vertex, 3> vertices = 
 	{
-		HelloTriangle::Vertex({DirectX::XMFLOAT3(0.f, 0.5f, 0.f), DirectX::XMFLOAT4(DirectX::Colors::Red)}),
-		HelloTriangle::Vertex({DirectX::XMFLOAT3(0.5f, -0.5f, 0.f), DirectX::XMFLOAT4(DirectX::Colors::Green)}),
-		HelloTriangle::Vertex({DirectX::XMFLOAT3(-0.5f, -0.5f, 0.f), DirectX::XMFLOAT4(DirectX::Colors::Blue)})
+		HelloTriangle::Vertex({DirectX::XMFLOAT3(0.f, 0.5f * GetAspectRatio(), 0.f), DirectX::XMFLOAT4(DirectX::Colors::Red)}),
+		HelloTriangle::Vertex({DirectX::XMFLOAT3(0.5f, -0.5f * GetAspectRatio(), 0.f), DirectX::XMFLOAT4(DirectX::Colors::Green)}),
+		HelloTriangle::Vertex({DirectX::XMFLOAT3(-0.5f, -0.5f * GetAspectRatio(), 0.f), DirectX::XMFLOAT4(DirectX::Colors::Blue)})
 	};
 	// 顶点数据的字节数
 	const UINT vbByteSize = (UINT)vertices.size() * sizeof(HelloTriangle::Vertex);
@@ -92,26 +92,6 @@ void D3D12HelloTriangle::CreateTriangleMesh()
 	m_TriangleMesh->m_VertexBufferGPU = D3D12Util::CreateBufferInDefaultHeap(m_Device.Get(), m_CommandList.Get(), vertices.data(), vbByteSize, m_TriangleMesh->m_VertexBufferUploader);
 	m_TriangleMesh->m_VertexSize = vbByteSize;
 	m_TriangleMesh->m_VertexStride = sizeof(HelloTriangle::Vertex);
-
-	// 在上传堆创建顶点缓冲区资源
-	m_Device->CreateCommittedResource(
-		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD)
-		, D3D12_HEAP_FLAG_NONE
-		, &CD3DX12_RESOURCE_DESC::Buffer(vbByteSize)
-		, D3D12_RESOURCE_STATE_GENERIC_READ
-		, nullptr
-		, IID_PPV_ARGS(m_VertexBuffer.GetAddressOf())
-	);
-	// Copy the triangle data to the vertex buffer.
-	UINT8* pVertexDataBegin;
-	m_VertexBuffer->Map(0, &CD3DX12_RANGE(), reinterpret_cast<void**>(&pVertexDataBegin));
-	memcpy(pVertexDataBegin, vertices.data(), vbByteSize);
-	m_VertexBuffer->Unmap(0, nullptr);
-
-	// Initialize the vertex buffer view.
-	m_VertexBufferView.BufferLocation = m_VertexBuffer->GetGPUVirtualAddress();
-	m_VertexBufferView.StrideInBytes = sizeof(HelloTriangle::Vertex);
-	m_VertexBufferView.SizeInBytes = vbByteSize;
 }
 
 void D3D12HelloTriangle::CompileShaderFile()
@@ -186,7 +166,7 @@ void D3D12HelloTriangle::PopulateCommandList()
 	// m_CommandList->ClearDepthStencilView(m_DSVDescriptorHeap->GetCPUDescriptorHandleForHeapStart(), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
 	// 指定将要渲染的目标缓冲区
 	m_CommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-	m_CommandList->IASetVertexBuffers(0, 1, &m_VertexBufferView);
+	m_CommandList->IASetVertexBuffers(0, 1, &m_TriangleMesh->GetVertexBufferView());
 	m_CommandList->DrawInstanced(3, 1, 0, 0);
 
 	// 提交DearIMGui的渲染命令

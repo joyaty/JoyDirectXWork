@@ -87,15 +87,6 @@ private:
 	std::unique_ptr<MeshGeometry> m_TriangleMesh{ nullptr };
 
 	/// <summary>
-	/// 三角形顶点缓冲区
-	/// </summary>
-	Microsoft::WRL::ComPtr<ID3D12Resource> m_VertexBuffer{ nullptr };
-	/// <summary>
-	/// 三角形顶点缓冲区视图
-	/// </summary>
-	D3D12_VERTEX_BUFFER_VIEW m_VertexBufferView{};
-
-	/// <summary>
 	/// 顶点着色器编译后字节码
 	/// </summary>
 	Microsoft::WRL::ComPtr<ID3DBlob> m_VertexShaderByteCode{ nullptr };
