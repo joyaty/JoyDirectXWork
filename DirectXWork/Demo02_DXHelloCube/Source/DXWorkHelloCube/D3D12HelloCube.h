@@ -51,6 +51,11 @@ public:
 	D3D12HelloCube(std::wstring title, UINT width = 1280U, UINT height = 720U);
 	virtual ~D3D12HelloCube();
 
+public:
+	void OnMouseDown(UINT8 keyCode, int x, int y) override;
+	void OnMouseUp(UINT8 keyCode, int x, int y) override;
+	void OnMouseMove(UINT8 keyCode, int x, int y) override;
+
 protected:
 	bool OnInit() override;
 	void OnUpdate() override;
@@ -132,4 +137,23 @@ private:
 	/// 渲染管线状态对象
 	/// </summary>
 	Microsoft::WRL::ComPtr<ID3D12PipelineState> m_PSO{ nullptr };
+
+private:
+	/// <summary>
+	/// 上次鼠标位置
+	/// </summary>
+	POINT m_LastMousePos{};
+
+	/// <summary>
+	/// 球坐标系
+	/// </summary>
+	float m_Theta{ 1.5f * XM_PI };
+	/// <summary>
+	/// 球坐标系
+	/// </summary>
+	float m_Phi{ XM_PIDIV4 };
+	/// <summary>
+	/// 球坐标半径
+	/// </summary>
+	float m_Radius{ 5.0f };
 };

@@ -67,7 +67,6 @@ void D3D12HelloCube::OnRender()
 
 void D3D12HelloCube::OnDestroy()
 {
-	
 
 }
 
@@ -255,4 +254,41 @@ void D3D12HelloCube::PopulateCommandList()
 		, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
 
 	ThrowIfFailed(m_CommandList->Close());
+}
+
+void D3D12HelloCube::OnMouseDown(UINT8 keyCode, int x, int y)
+{
+	m_LastMousePos.x = x;
+	m_LastMousePos.y = y;
+
+	std::string str{};
+	str.append("x=").append(std::to_string(x)).append(", y=").append(std::to_string(y)).append("\n");
+	::OutputDebugStringA(str.c_str());
+}
+
+void D3D12HelloCube::OnMouseUp(UINT8 keyCode, int x, int y)
+{
+}
+
+void D3D12HelloCube::OnMouseMove(UINT8 keyCode, int x, int y)
+{
+	if ((keyCode & MK_LBUTTON) != 0)
+	{
+		// 左键点击
+		float dx = XMConvertToRadians(0.25f * static_cast<float>(x - m_LastMousePos.x));
+		float dy = XMConvertToRadians(0.25f * static_cast<float>(y - m_LastMousePos.y));
+		m_Theta += dx;
+		m_Phi += dy;
+		m_Phi = MathUtil::Clamp(m_Phi, 0.1f, MathUtil::Pi - 0.1f);
+	}
+	else if ((keyCode & MK_RBUTTON) != 0)
+	{
+		// 右键点击
+		float dx = 0.005f * static_cast<float>(x - m_LastMousePos.x);
+		float dy = 0.005f * static_cast<float>(y - m_LastMousePos.y);
+		m_Radius += dx - dy;
+		m_Radius = MathUtil::Clamp(m_Radius, 3.f, 15.f);
+	}
+	m_LastMousePos.x = x;
+	m_LastMousePos.y = y;
 }

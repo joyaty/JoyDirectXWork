@@ -6,6 +6,7 @@
 #include "stdafx.h"
 #include "DirectXBaseWork.h"
 #include "DirectXBaseWork/DXWorkHelper.h"
+#include <iostream>
 
 using namespace Microsoft::WRL;
 
@@ -119,7 +120,6 @@ void DirectXBaseWork::Terminate()
 
 void DirectXBaseWork::OnResize(UINT width, UINT height)
 {
-
 }
 
 void DirectXBaseWork::Update(float deltaTime)

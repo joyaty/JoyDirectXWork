@@ -27,4 +27,14 @@ public:
 
 		return Identity4X4;
 	}
+
+public:
+	template<typename T> static T Clamp(const T& value, const T& min, const T& max)
+	{
+		return value < min ? min : (value > max ? max : value);
+	}
+
+public:
+	static const float Infinity;
+	static const float Pi;
 };
