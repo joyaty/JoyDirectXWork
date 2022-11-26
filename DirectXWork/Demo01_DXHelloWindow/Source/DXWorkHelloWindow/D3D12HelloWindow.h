@@ -1,5 +1,6 @@
-/***
- * DirectX绘制窗口颜色
+/*
+ * D3D12HelloWindow.h
+ * Demo01 - DirectX绘制窗口颜色
  */
 
 #pragma once
@@ -14,7 +15,7 @@ public:
 	D3D12HelloWindow(std::wstring name, UINT width, UINT height);
 
 	virtual bool OnInit() override;
-	virtual void OnUpdate() override;
+	virtual void OnUpdate(float deltaTime, float totalTime) override;
 	virtual void OnRender() override;
 	virtual void OnDestroy() override;
 

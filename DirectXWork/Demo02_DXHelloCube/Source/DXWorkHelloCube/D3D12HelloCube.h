@@ -39,7 +39,11 @@ public:
 	/// <summary>
 	/// 世界到裁剪空间的变换矩阵
 	/// </summary>
-	DirectX::XMFLOAT4X4 worldViewProjMatrix = MathUtil::Identity4x4();
+	DirectX::XMFLOAT4X4 worldViewProjMatrix{ MathUtil::Identity4x4() };
+	/// <summary>
+	/// 总时间
+	/// </summary>
+	float totalTime{ 0 };
 };
 
 /// <summary>
@@ -51,6 +55,13 @@ public:
 	D3D12HelloCube(std::wstring title, UINT width = 1280U, UINT height = 720U);
 	virtual ~D3D12HelloCube();
 
+	/// <summary>
+	/// 更新PSO设置
+	/// </summary>
+	/// <param name="cullMode"></param>
+	/// <param name="fillMode"></param>
+	void UpdatePSO(D3D12_CULL_MODE cullMode, D3D12_FILL_MODE fillMode);
+
 public:
 	void OnMouseDown(UINT8 keyCode, int x, int y) override;
 	void OnMouseUp(UINT8 keyCode, int x, int y) override;
@@ -59,7 +70,7 @@ public:
 
 protected:
 	bool OnInit() override;
-	void OnUpdate() override;
+	void OnUpdate(float deltaTime, float totalTime) override;
 	void OnRender() override;
 	void OnDestroy() override;
 
@@ -92,7 +103,7 @@ private:
 	/// <summary>
 	/// 构建渲染管线状态
 	/// </summary>
-	void BuildGraphicsPiplineState();
+	void BuildGraphicsPiplineState(D3D12_CULL_MODE cullMode, D3D12_FILL_MODE fillMode);
 
 	/// <summary>
 	/// 记录渲染指令

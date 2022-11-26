@@ -37,7 +37,7 @@ public:
 public:
 	bool Initialize(HWND hWnd);
 	void Terminate();
-	void Update(float deltaTime);
+	void Update(float deltaTime, float totalTime);
 	void Render();
 
 public:
@@ -50,7 +50,7 @@ public:
 
 protected:
 	virtual bool OnInit() = 0;
-	virtual void OnUpdate() = 0;
+	virtual void OnUpdate(float deltaTime, float totalTime) = 0;
 	virtual void OnRender() = 0;
 	virtual void OnDestroy() = 0;
 

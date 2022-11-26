@@ -24,6 +24,15 @@ D3D12HelloCube::~D3D12HelloCube()
 {
 }
 
+void D3D12HelloCube::UpdatePSO(D3D12_CULL_MODE cullMode, D3D12_FILL_MODE fillMode)
+{
+	if (m_PSO != nullptr)
+	{
+		m_PSO.Reset();
+	}
+	BuildGraphicsPiplineState(cullMode, fillMode);
+}
+
 bool D3D12HelloCube::OnInit()
 {
 	FlushCommandQueue();
@@ -34,7 +43,7 @@ bool D3D12HelloCube::OnInit()
 	CreateRootSignature();
 	CreateCubeGeometry();
 	CompileShaderFile();
-	BuildGraphicsPiplineState();
+	BuildGraphicsPiplineState(D3D12_CULL_MODE_BACK, D3D12_FILL_MODE_SOLID);
 	ThrowIfFailed(m_CommandList->Close());
 	// 执行初始化指令
 	ID3D12CommandList* cmdLists[] = { m_CommandList.Get() };
@@ -43,10 +52,13 @@ bool D3D12HelloCube::OnInit()
 	// 等待初始化完成
 	FlushCommandQueue();
 
+	// 保存HelloCubeDemo
+	IMGuiHelloCube::GetInstance()->SetHelloCubeDemo(this);
+
 	return true;
 }
 
-void D3D12HelloCube::OnUpdate()
+void D3D12HelloCube::OnUpdate(float deltaTime, float totalTime)
 {
 	// 极坐标转为笛卡尔坐标系
 	float x = m_Radius * sinf(m_Theta) * cosf(m_Phi);
@@ -69,6 +81,7 @@ void D3D12HelloCube::OnUpdate()
 	// 变换矩阵存储到常量缓冲区上
 	ObjectConstants objConstancts;
 	XMStoreFloat4x4(&objConstancts.worldViewProjMatrix, XMMatrixTranspose(worldViewProjMatrix));
+	objConstancts.totalTime = totalTime;
 	m_pConstantBuffer->CopyData(0, objConstancts);
 }
 
@@ -216,7 +229,7 @@ void D3D12HelloCube::CreateCubeGeometry()
 	m_pMeshGeometry->m_SubMeshGeometrys["CubeMesh"] = { (UINT)cubeIndices.size(), 0U, 0U };
 }
 
-void D3D12HelloCube::BuildGraphicsPiplineState()
+void D3D12HelloCube::BuildGraphicsPiplineState(D3D12_CULL_MODE cullMode, D3D12_FILL_MODE fillMode)
 {
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC pipelineStateDesc{};
 	ZeroMemory(&pipelineStateDesc, sizeof(D3D12_GRAPHICS_PIPELINE_STATE_DESC));
@@ -226,8 +239,8 @@ void D3D12HelloCube::BuildGraphicsPiplineState()
 	pipelineStateDesc.VS = { reinterpret_cast<BYTE*>(m_VertexShaderByteCode->GetBufferPointer()), m_VertexShaderByteCode->GetBufferSize() };
 	pipelineStateDesc.PS = { reinterpret_cast<BYTE*>(m_PixelShaderByteCode->GetBufferPointer()), m_PixelShaderByteCode->GetBufferSize() };
 	pipelineStateDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
-	pipelineStateDesc.RasterizerState.FillMode = D3D12_FILL_MODE_SOLID;
-	pipelineStateDesc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
+	pipelineStateDesc.RasterizerState.FillMode = fillMode;
+	pipelineStateDesc.RasterizerState.CullMode = cullMode;
 	pipelineStateDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
 	pipelineStateDesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
 	pipelineStateDesc.SampleMask = UINT_MAX;
@@ -246,7 +259,7 @@ void D3D12HelloCube::PopulateCommandList()
 	// Command list allocators can only be reset when the associated command lists have finished execution on th GPU.
 	// apps should use fence to determine GPU excution progress.
 	ThrowIfFailed(m_CommandAllocator->Reset());
-	// However, when ExecuteCommandList() is called on a particular command list, that command list can the be reset at any time and must be before re-recording.
+	// 重置命令队列，并设置初始PipelineStateObject。
 	ThrowIfFailed(m_CommandList->Reset(m_CommandAllocator.Get(), m_PSO.Get()));
 	// 当前后台缓冲区切换到渲染目标状态
 	m_CommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_RenderTargets[m_CurrentBackBufferIndex].Get()
@@ -297,7 +310,7 @@ void D3D12HelloCube::OnMouseMove(UINT8 keyCode, int x, int y)
 {
 	if ((keyCode & MK_LBUTTON) != 0)
 	{
-		// 左键点击
+		// 左键点击，旋转
 		float dx = XMConvertToRadians(0.25f * static_cast<float>(x - m_LastMousePos.x));
 		float dy = XMConvertToRadians(0.25f * static_cast<float>(y - m_LastMousePos.y));
 		m_Phi += dx;
@@ -306,7 +319,7 @@ void D3D12HelloCube::OnMouseMove(UINT8 keyCode, int x, int y)
 	}
 	else if ((keyCode & MK_RBUTTON) != 0)
 	{
-		// 右键点击
+		// 右键点击，缩放
 		float dx = 0.005f * static_cast<float>(x - m_LastMousePos.x);
 		float dy = 0.005f * static_cast<float>(y - m_LastMousePos.y);
 		m_Radius += dx - dy;

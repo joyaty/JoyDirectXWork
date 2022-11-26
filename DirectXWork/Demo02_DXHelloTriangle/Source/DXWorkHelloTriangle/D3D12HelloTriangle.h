@@ -40,7 +40,7 @@ public:
 
 protected:
 	virtual bool OnInit() override;
-	virtual void OnUpdate() override;
+	virtual void OnUpdate(float deltaTime, float totalTime) override;
 	virtual void OnRender() override;
 	virtual void OnDestroy() override;
 

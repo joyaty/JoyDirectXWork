@@ -1,4 +1,7 @@
-
+/*
+ * D3D12HelloWindow.cpp
+ * Demo01 - DirectX绘制窗口颜色
+ */
 
 #include "stdafx.h"
 #include "D3D12HelloWindow.h"
@@ -23,7 +26,7 @@ bool D3D12HelloWindow::OnInit()
 	return true;
 }
 
-void D3D12HelloWindow::OnUpdate()
+void D3D12HelloWindow::OnUpdate(float deltaTime, float totalTime)
 {
 }
 

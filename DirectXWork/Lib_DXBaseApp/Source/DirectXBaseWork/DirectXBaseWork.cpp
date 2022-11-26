@@ -149,9 +149,9 @@ void DirectXBaseWork::OnResize(UINT width, UINT height)
 	m_ScissorRect = { 0, 0, static_cast<int>(m_Width), static_cast<int>(m_Height) };
 }
 
-void DirectXBaseWork::Update(float deltaTime)
+void DirectXBaseWork::Update(float deltaTime, float totalTime)
 {
-	OnUpdate();
+	OnUpdate(deltaTime, totalTime);
 }
 
 void DirectXBaseWork::Render()

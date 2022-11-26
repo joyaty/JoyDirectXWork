@@ -103,7 +103,7 @@ int Win32Application::Run()
 			if (!m_AppPaused)
 			{
 				m_DearIMGuiHelper->DrawDearIMGuiWindow();
-				m_DirectXWork->Update(m_GameTimer.DeltaTime());
+				m_DirectXWork->Update(m_GameTimer.DeltaTime(), m_GameTimer.TotalTime());
 				m_DirectXWork->Render();
 			}
 			else

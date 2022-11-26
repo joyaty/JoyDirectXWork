@@ -44,7 +44,7 @@ bool D3D12HelloTriangle::OnInit()
 	return true;
 }
 
-void D3D12HelloTriangle::OnUpdate()
+void D3D12HelloTriangle::OnUpdate(float deltaTime, float totalTime)
 {
 }
 
