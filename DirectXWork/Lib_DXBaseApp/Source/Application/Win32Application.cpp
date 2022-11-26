@@ -150,6 +150,8 @@ void Win32Application::OnMouseDown(UINT8 keyCode, int x, int y)
 	{
 		m_DirectXWork->OnMouseDown(keyCode, x, y);
 	}
+	// 当前窗口捕获鼠标输入
+	SetCapture(m_HWND);
 }
 
 void Win32Application::OnMouseUp(UINT8 keyCode, int x, int y)
@@ -158,6 +160,8 @@ void Win32Application::OnMouseUp(UINT8 keyCode, int x, int y)
 	{
 		m_DirectXWork->OnMouseUp(keyCode, x, y);
 	}
+	// 释放鼠标捕获，还原正常的鼠标输入
+	ReleaseCapture();
 }
 
 void Win32Application::OnMouseMove(UINT8 keyCode, int x, int y)

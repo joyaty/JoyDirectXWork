@@ -48,7 +48,27 @@ bool D3D12HelloCube::OnInit()
 
 void D3D12HelloCube::OnUpdate()
 {
+	// 极坐标转为笛卡尔坐标系
+	float x = m_Radius * sinf(m_Theta) * cosf(m_Phi);
+	float z = m_Radius * sinf(m_Theta) * sinf(m_Phi);
+	float y = m_Radius * cosf(m_Theta);
+
+	// 构建观察矩阵
+	XMVECTOR pos = XMVectorSet(x, y, z, 1.f);
+	XMVECTOR target = XMVectorZero();
+	XMVECTOR up = XMVectorSet(0.f, 1.f, 0.f, 0.f);
+	// 左手坐标系，根据相机位置，目标位置，向上的方向计算观察矩阵
+	XMMATRIX viewMatrix = XMMatrixLookAtLH(pos, target, up);
+	// 保存观察矩阵到m_ViewMatrix
+	XMStoreFloat4x4(&m_ViewMatrix, viewMatrix);
+	// 获取世界变换矩阵和投影变换矩阵
+	XMMATRIX worldMatrix = XMLoadFloat4x4(&m_WorldMatrix);
+	XMMATRIX projMatrix = XMLoadFloat4x4(&m_ProjMatrix);
+	// 计算变换矩阵
+	XMMATRIX worldViewProjMatrix = worldMatrix * viewMatrix * projMatrix;
+	// 变换矩阵存储到常量缓冲区上
 	ObjectConstants objConstancts;
+	XMStoreFloat4x4(&objConstancts.worldViewProjMatrix, XMMatrixTranspose(worldViewProjMatrix));
 	m_pConstantBuffer->CopyData(0, objConstancts);
 }
 
@@ -72,7 +92,8 @@ void D3D12HelloCube::OnDestroy()
 
 void D3D12HelloCube::CreateInputLayout()
 {
-	m_InputElementDescs = {
+	m_InputElementDescs = 
+	{
 		{"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
 		{"COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 3 * sizeof(float), D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
 	};
@@ -137,36 +158,41 @@ void D3D12HelloCube::CreateCubeGeometry()
 	// 立方体顶点属性
 	std::array<Vertex, 8> cubeVertices =
 	{
-		Vertex({XMFLOAT3(-1.0f, -1.0f, -1.0f), XMFLOAT4(Colors::White)}),
-		Vertex({XMFLOAT3(1.0f, -1.0f, -1.0f), XMFLOAT4(Colors::Black)}),
-		Vertex({XMFLOAT3(1.0f, -1.0f, 1.0f), XMFLOAT4(Colors::Red)}),
-		Vertex({XMFLOAT3(-1.0f, -1.0f, 1.0f), XMFLOAT4(Colors::Green)}),
-		Vertex({XMFLOAT3(-1.0f, 1.0f, -1.0f), XMFLOAT4(Colors::Blue)}),
-		Vertex({XMFLOAT3(1.0f, 1.0f, -1.0f), XMFLOAT4(Colors::Yellow)}),
-		Vertex({XMFLOAT3(1.0f, 1.0f, 1.0f), XMFLOAT4(Colors::Cyan)}),
-		Vertex({XMFLOAT3(-1.0f, 1.0f, 1.0f), XMFLOAT4(Colors::Magenta)})
+		Vertex({ XMFLOAT3(-1.0f, -1.0f, -1.0f), XMFLOAT4(Colors::White) }),
+		Vertex({ XMFLOAT3(-1.0f, +1.0f, -1.0f), XMFLOAT4(Colors::Black) }),
+		Vertex({ XMFLOAT3(+1.0f, +1.0f, -1.0f), XMFLOAT4(Colors::Red) }),
+		Vertex({ XMFLOAT3(+1.0f, -1.0f, -1.0f), XMFLOAT4(Colors::Green) }),
+		Vertex({ XMFLOAT3(-1.0f, -1.0f, +1.0f), XMFLOAT4(Colors::Blue) }),
+		Vertex({ XMFLOAT3(-1.0f, +1.0f, +1.0f), XMFLOAT4(Colors::Yellow) }),
+		Vertex({ XMFLOAT3(+1.0f, +1.0f, +1.0f), XMFLOAT4(Colors::Cyan) }),
+		Vertex({ XMFLOAT3(+1.0f, -1.0f, +1.0f), XMFLOAT4(Colors::Magenta) })
 	};
 	// 索引数据
 	std::array<UINT16, 36> cubeIndices =
 	{
-		// 立方体下表面
+		// front face
 		0, 1, 2,
-		2, 3, 0,
-		// 立方体上表面
-		4, 5, 6,
-		6, 7, 4,
-		// 立方体前表面
-		0, 1, 5,
-		5, 4, 0,
-		// 立方体后表面
+		0, 2, 3,
+
+		// back face
+		4, 6, 5,
+		4, 7, 6,
+
+		// left face
+		4, 5, 1,
+		4, 1, 0,
+
+		// right face
 		3, 2, 6,
-		6, 7, 3,
-		// 立方体左表面
-		0, 3, 7,
-		7, 4, 0,
-		// 立方体右表面
-		1, 2, 6,
-		6, 5, 1
+		3, 6, 7,
+
+		// top face
+		1, 5, 6,
+		1, 6, 2,
+
+		// bottom face
+		4, 0, 3,
+		4, 3, 7
 	};
 	// 计算顶点数据和索引数据的字节大小
 	const UINT vbByteSize = (UINT)cubeVertices.size() * sizeof(Vertex);
@@ -200,7 +226,8 @@ void D3D12HelloCube::BuildGraphicsPiplineState()
 	pipelineStateDesc.VS = { reinterpret_cast<BYTE*>(m_VertexShaderByteCode->GetBufferPointer()), m_VertexShaderByteCode->GetBufferSize() };
 	pipelineStateDesc.PS = { reinterpret_cast<BYTE*>(m_PixelShaderByteCode->GetBufferPointer()), m_PixelShaderByteCode->GetBufferSize() };
 	pipelineStateDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
-	pipelineStateDesc.RasterizerState.FillMode = D3D12_FILL_MODE_WIREFRAME;
+	pipelineStateDesc.RasterizerState.FillMode = D3D12_FILL_MODE_SOLID;
+	pipelineStateDesc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
 	pipelineStateDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
 	pipelineStateDesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
 	pipelineStateDesc.SampleMask = UINT_MAX;
@@ -231,7 +258,7 @@ void D3D12HelloCube::PopulateCommandList()
 	m_CommandList->RSSetViewports(1, &m_Viewport);
 	m_CommandList->RSSetScissorRects(1, &m_ScissorRect);
 	// 清除后台缓冲区和深度缓冲区
-	m_CommandList->ClearRenderTargetView(rtvHandle, DirectX::Colors::Blue, 0, nullptr);
+	m_CommandList->ClearRenderTargetView(rtvHandle, DirectX::Colors::BlueViolet, 0, nullptr);
 	m_CommandList->ClearDepthStencilView(m_DSVDescriptorHeap->GetCPUDescriptorHandleForHeapStart(), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
 	// 指定将要渲染的目标缓冲区
 	m_CommandList->OMSetRenderTargets(1, &rtvHandle, true, &m_DSVDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
@@ -260,10 +287,6 @@ void D3D12HelloCube::OnMouseDown(UINT8 keyCode, int x, int y)
 {
 	m_LastMousePos.x = x;
 	m_LastMousePos.y = y;
-
-	std::string str{};
-	str.append("x=").append(std::to_string(x)).append(", y=").append(std::to_string(y)).append("\n");
-	::OutputDebugStringA(str.c_str());
 }
 
 void D3D12HelloCube::OnMouseUp(UINT8 keyCode, int x, int y)
@@ -277,9 +300,9 @@ void D3D12HelloCube::OnMouseMove(UINT8 keyCode, int x, int y)
 		// 左键点击
 		float dx = XMConvertToRadians(0.25f * static_cast<float>(x - m_LastMousePos.x));
 		float dy = XMConvertToRadians(0.25f * static_cast<float>(y - m_LastMousePos.y));
-		m_Theta += dx;
-		m_Phi += dy;
-		m_Phi = MathUtil::Clamp(m_Phi, 0.1f, MathUtil::Pi - 0.1f);
+		m_Phi += dx;
+		m_Theta += dy;
+		m_Theta = MathUtil::Clamp(m_Theta, 0.1f, MathUtil::Pi - 0.1f);
 	}
 	else if ((keyCode & MK_RBUTTON) != 0)
 	{
@@ -291,4 +314,12 @@ void D3D12HelloCube::OnMouseMove(UINT8 keyCode, int x, int y)
 	}
 	m_LastMousePos.x = x;
 	m_LastMousePos.y = y;
+}
+
+void D3D12HelloCube::OnResize(UINT width, UINT height)
+{
+	DirectXBaseWork::OnResize(width, height);
+	// 获取裁剪变换矩阵
+	XMMATRIX P = XMMatrixPerspectiveFovLH(0.25f * MathUtil::Pi, GetAspectRatio(), 1.0f, 1000.0f);
+	XMStoreFloat4x4(&m_ProjMatrix, P);
 }

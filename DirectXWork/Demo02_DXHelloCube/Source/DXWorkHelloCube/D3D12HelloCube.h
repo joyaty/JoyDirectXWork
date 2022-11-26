@@ -55,6 +55,7 @@ public:
 	void OnMouseDown(UINT8 keyCode, int x, int y) override;
 	void OnMouseUp(UINT8 keyCode, int x, int y) override;
 	void OnMouseMove(UINT8 keyCode, int x, int y) override;
+	void OnResize(UINT width, UINT height) override;
 
 protected:
 	bool OnInit() override;
@@ -145,15 +146,30 @@ private:
 	POINT m_LastMousePos{};
 
 	/// <summary>
-	/// 球坐标系
+	/// 世界变换矩阵
 	/// </summary>
-	float m_Theta{ 1.5f * XM_PI };
+	DirectX::XMFLOAT4X4 m_WorldMatrix = MathUtil::Identity4x4();
 	/// <summary>
-	/// 球坐标系
+	/// 观察变换矩阵
 	/// </summary>
-	float m_Phi{ XM_PIDIV4 };
+	DirectX::XMFLOAT4X4 m_ViewMatrix = MathUtil::Identity4x4();
 	/// <summary>
-	/// 球坐标半径
+	/// 投影变换矩阵
 	/// </summary>
-	float m_Radius{ 5.0f };
+	DirectX::XMFLOAT4X4 m_ProjMatrix = MathUtil::Identity4x4();
+
+	// 观察者（相机）的位置信息
+	// 左手坐标系，水平向右X轴正向，水平向上Y轴正向，垂直屏幕向外Z轴正向
+	/// <summary>
+	/// 球坐标系极角，位矢与Y轴的夹角，范围在[0, pi]
+	/// </summary>
+	float m_Theta{ DirectX::XM_PIDIV4 };
+	/// <summary>
+	/// 球坐标系，位矢在XZ平面投影与X轴的夹角
+	/// </summary>
+	float m_Phi{ 1.5f * DirectX::XM_PI };
+	/// <summary>
+	/// 球坐标位矢模长，理解为半径
+	/// </summary>
+	float m_Radius{ 10.0f };
 };

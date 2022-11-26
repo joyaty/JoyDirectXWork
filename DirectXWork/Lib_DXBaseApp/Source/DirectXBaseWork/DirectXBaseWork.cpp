@@ -94,17 +94,7 @@ bool DirectXBaseWork::Initialize(HWND hWnd)
 	CreateCommandObjects();
 	CreateSwapChain();
 	CreateDescriptorHeaps();
-	CreateRenderTargetView();
-	CreateDepthStencilView();
-
-	m_Viewport.TopLeftX = 0;
-	m_Viewport.TopLeftY = 0;
-	m_Viewport.MaxDepth = 1.0f;
-	m_Viewport.MinDepth = 0.0f;
-	m_Viewport.Width = static_cast<float>(m_Width);
-	m_Viewport.Height = static_cast<float>(m_Height);
-
-	m_ScissorRect = { 0, 0, static_cast<int>(m_Width), static_cast<int>(m_Height) };
+	OnResize(m_Width, m_Height);
 
 	OnInit();
 	return true;
@@ -120,6 +110,43 @@ void DirectXBaseWork::Terminate()
 
 void DirectXBaseWork::OnResize(UINT width, UINT height)
 {
+	// 等待指令队列执行完毕
+	FlushCommandQueue();
+	ThrowIfFailed(m_CommandList->Reset(m_CommandAllocator.Get(), nullptr));
+	// 清理渲染目标缓冲区资源
+	for (int i = kFrameBufferCount - 1; i >= 0; --i)
+	{
+		if (m_RenderTargets[i] != nullptr)
+		{
+			m_RenderTargets[i].Reset();
+		}
+	}
+	// 清理深度模板缓冲区资源
+	if (m_DepthStencilBuffer != nullptr)
+	{
+		m_DepthStencilBuffer.Reset();
+	}
+	// 更新窗口尺寸
+	m_Width = width;
+	m_Height = height;
+	// 重建交换链
+	m_SwapChain->ResizeBuffers(kFrameBufferCount, m_Width, m_Height, m_BackBufferFormat, DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH);
+	// 重建渲染缓冲区视图
+	CreateRenderTargetView();
+	// 重建深度模板缓冲区视图
+	CreateDepthStencilView();
+	m_CurrentBackBufferIndex = m_SwapChain->GetCurrentBackBufferIndex();
+
+	// 更新视窗
+	m_Viewport.TopLeftX = 0;
+	m_Viewport.TopLeftY = 0;
+	m_Viewport.MaxDepth = 1.0f;
+	m_Viewport.MinDepth = 0.0f;
+	m_Viewport.Width = static_cast<float>(m_Width);
+	m_Viewport.Height = static_cast<float>(m_Height);
+
+	// 更新裁剪区域
+	m_ScissorRect = { 0, 0, static_cast<int>(m_Width), static_cast<int>(m_Height) };
 }
 
 void DirectXBaseWork::Update(float deltaTime)
@@ -229,6 +256,7 @@ void DirectXBaseWork::CreateSwapChain()
 	desc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
 	desc.SampleDesc.Count = m_Enable4XMSAA ? 4 : 1;			// 多重采样数量
 	desc.SampleDesc.Quality = m_Enable4XMSAA ? (m_4XMSAAQualityLevel - 1) : 0;	// 多重采样质量级别
+	desc.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
 	// 使用描述创建交换链
 	ComPtr<IDXGISwapChain1> pSwapChain{};
 	ThrowIfFailed(m_DXGIFactory->CreateSwapChainForHwnd(
@@ -316,9 +344,6 @@ void DirectXBaseWork::CreateDepthStencilView()
 		m_DepthStencilBuffer.Get()
 		, nullptr				// 深度/模板资源创建时指定了具体的格式，不是无格式资源，则创建深度模板缓冲图描述符时，描述符描述结构体可以为空
 		, m_DepthStencilDescriptorHandle);
-
-	FlushCommandQueue();
-	ThrowIfFailed(m_CommandList->Reset(m_CommandAllocator.Get(), nullptr));
 
 	// 将资源从初始状态转换为深度/模板缓冲区状态
 	m_CommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(

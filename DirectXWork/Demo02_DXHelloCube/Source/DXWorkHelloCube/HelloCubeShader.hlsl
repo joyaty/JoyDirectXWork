@@ -28,7 +28,7 @@ VertexOut VSMain(VertexIn vIn)
 {
 	VertexOut vOut;
 	// 顶点坐标转换到裁剪空间下，变为齐次坐标
-	vOut.PosH = float4(vIn.Position, 1.0f);
+	vOut.PosH = mul(float4(vIn.Position, 1.0f), gWorldViewProj);
 	// 直接将顶点颜色输出到像素着色器
 	vOut.Color = vIn.Color;
 
