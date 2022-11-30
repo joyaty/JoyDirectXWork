@@ -13,7 +13,7 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/Source)
 set(STDAFX_PCH_H ${CMAKE_CURRENT_SOURCE_DIR}/Source/stdafx.h)
 set(STDAFX_PCH_C ${CMAKE_CURRENT_SOURCE_DIR}/Source/stdafx.cpp)
 
-set(SUB_PROJECT_NAME Demo02_DXHelloCube)
+set(SUB_PROJECT_NAME Demo03_DXHelloCube)
 
 # 将所有源码设置到ALL_FILES变量上
 set(ALL_FILES 
