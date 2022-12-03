@@ -9,7 +9,7 @@
 D3D12HelloShapes::D3D12HelloShapes(std::wstring title, UINT width/* = 1280U*/, UINT height/* = 720U*/)
 	: DirectXBaseWork(title, width, height)
 {
-	m_AssetPath = L"\\DirectXWork\\Demo04_DXHelloShapes\\Source\\DXHelloShapes\\";
+	m_AssetPath += L"\\DirectXWork\\Demo04_DXHelloShapes\\Source\\DXHelloShapes\\";
 }
 
 D3D12HelloShapes::~D3D12HelloShapes()

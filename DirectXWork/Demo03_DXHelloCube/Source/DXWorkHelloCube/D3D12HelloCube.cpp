@@ -17,7 +17,7 @@ D3D12HelloCube::D3D12HelloCube(std::wstring title, UINT width/* = 1280U*/, UINT 
 	: DirectXBaseWork(title, width, height)
 {
 	// 更新资源目录到当前实例程序文件夹下
-	m_AssetPath = L"\\DirectXWork\\Demo03_DXHelloCube\\Source\\DXWorkHelloCube\\";
+	m_AssetPath += L"\\DirectXWork\\Demo03_DXHelloCube\\Source\\DXWorkHelloCube\\";
 }
 
 D3D12HelloCube::~D3D12HelloCube()
