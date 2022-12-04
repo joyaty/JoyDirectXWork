@@ -24,6 +24,10 @@ Source/DXHelloShapes/D3D12HelloShapes.cpp
 Source/DXHelloShapes/D3D12HelloShapes.h
 Source/DXHelloShapes/IMGuiHelloShapes.cpp
 Source/DXHelloShapes/IMGuiHelloShapes.h
+Source/DXHelloShapes/FrameResource.cpp
+Source/DXHelloShapes/FrameResource.h
+Source/DXHelloShapes/RenderItem.cpp
+Source/DXHelloShapes/RenderItem.h
 Source/DXHelloShapes/HelloShapeShader.hlsl
 )
 
