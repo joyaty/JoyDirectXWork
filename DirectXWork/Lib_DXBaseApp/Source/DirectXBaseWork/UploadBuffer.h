@@ -15,6 +15,12 @@
 template<typename T> class UploadBuffer
 {
 public:
+	/// <summary>
+	/// 构造上传缓冲区
+	/// </summary>
+	/// <param name="pDevice">GPU逻辑设备</param>
+	/// <param name="elementCount">元素个数(多个相同数据结构的常量缓冲区)</param>
+	/// <param name="isConstantBuffer">是否是常量缓冲区</param>
 	UploadBuffer(ID3D12Device* pDevice, UINT elementCount, bool isConstantBuffer)
 		: m_IsConstanctBuffer(isConstantBuffer)
 	{

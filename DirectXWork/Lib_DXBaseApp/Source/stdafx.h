@@ -14,4 +14,6 @@
 #include <DirectXPackedVector.h>
 
 #include <string>
+#include <vector>
+#include <unordered_map>
 #include <wrl.h>
