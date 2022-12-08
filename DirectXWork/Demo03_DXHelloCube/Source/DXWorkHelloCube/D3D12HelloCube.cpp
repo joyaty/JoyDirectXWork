@@ -332,7 +332,7 @@ void D3D12HelloCube::OnMouseMove(UINT8 keyCode, int x, int y)
 void D3D12HelloCube::OnResize(UINT width, UINT height)
 {
 	DirectXBaseWork::OnResize(width, height);
-	// 获取裁剪变换矩阵
+	// 获取投影变换矩阵
 	XMMATRIX P = XMMatrixPerspectiveFovLH(0.25f * MathUtil::Pi, GetAspectRatio(), 1.0f, 1000.0f);
 	XMStoreFloat4x4(&m_ProjMatrix, P);
 }

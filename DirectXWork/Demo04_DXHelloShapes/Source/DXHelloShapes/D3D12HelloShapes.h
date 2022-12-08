@@ -6,6 +6,7 @@
 #pragma once
 
 #include "DirectXBaseWork/DirectXBaseWork.h"
+#include "DirectXBaseWork/MathUtil.h"
 
 // 前置声明 - 帧资源
 struct FrameResource;
@@ -63,7 +64,7 @@ public:
 	/// </summary>
 	DirectX::XMFLOAT3 eyeWorldPos{};
 	/// <summary>
-	/// 渲染对象宽高
+	/// 渲染目标宽高
 	/// </summary>
 	DirectX::XMFLOAT2 renderTargetSize{};
 	/// <summary>
@@ -107,6 +108,19 @@ public:
 	D3D12HelloShapes(std::wstring title, UINT width = 1280U, UINT height = 720U);
 	virtual ~D3D12HelloShapes();
 
+	/// <summary>
+	/// 更新PSO设置
+	/// </summary>
+	/// <param name="cullMode"></param>
+	/// <param name="fillMode"></param>
+	void UpdatePSO(D3D12_CULL_MODE cullMode, D3D12_FILL_MODE fillMode);
+
+public:
+	void OnMouseDown(UINT8 keyCode, int x, int y) override;
+	void OnMouseUp(UINT8 keyCode, int x, int y) override;
+	void OnMouseMove(UINT8 keyCode, int x, int y) override;
+	void OnResize(UINT width, UINT height) override;
+
 protected:
 	bool OnInit() override;
 	void OnUpdate(float deltaTime, float totalTime) override;
@@ -114,6 +128,28 @@ protected:
 	void OnDestroy() override;
 
 private:
+	/// <summary>
+	/// 构建输入布局
+	/// </summary>
+	void BuildInputLayout();
+
+	/// <summary>
+	/// 构建根签名
+	/// </summary>
+	void BuildRootSignature();
+
+	/// <summary>
+	/// 构建渲染管线状态对象
+	/// </summary>
+	/// <param name="cullMode"></param>
+	/// <param name="fillMode"></param>
+	void BuildPSO(D3D12_CULL_MODE cullMode, D3D12_FILL_MODE fillMode);
+
+	/// <summary>
+	/// 编译Shader
+	/// </summary>
+	void CompileShaderFile();
+
 	/// <summary>
 	/// 构建帧资源环形队列
 	/// </summary>
@@ -150,12 +186,30 @@ private:
 	/// <param name="deltaTime"></param>
 	/// <param name="totalTime"></param>
 	void UpdatePassCBs(float deltaTime, float totalTime);
+	
+	/// <summary>
+	/// 更新相机(观察者)的变换矩阵
+	/// </summary>
+	/// <param name="deltaTime"></param>
+	/// <param name="totalTime"></param>
+	void UpdateCamera(float deltaTime, float totalTime);
+
+	/// <summary>
+	/// 记录渲染指令
+	/// </summary>
+	void PopulateCommandList();
+
+	/// <summary>
+	/// 绘制渲染项
+	/// </summary>
+	void DrawRenderItems();
 
 private:
 	/// <summary>
 	/// 帧资源环形数组，重复使用空闲的帧资源
 	/// </summary>
 	std::vector<std::unique_ptr<FrameResource>> m_FrameResources{};
+
 	/// <summary>
 	/// 当前的帧资源索引
 	/// </summary>
@@ -169,11 +223,74 @@ private:
 	/// 需要绘制的Mesh数据集合
 	/// </summary>
 	std::unordered_map<std::string, std::unique_ptr<MeshGeometry>> m_GeoMeshes{};
+
 	/// <summary>
 	/// 所有的渲染项
 	/// </summary>
 	std::vector<std::unique_ptr<RenderItem>> m_AllRenderItems{};
 
-
+	/// <summary>
+	/// 常量缓冲区描述符堆
+	/// </summary>
 	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> m_CBVDescriptorHeap{ nullptr };
+
+	/// <summary>
+	/// 渲染管线状态对象
+	/// </summary>
+	Microsoft::WRL::ComPtr<ID3D12PipelineState> m_PSO{ nullptr };
+
+	/// <summary>
+	/// 根签名
+	/// </summary>
+	Microsoft::WRL::ComPtr<ID3D12RootSignature> m_RootSignature{ nullptr };
+
+	/// <summary>
+	/// 顶点着色器编译后字节码
+	/// </summary>
+	Microsoft::WRL::ComPtr<ID3DBlob> m_VSByteCode{ nullptr };
+
+	/// <summary>
+	/// 像素着色器编译后字节码
+	/// </summary>
+	Microsoft::WRL::ComPtr<ID3DBlob> m_PSByteCode{ nullptr };
+
+	/// <summary>
+	/// 输入布局描述
+	/// </summary>
+	std::vector<D3D12_INPUT_ELEMENT_DESC> m_InputElementDescs{};
+
+	/// <summary>
+	/// 本地世界变换矩阵
+	/// </summary>
+	DirectX::XMFLOAT4X4 m_WorldMatrix{ MathUtil::Identity4x4() };
+	/// <summary>
+	/// 观察变换矩阵
+	/// </summary>
+	DirectX::XMFLOAT4X4 m_ViewMatrix{ MathUtil::Identity4x4() };
+	/// <summary>
+	/// 投影变换矩阵
+	/// </summary>
+	DirectX::XMFLOAT4X4 m_ProjMatrix{ MathUtil::Identity4x4() };
+
+	/// <summary>
+	/// 球坐标系半径
+	/// </summary>
+	float m_Radius{ 10.f };
+	/// <summary>
+	/// 位矢与Y轴的夹角
+	/// </summary>
+	float m_Theta{ DirectX::XM_PIDIV4 };
+	/// <summary>
+	/// 位矢在XZ平面的投影和X轴的夹角
+	/// </summary>
+	float m_Phi{ 1.5f * DirectX::XM_PI };
+	/// <summary>
+	/// 观察者(相机)位置信息
+	/// </summary>
+	DirectX::XMFLOAT3 m_EyesPos{};
+
+	/// <summary>
+	/// 上次鼠标位置
+	/// </summary>
+	POINT m_LastMousePos{};
 };
