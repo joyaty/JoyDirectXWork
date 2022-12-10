@@ -24,10 +24,10 @@ Source/DXWorkLandAndWaves/D3D12LandAndWaves.cpp
 Source/DXWorkLandAndWaves/D3D12LandAndWaves.h
 Source/DXWorkLandAndWaves/IMGuiLandAndWaves.cpp
 Source/DXWorkLandAndWaves/IMGuiLandAndWaves.h
-# Source/DXWorkLandAndWaves/FrameResource.cpp
-# Source/DXWorkLandAndWaves/FrameResource.h
-# Source/DXWorkLandAndWaves/RenderItem.cpp
-# Source/DXWorkLandAndWaves/RenderItem.h
+Source/DXWorkLandAndWaves/LandAndWavesFrameResource.cpp
+Source/DXWorkLandAndWaves/LandAndWavesFrameResource.h
+Source/DXWorkLandAndWaves/LandAndWavesRenderItem.cpp
+Source/DXWorkLandAndWaves/LandAndWavesRenderItem.h
 Source/DXWorkLandAndWaves/LandAndWaves.hlsl
 )
 
