@@ -171,7 +171,7 @@ void D3D12HelloShapes::UpdatePassCBs(float deltaTime, float totalTime)
 	DirectX::XMStoreFloat4x4(&passObj.projMatrix, DirectX::XMMatrixTranspose(projMatrix));
 	DirectX::XMStoreFloat4x4(&passObj.invProjMatrix, DirectX::XMMatrixTranspose(invProjMatrix));
 	DirectX::XMStoreFloat4x4(&passObj.viewProjMatrix, DirectX::XMMatrixTranspose(viewProjMatrix));
-	DirectX::XMStoreFloat4x4(&passObj.invProjMatrix, DirectX::XMMatrixTranspose(invProjMatrix));
+	DirectX::XMStoreFloat4x4(&passObj.invViewProjMatrix, DirectX::XMMatrixTranspose(invViewProjMatrix));
 	passObj.eyeWorldPos = m_EyesPos;
 	passObj.renderTargetSize = DirectX::XMFLOAT2(static_cast<float>(GetWidth()), static_cast<float>(GetHeight()));
 	passObj.invRenderTargetSize = DirectX::XMFLOAT2(1.f / GetWidth(), 1.f / GetHeight());
