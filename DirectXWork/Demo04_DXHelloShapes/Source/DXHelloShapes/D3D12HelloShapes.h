@@ -9,11 +9,11 @@
 #include "DirectXBaseWork/MathUtil.h"
 
 // 前置声明 - 帧资源
-struct FrameResource;
+struct HelloShapesFrameResource;
 // 前置声明 - 绘制的网格数据
 struct MeshGeometry;
 // 前置声明 - 渲染项
-struct RenderItem;
+struct HelloShapesRenderItem;
 
 /// <summary>
 /// 物体常量缓冲区结构体
@@ -208,7 +208,7 @@ private:
 	/// <summary>
 	/// 帧资源环形数组，重复使用空闲的帧资源
 	/// </summary>
-	std::vector<std::unique_ptr<FrameResource>> m_FrameResources{};
+	std::vector<std::unique_ptr<HelloShapesFrameResource>> m_FrameResources{};
 
 	/// <summary>
 	/// 当前的帧资源索引
@@ -217,7 +217,7 @@ private:
 	/// <summary>
 	/// 当前的帧资源
 	/// </summary>
-	FrameResource* m_CurrentFrameResource{ nullptr };
+	HelloShapesFrameResource* m_CurrentFrameResource{ nullptr };
 
 	/// <summary>
 	/// 需要绘制的Mesh数据集合
@@ -227,7 +227,7 @@ private:
 	/// <summary>
 	/// 所有的渲染项
 	/// </summary>
-	std::vector<std::unique_ptr<RenderItem>> m_AllRenderItems{};
+	std::vector<std::unique_ptr<HelloShapesRenderItem>> m_AllRenderItems{};
 
 	/// <summary>
 	/// 常量缓冲区描述符堆

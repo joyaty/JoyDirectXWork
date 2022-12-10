@@ -5,10 +5,10 @@
 
 #include "stdafx.h"
 #include "D3D12HelloShapes.h"
-#include "FrameResource.h"
 #include <DirectXColors.h>
 #include "DirectXBaseWork/GeometryGenerator.h"
-#include "RenderItem.h"
+#include "HelloShapesRenderItem.h"
+#include "HelloShapesFrameResource.h"
 #include "IMGuiHelloShapes.h"
 
 
@@ -336,7 +336,7 @@ void D3D12HelloShapes::BuildShapeGeometry()
 
 void D3D12HelloShapes::BuildRenderItem()
 {
-	std::unique_ptr<RenderItem> cubeRenderItem = std::make_unique<RenderItem>();
+	std::unique_ptr<HelloShapesRenderItem> cubeRenderItem = std::make_unique<HelloShapesRenderItem>();
 	cubeRenderItem->meshGeo = m_GeoMeshes["ShapeGeo"].get();
 	DirectX::XMMATRIX worldMatrix = DirectX::XMMatrixTranslation(-1.5f, 0.0f, 0.0f);
 	DirectX::XMStoreFloat4x4(&cubeRenderItem->worldMatrix, worldMatrix);
@@ -348,7 +348,7 @@ void D3D12HelloShapes::BuildRenderItem()
 	// 保存到所有的渲染项向量中
 	m_AllRenderItems.push_back(std::move(cubeRenderItem));
 
-	std::unique_ptr<RenderItem> cylinderRenderItem = std::make_unique<RenderItem>();
+	std::unique_ptr<HelloShapesRenderItem> cylinderRenderItem = std::make_unique<HelloShapesRenderItem>();
 	cylinderRenderItem->meshGeo = m_GeoMeshes["ShapeGeo"].get();
 	worldMatrix = DirectX::XMMatrixTranslation(1.5f, 0.0f, 0.0f);
 	DirectX::XMStoreFloat4x4(&cylinderRenderItem->worldMatrix, worldMatrix);
@@ -364,7 +364,7 @@ void D3D12HelloShapes::BuildFrameResource()
 {
 	for (int i = 0; i < kNumFrameResource; ++i)
 	{
-		m_FrameResources.push_back(std::make_unique<FrameResource>(m_Device.Get(), 1U, (UINT)m_AllRenderItems.size()));
+		m_FrameResources.push_back(std::make_unique<HelloShapesFrameResource>(m_Device.Get(), 1U, (UINT)m_AllRenderItems.size()));
 	}
 }
 
@@ -486,7 +486,7 @@ void D3D12HelloShapes::DrawRenderItems()
 {
 	for (size_t i = 0; i < m_AllRenderItems.size(); ++i)
 	{
-		RenderItem* pRenderItem = m_AllRenderItems[i].get();
+		HelloShapesRenderItem* pRenderItem = m_AllRenderItems[i].get();
 		// 设置当前渲染项的顶点缓冲区和索引缓冲区
 		m_CommandList->IASetVertexBuffers(0, 1, &pRenderItem->meshGeo->GetVertexBufferView());
 		m_CommandList->IASetIndexBuffer(&pRenderItem->meshGeo->GetIndexBufferView());

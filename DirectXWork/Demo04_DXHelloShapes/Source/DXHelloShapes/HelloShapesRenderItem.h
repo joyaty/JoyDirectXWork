@@ -14,10 +14,10 @@ extern const int kNumFrameResource;
 /// <summary>
 /// 渲染项数据结构
 /// </summary>
-struct RenderItem
+struct HelloShapesRenderItem
 {
 public:
-	RenderItem() = default;
+	HelloShapesRenderItem() = default;
 
 	/// <summary>
 	/// 本地空间到世界空间的变换矩阵

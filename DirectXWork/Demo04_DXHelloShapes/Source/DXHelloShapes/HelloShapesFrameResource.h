@@ -10,13 +10,13 @@
 struct ObjectConstants;
 struct PassConstants;
 
-struct FrameResource
+struct HelloShapesFrameResource
 {
 public:
-	FrameResource(ID3D12Device* pDevice, UINT passCount, UINT objectCount);
-	FrameResource(const FrameResource& rhs) = delete;
-	FrameResource& operator=(const FrameResource& rhs) = delete;
-	~FrameResource();
+	HelloShapesFrameResource(ID3D12Device* pDevice, UINT passCount, UINT objectCount);
+	HelloShapesFrameResource(const HelloShapesFrameResource& rhs) = delete;
+	HelloShapesFrameResource& operator=(const HelloShapesFrameResource& rhs) = delete;
+	~HelloShapesFrameResource();
 
 public:
 	/// <summary>

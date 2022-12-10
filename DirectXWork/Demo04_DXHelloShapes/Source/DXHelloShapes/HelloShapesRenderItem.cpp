@@ -4,5 +4,5 @@
  */
 
 #include "stdafx.h"
-#include "RenderItem.h"
+#include "HelloShapesRenderItem.h"
 #include "DirectXBaseWork/D3D12Util.h"
