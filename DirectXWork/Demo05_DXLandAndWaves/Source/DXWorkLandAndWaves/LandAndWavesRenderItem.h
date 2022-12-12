@@ -8,7 +8,7 @@
 #include "DirectXBaseWork/MathUtil.h"
 
 // 前置声明 - 几何体网格数据
-class MeshGeometry;
+struct MeshGeometry;
 
 // 全局常量声明 - 帧资源个数
 extern const int kNumFrameResource;

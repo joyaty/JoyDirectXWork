@@ -123,5 +123,5 @@ public:
 	/// <summary>
 	/// 标记的围栏值，标识帧资源是否被使用
 	/// </summary>
-	int fenceValue{};
+	UINT64 fenceValue{};
 };
