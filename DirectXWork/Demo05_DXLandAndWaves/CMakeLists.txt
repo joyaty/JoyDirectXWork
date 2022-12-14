@@ -28,6 +28,8 @@ Source/DXWorkLandAndWaves/LandAndWavesFrameResource.cpp
 Source/DXWorkLandAndWaves/LandAndWavesFrameResource.h
 Source/DXWorkLandAndWaves/LandAndWavesRenderItem.cpp
 Source/DXWorkLandAndWaves/LandAndWavesRenderItem.h
+Source/DXWorkLandAndWaves/Wave.cpp
+Source/DXWorkLandAndWaves/Wave.h
 Source/DXWorkLandAndWaves/LandAndWaves.hlsl
 )
 

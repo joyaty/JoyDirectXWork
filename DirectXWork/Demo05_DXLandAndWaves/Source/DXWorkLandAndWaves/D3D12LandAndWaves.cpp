@@ -10,6 +10,7 @@
 #include "DirectXBaseWork/GeometryGenerator.h"
 #include "LandAndWavesFrameResource.h"
 #include "LandAndWavesRenderItem.h"
+#include "Wave.h"
 #include <DirectXColors.h>
 
 /// <summary>
@@ -37,6 +38,7 @@ bool D3D12LandAndWaves::OnInit()
 	BuildRootSignature();
 	CompileShaderFile();
 	BuildGrid();
+	BuildWave();
 	BuildRenderItem();
 	BuildFrameResource();
 	BuildPipelineState();
@@ -67,6 +69,7 @@ void D3D12LandAndWaves::OnUpdate(float deltaTime, float totalTime)
 	// 更新常量缓冲区数据
 	UpdateObjectCBs(deltaTime, totalTime);
 	UpdatePassCBs(deltaTime, totalTime);
+	UpdateWave(deltaTime, totalTime);
 }
 
 void D3D12LandAndWaves::OnRender()
@@ -191,6 +194,39 @@ void D3D12LandAndWaves::UpdateCamera(float deltaTime, float totalTime)
 	DirectX::XMStoreFloat4x4(&m_ViewMatrix, viewMatrix);
 }
 
+void D3D12LandAndWaves::UpdateWave(float deltaTime, float totalTime)
+{
+	// Every quarter second, generate a random wave.
+	static float t_base = 0.0f;
+	if ((totalTime - t_base) >= 0.25f)
+	{
+		t_base += 0.25f;
+
+		int i = MathUtil::Rand(4, m_pWave->RowCount() - 5);
+		int j = MathUtil::Rand(4, m_pWave->ColumnCount() - 5);
+
+		float r = MathUtil::RandF(0.2f, 0.5f);
+
+		m_pWave->Disturb(i, j, r);
+	}
+
+	m_pWave->UpdateWave(deltaTime);
+
+	std::vector<Vertex> waveVertices(m_pWave->VertexCount());
+
+	UploadBuffer<Vertex>* pVertexBuffer = m_pCurrentFrameResource->pDynamicVertices.get();
+	for (int i = 0; i < m_pWave->VertexCount(); ++i)
+	{
+		Vertex vert{};
+		vert.position = m_pWave->GetPosition(i);
+		vert.color = DirectX::XMFLOAT4(DirectX::Colors::CadetBlue);
+
+		pVertexBuffer->CopyData(i, vert);
+	}
+	// 设置动态顶点缓冲区
+	m_Meshes["WaveMesh"]->m_VertexBufferGPU = pVertexBuffer->GetResource();
+}
+
 void D3D12LandAndWaves::BuildInputLayout()
 {
 	m_InputLayouts = 
@@ -275,6 +311,32 @@ void D3D12LandAndWaves::BuildGrid()
 	m_Meshes[pMeshGeo->m_Name] = std::move(pMeshGeo);
 }
 
+void D3D12LandAndWaves::BuildWave()
+{
+	m_pWave = std::make_unique<Wave>(1.f, 128, 128, 0.03f, 4.f, 0.2f);
+
+	int indexBufferSize = sizeof(std::uint16_t) * 3 * m_pWave->TriangleCount();
+	std::unique_ptr<MeshGeometry> pWaveMesh = std::make_unique<MeshGeometry>();
+	pWaveMesh->m_Name = "WaveMesh";
+	// 波浪网格顶点数据需要动态变化，后续通过常量缓冲区更新
+	pWaveMesh->m_VertexBufferCPU = nullptr;
+	pWaveMesh->m_VertexBufferGPU = nullptr;
+	pWaveMesh->m_VertexBufferUploader = nullptr;
+	pWaveMesh->m_VertexStride = sizeof(Vertex);
+	pWaveMesh->m_VertexSize = sizeof(Vertex) * m_pWave->VertexCount();
+
+	pWaveMesh->m_IndexBufferGPU = D3D12Util::CreateBufferInDefaultHeap(m_Device.Get(), m_CommandList.Get(), m_pWave->GetIndices().data(), indexBufferSize, pWaveMesh->m_IndexBufferUploader);
+	pWaveMesh->m_IndexSize = indexBufferSize; // 每个三角形三个顶点
+	pWaveMesh->m_IndexFormat = DXGI_FORMAT_R16_UINT;
+	SubMeshGeometry waveSubGeometry{};
+	waveSubGeometry.m_IndexCount = 3 * m_pWave->TriangleCount();
+	waveSubGeometry.m_StartIndexLocation = 0;
+	waveSubGeometry.m_BaseVertexLocation = 0;
+	pWaveMesh->m_SubMeshGeometrys["Wave"] = waveSubGeometry;
+	// 保存到物体
+	m_Meshes[pWaveMesh->m_Name] = std::move(pWaveMesh);
+}
+
 float D3D12LandAndWaves::GetHillsHeight(float x, float z)
 {
 	return 0.3f * (z * sinf(0.1f * x) + x * cosf(0.1f * z));
@@ -282,22 +344,32 @@ float D3D12LandAndWaves::GetHillsHeight(float x, float z)
 
 void D3D12LandAndWaves::BuildRenderItem()
 {
-	std::unique_ptr<LandAndWavesRenderItem> pRenderItem = std::make_unique<LandAndWavesRenderItem>();
-	pRenderItem->objectCBIndex = 0;
-	pRenderItem->pGeometryMesh = m_Meshes["Terrain"].get();
-	pRenderItem->primitiveType = D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
-	pRenderItem->worldMatrix = MathUtil::Identity4x4();
-	pRenderItem->indexCount = pRenderItem->pGeometryMesh->m_SubMeshGeometrys["Terrain"].m_IndexCount;
-	pRenderItem->startIndexLocation = pRenderItem->pGeometryMesh->m_SubMeshGeometrys["Terrain"].m_StartIndexLocation;
-	pRenderItem->startVertexLocation = pRenderItem->pGeometryMesh->m_SubMeshGeometrys["Terrain"].m_BaseVertexLocation;
-	m_AllRenderItems.push_back(std::move(pRenderItem));
+	std::unique_ptr<LandAndWavesRenderItem> pLandRenderItem = std::make_unique<LandAndWavesRenderItem>();
+	pLandRenderItem->objectCBIndex = 0;
+	pLandRenderItem->pGeometryMesh = m_Meshes["Terrain"].get();
+	pLandRenderItem->primitiveType = D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+	pLandRenderItem->worldMatrix = MathUtil::Identity4x4();
+	pLandRenderItem->indexCount = pLandRenderItem->pGeometryMesh->m_SubMeshGeometrys["Terrain"].m_IndexCount;
+	pLandRenderItem->startIndexLocation = pLandRenderItem->pGeometryMesh->m_SubMeshGeometrys["Terrain"].m_StartIndexLocation;
+	pLandRenderItem->startVertexLocation = pLandRenderItem->pGeometryMesh->m_SubMeshGeometrys["Terrain"].m_BaseVertexLocation;
+	m_AllRenderItems.push_back(std::move(pLandRenderItem));
+
+	std::unique_ptr<LandAndWavesRenderItem> pWaveRenderItem = std::make_unique<LandAndWavesRenderItem>();
+	pWaveRenderItem->objectCBIndex = 1;
+	pWaveRenderItem->pGeometryMesh = m_Meshes["WaveMesh"].get();
+	pWaveRenderItem->primitiveType = D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+	pWaveRenderItem->worldMatrix = MathUtil::Identity4x4();
+	pWaveRenderItem->indexCount = pWaveRenderItem->pGeometryMesh->m_SubMeshGeometrys["Wave"].m_IndexCount;
+	pWaveRenderItem->startIndexLocation = pWaveRenderItem->pGeometryMesh->m_SubMeshGeometrys["Wave"].m_StartIndexLocation;
+	pWaveRenderItem->startVertexLocation = pWaveRenderItem->pGeometryMesh->m_SubMeshGeometrys["Wave"].m_BaseVertexLocation;
+	m_AllRenderItems.push_back(std::move(pWaveRenderItem));
 }
 
 void D3D12LandAndWaves::BuildFrameResource()
 {
 	for (int i = 0; i < kNumFrameResource; ++i)
 	{
-		m_AllFrameResources.push_back(std::make_unique<LandAndWavesFrameResource>(m_Device.Get(), (UINT)m_AllRenderItems.size(), 1U));
+		m_AllFrameResources.push_back(std::make_unique<LandAndWavesFrameResource>(m_Device.Get(), (UINT)m_AllRenderItems.size(), 1U, m_pWave->VertexCount()));
 	}
 }
 
@@ -333,7 +405,7 @@ void D3D12LandAndWaves::BuildPipelineState()
 	pipelineStateDesc.VS = { reinterpret_cast<BYTE*>(m_VSByteCode->GetBufferPointer()), m_VSByteCode->GetBufferSize() };
 	pipelineStateDesc.PS = { reinterpret_cast<BYTE*>(m_PSByteCode->GetBufferPointer()), m_PSByteCode->GetBufferSize() };
 	pipelineStateDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
-	pipelineStateDesc.RasterizerState.FillMode = D3D12_FILL_MODE_WIREFRAME;
+	pipelineStateDesc.RasterizerState.FillMode = D3D12_FILL_MODE_SOLID; // D3D12_FILL_MODE_WIREFRAME; // 
 	pipelineStateDesc.RasterizerState.CullMode = D3D12_CULL_MODE_BACK;
 	pipelineStateDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
 	pipelineStateDesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);

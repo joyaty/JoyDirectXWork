@@ -14,6 +14,8 @@ struct MeshGeometry;
 struct LandAndWavesRenderItem;
 // 前置声明 - 帧资源
 struct LandAndWavesFrameResource;
+// 前置声明 - 波浪网格
+class Wave;
 
 /// <summary>
 /// 陆地与波浪示例程序Direct3D代码
@@ -54,6 +56,12 @@ private:
 	/// <param name="totalTime"></param>
 	void UpdateCamera(float deltaTime, float totalTime);
 	/// <summary>
+	/// 更新波浪顶点
+	/// </summary>
+	/// <param name="deltaTime"></param>
+	/// <param name="totalTime"></param>
+	void UpdateWave(float deltaTime, float totalTime);
+	/// <summary>
 	/// 构建输入布局
 	/// </summary>
 	void BuildInputLayout();
@@ -65,6 +73,10 @@ private:
 	/// 构建地表网格
 	/// </summary>
 	void BuildGrid();
+	/// <summary>
+	/// 构建波浪网格
+	/// </summary>
+	void BuildWave();
 	/// <summary>
 	/// 地形高度计算，随机生成地形
 	/// </summary>
@@ -125,6 +137,11 @@ private:
 	std::unordered_map<std::string, std::unique_ptr<MeshGeometry>> m_Meshes{};
 
 	/// <summary>
+	/// 波浪网格数据
+	/// </summary>
+	std::unique_ptr<Wave> m_pWave{ nullptr };
+
+	/// <summary>
 	/// 所有的渲染项集合
 	/// </summary>
 	std::vector<std::unique_ptr<LandAndWavesRenderItem>> m_AllRenderItems{};
@@ -158,7 +175,7 @@ private:
 	/// <summary>
 	/// 球坐标系半径
 	/// </summary>
-	float m_Radius{ 100.f };
+	float m_Radius{ 150.f };
 	/// <summary>
 	/// 位矢与Y轴的夹角
 	/// </summary>

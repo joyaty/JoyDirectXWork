@@ -102,7 +102,7 @@ public:
 struct LandAndWavesFrameResource
 {
 public:
-	LandAndWavesFrameResource(ID3D12Device* pDevice, UINT objCBCount, UINT passCBCount);
+	LandAndWavesFrameResource(ID3D12Device* pDevice, UINT objCBCount, UINT passCBCount, UINT vertexCount);
 	LandAndWavesFrameResource(const LandAndWavesFrameResource& rhs) = delete;
 	LandAndWavesFrameResource operator=(const LandAndWavesFrameResource& rhs) = delete;
 	~LandAndWavesFrameResource();
@@ -120,6 +120,10 @@ public:
 	/// 过程常量缓冲区上传堆资源
 	/// </summary>
 	std::unique_ptr<UploadBuffer<PassConstants>> pPassCB{ nullptr };
+	/// <summary>
+	/// 波浪的动态顶点上传堆资源
+	/// </summary>
+	std::unique_ptr<UploadBuffer<Vertex>> pDynamicVertices{ nullptr };
 	/// <summary>
 	/// 标记的围栏值，标识帧资源是否被使用
 	/// </summary>
