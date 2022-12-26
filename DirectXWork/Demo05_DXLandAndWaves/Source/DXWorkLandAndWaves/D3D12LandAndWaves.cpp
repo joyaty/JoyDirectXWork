@@ -116,8 +116,8 @@ void D3D12LandAndWaves::OnMouseMove(UINT8 keyCode, int x, int y)
 	else if ((keyCode & MK_RBUTTON) != 0)
 	{
 		// 右键点击，缩放
-		float dx = 0.005f * static_cast<float>(x - m_LastMousePos.x);
-		float dy = 0.005f * static_cast<float>(y - m_LastMousePos.y);
+		float dx = 0.05f * static_cast<float>(x - m_LastMousePos.x);
+		float dy = 0.05f * static_cast<float>(y - m_LastMousePos.y);
 		m_Radius += dx - dy;
 		m_Radius = MathUtil::Clamp(m_Radius, 50.f, 200.f);
 	}
