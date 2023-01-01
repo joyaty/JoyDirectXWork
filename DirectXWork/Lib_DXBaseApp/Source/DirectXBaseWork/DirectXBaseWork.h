@@ -1,4 +1,3 @@
-
 /**
  * DirectXBaseWork.h
  * 初始化Direct3D
