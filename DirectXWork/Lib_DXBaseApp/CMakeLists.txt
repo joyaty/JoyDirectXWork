@@ -47,6 +47,7 @@ Source/DirectXBaseWork/MathUtil.cpp
 Source/DirectXBaseWork/MathUtil.h
 Source/DirectXBaseWork/GeometryGenerator.cpp
 Source/DirectXBaseWork/GeometryGenerator.h
+Source/DirectXBaseWork/RenderConstantsStruct.h
 Source/DearIMGuiHelper/DearIMGuiBaseHelper.cpp
 Source/DearIMGuiHelper/DearIMGuiBaseHelper.h
 )

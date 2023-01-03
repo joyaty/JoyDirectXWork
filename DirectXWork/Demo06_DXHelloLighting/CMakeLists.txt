@@ -24,6 +24,10 @@ Source/DXWorkHelloLighting/DXHelloLighting.cpp
 Source/DXWorkHelloLighting/DXHelloLighting.h
 Source/DXWorkHelloLighting/IMGuiHelloLighting.cpp
 Source/DXWorkHelloLighting/IMGuiHelloLighting.h
+Source/DXWorkHelloLighting/HelloLightingFrameResource.cpp
+Source/DXWorkHelloLighting/HelloLightingFrameResource.h
+Source/DXWorkHelloLighting/HelloLightingRenderItem.cpp
+Source/DXWorkHelloLighting/HelloLightingRenderItem.h
 Source/DXWorkHelloLighting/HelloLighting.hlsl
 )
 

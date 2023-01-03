@@ -6,6 +6,11 @@
 #include "stdafx.h"
 #include "DXHelloLighting.h"
 
+/// <summary>
+/// 帧资源个数
+/// </summary>
+const int kFrameResourceCount = 3;
+
 DXHelloLighting::DXHelloLighting(std::wstring title, UINT width/* = 1280U*/, UINT height/* = 720U*/)
 	: DirectXBaseWork(title, width, height)
 {
