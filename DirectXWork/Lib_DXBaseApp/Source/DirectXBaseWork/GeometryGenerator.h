@@ -135,7 +135,7 @@ public:
 	/// <param name="radius">半径</param>
 	/// <param name="numSubdivisions">面细分数</param>
 	/// <returns></returns>
-	static GeometryGenerator::MeshData CreateGeoShpere(float radius, uint32 numSubdivisions);
+	static GeometryGenerator::MeshData CreateGeoSphere(float radius, uint32 numSubdivisions);
 
 	/// <summary>
 	/// 构建网格XZ平面

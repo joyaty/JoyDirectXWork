@@ -7,7 +7,7 @@
 
 #include "DearIMGuiHelper/DearIMGuiBaseHelper.h"
 
-// 强制声明 - 光照模型DX示例
+ // 强制声明 - 光照模型DX示例
 class DXHelloLighting;
 
 /// <summary>
@@ -26,7 +26,7 @@ public:
 	}
 
 public:
-	void SetWorkHelloLighting(DXHelloLighting* pHelloLighting) { m_HelloLighting = pHelloLighting; }
+	void SetWorkHelloLighting(DXHelloLighting* pHelloLighting) { m_HelloLightingDemo = pHelloLighting; }
 
 protected:
 	void OnDrawWindow() override;
@@ -38,5 +38,14 @@ private:
 	/// <summary>
 	/// HelloLighting示例
 	/// </summary>
-	DXHelloLighting* m_HelloLighting;
+	DXHelloLighting* m_HelloLightingDemo;
+
+	/// <summary>
+	/// 裁剪模式
+	/// </summary>
+	D3D12_CULL_MODE m_CullMode{ D3D12_CULL_MODE_BACK };
+	/// <summary>
+	/// 填充模式
+	/// </summary>
+	D3D12_FILL_MODE m_FillMode{ D3D12_FILL_MODE_WIREFRAME };
 };

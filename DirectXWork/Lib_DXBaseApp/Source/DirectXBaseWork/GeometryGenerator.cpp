@@ -219,7 +219,7 @@ GeometryGenerator::MeshData GeometryGenerator::CreateSphere(float radius, uint32
 	return meshData;
 }
 
-GeometryGenerator::MeshData GeometryGenerator::CreateGeoShpere(float radius, uint32 numSubdivisions)
+GeometryGenerator::MeshData GeometryGenerator::CreateGeoSphere(float radius, uint32 numSubdivisions)
 {
 	MeshData meshData{};
 	numSubdivisions = std::min<uint32>(numSubdivisions, 6u);
