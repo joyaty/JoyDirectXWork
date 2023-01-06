@@ -48,6 +48,7 @@ bool DXHelloLighting::OnInit()
 	InitInputLayout();
 	BuildRootSignature();
 	CompileShaderFile();
+	BuildMaterial();
 	BuildRenderItem();
 	BuildFrameResource();
 	BuildPSO(D3D12_CULL_MODE_BACK, D3D12_FILL_MODE_SOLID);
@@ -79,6 +80,7 @@ void DXHelloLighting::OnUpdate(float deltaTime, float totalTime)
 	}
 	UpdateCamera(deltaTime, totalTime);
 	UpdateObjectCB(deltaTime, totalTime);
+	UpdateMaterialCB(deltaTime, totalTime);
 	UpdatePassCB(deltaTime, totalTime);
 }
 
@@ -131,6 +133,28 @@ void DXHelloLighting::UpdateObjectCB(float deltaTime, float totalTime)
 			pObjectCB->CopyData(pRenderItem->objConstantBufferIndex, objCB);
 			// 脏标记 - 1
 			--pRenderItem->numFrameDirty;
+		}
+	}
+}
+
+void DXHelloLighting::UpdateMaterialCB(float deltaTime, float totalTime)
+{
+	UploadBuffer<PerMatConstants>* pMaterialCB = m_CurrentFrameResource->pPerMatUploadBuffer.get();
+	for (auto& iter : m_Materials)
+	{
+		HelloLightingMaterial* pMaterial = iter.second.get();
+		// 材质数据为脏，才更新材质常量缓冲区数据
+		if (pMaterial->numFrameDirty > 0)
+		{
+			// 构建材质常量数据
+			PerMatConstants matConstant{};
+			matConstant.diffuseAlbedo = pMaterial->diffuseAlbedo;
+			matConstant.fresnelR0 = pMaterial->fresnelR0;
+			matConstant.roughness = pMaterial->roughness;
+			// 拷贝数据到材质常量缓冲区
+			pMaterialCB->CopyData(pMaterial->materialCBIndex, matConstant);
+			// 脏标记-1
+			--pMaterial->numFrameDirty;
 		}
 	}
 }
@@ -204,6 +228,19 @@ void DXHelloLighting::OnResize(UINT width, UINT height)
 	DirectX::XMStoreFloat4x4(&m_ProjMatrix, projMatrix);
 }
 
+void DXHelloLighting::BuildMaterial()
+{
+	// 创建测试材质
+	std::unique_ptr<HelloLightingMaterial> pMaterial = std::make_unique<HelloLightingMaterial>();
+	pMaterial->name = "HelloLightingTest";
+	pMaterial->diffuseAlbedo = DirectX::XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
+	pMaterial->fresnelR0 = DirectX::XMFLOAT3(0.01f, 0.01f, 0.01f);
+	pMaterial->roughness = 0.25f;
+	pMaterial->materialCBIndex = 0;
+	// 保存到材质集合中
+	m_Materials[pMaterial->name] = std::move(pMaterial);
+}
+
 void DXHelloLighting::BuildRenderItem()
 {
 	GeometryGenerator::MeshData sphereMesh = GeometryGenerator::CreateGeoSphere(2.f, 3);
@@ -246,7 +283,8 @@ void DXHelloLighting::BuildRenderItem()
 	// 世界位置放置在(0,0,0)点，构建世界变换矩阵
 	DirectX::XMMATRIX worldMatrix = DirectX::XMMatrixTranslation(0.f, 0.f, 0.f);
 	DirectX::XMStoreFloat4x4(&sphereRenderItem->worldMatrix, worldMatrix);
-	sphereRenderItem->pMeshGeometry = m_GeoMesh["SphereGeo"].get();
+	sphereRenderItem->pMeshGeometry = m_GeoMesh["SphereGeo"].get();		// 指定渲染项关联的网格
+	sphereRenderItem->pMat = m_Materials["HelloLightingTest"].get();	// 指定渲染项关联的材质
 	sphereRenderItem->objConstantBufferIndex = 0;
 	sphereRenderItem->primitiveType = D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
 	sphereRenderItem->indexCount = sphereRenderItem->pMeshGeometry->m_SubMeshGeometrys["Sphere"].m_IndexCount;
@@ -259,7 +297,7 @@ void DXHelloLighting::BuildFrameResource()
 {
 	for (int i = 0; i < kFrameResourceCount; ++i)
 	{
-		m_FrameResources.push_back(std::make_unique<HelloLightingFrameResource>(m_Device.Get(), (UINT)m_AllRenderItems.size(), 1));
+		m_FrameResources.push_back(std::make_unique<HelloLightingFrameResource>(m_Device.Get(), (UINT)m_AllRenderItems.size(), (UINT)m_Materials.size(), 1));
 	}
 	m_CurrentFrameResourceIndex = 0;
 	m_CurrentFrameResource = m_FrameResources[m_CurrentBackBufferIndex].get();
@@ -284,11 +322,12 @@ void DXHelloLighting::CompileShaderFile()
 void DXHelloLighting::BuildRootSignature()
 {
 	// 构建根参数
-	CD3DX12_ROOT_PARAMETER rootParameters[2]{};
+	CD3DX12_ROOT_PARAMETER rootParameters[3]{};
 	rootParameters[0].InitAsConstantBufferView(0); // 物体常量缓冲区根描述符
-	rootParameters[1].InitAsConstantBufferView(1); // 渲染过程常量缓冲区根描述符
+	rootParameters[1].InitAsConstantBufferView(1); // 材质常量缓冲区根描述符
+	rootParameters[2].InitAsConstantBufferView(2); // 渲染过程常量缓冲区根描述符
 	// 构建根签名描述
-	CD3DX12_ROOT_SIGNATURE_DESC rootSigDesc(2, rootParameters, 0, nullptr, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+	CD3DX12_ROOT_SIGNATURE_DESC rootSigDesc(3, rootParameters, 0, nullptr, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 	// 根参数序列化处理
 	Microsoft::WRL::ComPtr<ID3DBlob> pSerializeRootSig{ nullptr };
 	Microsoft::WRL::ComPtr<ID3DBlob> pErrorMsg{ nullptr };
@@ -350,7 +389,7 @@ void DXHelloLighting::PopulateCommandList()
 	// 设置根签名
 	m_CommandList->SetGraphicsRootSignature(m_RootSignature.Get());
 	// 设置渲染过程常量缓冲区根描述符
-	m_CommandList->SetGraphicsRootConstantBufferView(1, m_CurrentFrameResource->pPassUploadBuffer->GetResource()->GetGPUVirtualAddress());
+	m_CommandList->SetGraphicsRootConstantBufferView(2, m_CurrentFrameResource->pPassUploadBuffer->GetResource()->GetGPUVirtualAddress());
 	// 绘制渲染项
 	DrawRenderItem();
 	// 提交DearIMGui的渲染命令
@@ -377,10 +416,15 @@ void DXHelloLighting::DrawRenderItem()
 		m_CommandList->IASetIndexBuffer(&pRenderItem->pMeshGeometry->GetIndexBufferView());
 		m_CommandList->IASetPrimitiveTopology(pRenderItem->primitiveType);
 		// 设置物体常量缓冲区根描述符
-		D3D12_GPU_VIRTUAL_ADDRESS gpuAddress{ m_CurrentFrameResource->pPerObjUploadBuffer->GetResource()->GetGPUVirtualAddress() };
+		D3D12_GPU_VIRTUAL_ADDRESS objCBGPUAddress{ m_CurrentFrameResource->pPerObjUploadBuffer->GetResource()->GetGPUVirtualAddress() };
 		// 偏移到指定索引的物体常量缓冲区
-		gpuAddress += pRenderItem->objConstantBufferIndex * m_CurrentFrameResource->pPerObjUploadBuffer->GetElementSize();
-		m_CommandList->SetGraphicsRootConstantBufferView(0, gpuAddress);
+		objCBGPUAddress += pRenderItem->objConstantBufferIndex * m_CurrentFrameResource->pPerObjUploadBuffer->GetElementSize();
+		m_CommandList->SetGraphicsRootConstantBufferView(0, objCBGPUAddress);
+		// 设置材质常量缓冲区根描述符
+		D3D12_GPU_VIRTUAL_ADDRESS matCBGPUAddress{ m_CurrentFrameResource->pPerMatUploadBuffer->GetResource()->GetGPUVirtualAddress() };
+		// 偏移到指定索引的材质常量缓冲区
+		matCBGPUAddress += pRenderItem->objConstantBufferIndex * m_CurrentFrameResource->pPerMatUploadBuffer->GetElementSize();
+		m_CommandList->SetGraphicsRootConstantBufferView(1, matCBGPUAddress);
 		// 绘制
 		m_CommandList->DrawIndexedInstanced(pRenderItem->indexCount, 1, pRenderItem->startIndexLocation, pRenderItem->startVetexLocation, 0);
 	}

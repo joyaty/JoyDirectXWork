@@ -8,8 +8,10 @@
 #include "DirectXBaseWork/DirectXBaseWork.h"
 #include <DirectXBaseWork/MathUtil.h>
 
- // 前置声明 - 几何体Mesh数据结构
+// 前置声明 - 几何体Mesh数据结构
 struct MeshGeometry;
+// 前置声明 - 材质数据结构
+struct HelloLightingMaterial;
 // 前置声明 - 渲染项数据结构
 struct HelloLightingRenderItem;
 // 前置声明 - 帧资源数据结构
@@ -44,6 +46,11 @@ protected:
 	void OnDestroy() override;
 
 private:
+	/// <summary>
+	/// 构建材质
+	/// </summary>
+	void BuildMaterial();
+
 	/// <summary>
 	/// 初始化渲染项
 	/// </summary>
@@ -89,6 +96,13 @@ private:
 	void UpdateObjectCB(float deltaTime, float totalTime);
 
 	/// <summary>
+	/// 更新材质常量缓冲区
+	/// </summary>
+	/// <param name="deltaTime"></param>
+	/// <param name="totalTime"></param>
+	void UpdateMaterialCB(float deltaTime, float totalTime);
+
+	/// <summary>
 	/// 更新渲染过程常量缓冲区
 	/// </summary>
 	/// <param name="deltaTime"></param>
@@ -129,6 +143,10 @@ private:
 	/// 绘制的几何物体集合
 	/// </summary>
 	std::unordered_map<std::string, std::unique_ptr<MeshGeometry>> m_GeoMesh{};
+	/// <summary>
+	/// 绘制的材质集合
+	/// </summary>
+	std::unordered_map<std::string, std::unique_ptr<HelloLightingMaterial>> m_Materials{};
 	/// <summary>
 	/// 所有的渲染项
 	/// </summary>

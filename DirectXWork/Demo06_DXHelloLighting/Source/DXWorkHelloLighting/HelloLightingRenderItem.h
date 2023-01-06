@@ -9,6 +9,8 @@
 
 // 前置声明 - 渲染物体的Mesh数据结构
 struct MeshGeometry;
+// 前置声明 - 渲染物体的材质数据结构
+struct HelloLightingMaterial;
 
 /// <summary>
 /// 声明全局常量 - kFrameResourceCount - 帧资源个数
@@ -40,6 +42,10 @@ public:
 	/// 渲染项关联的物体网格
 	/// </summary>
 	MeshGeometry* pMeshGeometry{ nullptr };
+	/// <summary>
+	/// 渲染项关联的材质
+	/// </summary>
+	HelloLightingMaterial* pMat{ nullptr };
 
 	/// <summary>
 	/// 索引个数

@@ -6,8 +6,19 @@ cbuffer cbPerObject : register(b0)
 	float4x4 gWorldMatrix;
 };
 
+// 材质常量缓冲区
+cbuffer cbPerMaterial : register(b1)
+{
+	// 材质漫反射反照率
+	float4 gDiffuseAlbedo;
+	// FresnelR0属性
+	float3 gFresnelR0;
+	// 粗糙度
+	float gRoughness;
+}
+
 // 渲染过程常量缓冲区
-cbuffer cbPass : register(b1)
+cbuffer cbPass : register(b2)
 {
 	// 观察变换矩阵
 	float4x4 gViewMatrix;
