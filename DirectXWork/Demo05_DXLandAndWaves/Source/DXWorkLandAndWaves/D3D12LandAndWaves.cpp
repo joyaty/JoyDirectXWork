@@ -61,10 +61,10 @@ void D3D12LandAndWaves::OnUpdate(float deltaTime, float totalTime)
 	m_pCurrentFrameResource = m_AllFrameResources[m_CurrentFrameResourceIndex].get();
 	if (m_pCurrentFrameResource->fenceValue != 0 && m_pCurrentFrameResource->fenceValue > m_Fence->GetCompletedValue())
 	{
-		HANDLE eventHanle = CreateEventEx(nullptr, false, false, EVENT_ALL_ACCESS);
-		ThrowIfFailed(m_Fence->SetEventOnCompletion(m_pCurrentFrameResource->fenceValue, eventHanle));
-		WaitForSingleObject(eventHanle, INFINITE);
-		CloseHandle(eventHanle);
+		HANDLE eventHandle = CreateEventEx(nullptr, false, false, EVENT_ALL_ACCESS);
+		ThrowIfFailed(m_Fence->SetEventOnCompletion(m_pCurrentFrameResource->fenceValue, eventHandle));
+		WaitForSingleObject(eventHandle, INFINITE);
+		CloseHandle(eventHandle);
 	}
 	// 更新常量缓冲区数据
 	UpdateObjectCBs(deltaTime, totalTime);

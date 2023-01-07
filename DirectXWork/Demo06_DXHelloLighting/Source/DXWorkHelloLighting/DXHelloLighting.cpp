@@ -73,10 +73,10 @@ void DXHelloLighting::OnUpdate(float deltaTime, float totalTime)
 	if (m_CurrentFrameResource->fenceValue != 0 && m_CurrentFrameResource->fenceValue > m_Fence->GetCompletedValue())
 	{
 		// 当前帧资源还未处理，需要等待
-		HANDLE eventHanle = CreateEventEx(nullptr, false, false, EVENT_ALL_ACCESS);
-		ThrowIfFailed(m_Fence->SetEventOnCompletion(m_CurrentFrameResource->fenceValue, eventHanle));
-		WaitForSingleObject(eventHanle, INFINITE);
-		CloseHandle(eventHanle);
+		HANDLE eventHandle = CreateEventEx(nullptr, false, false, EVENT_ALL_ACCESS);
+		ThrowIfFailed(m_Fence->SetEventOnCompletion(m_CurrentFrameResource->fenceValue, eventHandle));
+		WaitForSingleObject(eventHandle, INFINITE);
+		CloseHandle(eventHandle);
 	}
 	UpdateCamera(deltaTime, totalTime);
 	UpdateObjectCB(deltaTime, totalTime);

@@ -105,10 +105,10 @@ void D3D12HelloShapes::OnUpdate(float deltaTime, float totalTime)
 	// 当前完成的围栏值小于帧资源标记的围栏值，说明需要CPU需要等待GPU完成当前帧资源的绘制
 	if (m_CurrentFrameResource->fenceValue != 0 && m_CurrentFrameResource->fenceValue > m_Fence->GetCompletedValue())
 	{
-		HANDLE eventHanle = CreateEventEx(nullptr, false, false, EVENT_ALL_ACCESS);
-		ThrowIfFailed(m_Fence->SetEventOnCompletion(m_CurrentFrameResource->fenceValue, eventHanle));
-		WaitForSingleObject(eventHanle, INFINITE);
-		CloseHandle(eventHanle);
+		HANDLE eventHandle = CreateEventEx(nullptr, false, false, EVENT_ALL_ACCESS);
+		ThrowIfFailed(m_Fence->SetEventOnCompletion(m_CurrentFrameResource->fenceValue, eventHandle));
+		WaitForSingleObject(eventHandle, INFINITE);
+		CloseHandle(eventHandle);
 	}
 	// 更新常量缓冲区数据
 	UpdateObjectCBs(deltaTime, totalTime);
