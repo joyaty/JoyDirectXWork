@@ -83,7 +83,6 @@ struct PerMatConstants
 	/// 粗糙度
 	/// </summary>
 	float roughness{ 0.25f };
-
 };
 
 /// <summary>

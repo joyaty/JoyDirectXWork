@@ -1,3 +1,23 @@
+/**
+ * HelloLighting.hlsl
+ * HelloLighting工程使用的主HLSL文件，包含顶点着色器和像素着色器入口
+ **/
+
+// 定义方向光源数量
+#ifndef NUM_DIR_LIGHTS
+	#define NUM_DIR_LIGHTS 1
+#endif
+// 定义点光源数量
+#ifndef NUM_POINT_LIGHTS
+	#define NUM_POINT_LIGHTS 0
+#endif
+// 定义聚光灯光源数量
+#ifndef NUM_SPOT_LIGHTS
+	#define NUM_SPOT_LIGHTS 0
+#endif
+
+// 包含光照模型辅助HLSL文件
+#include "LightingUtil.hlsl"
 
 // 物体常量缓冲区
 cbuffer cbPerObject : register(b0)
@@ -46,6 +66,10 @@ cbuffer cbPass : register(b2)
 	float gTotalTime;
 	// 帧间隔时间
 	float gDeltaTime;
+	// 环境光
+	float4 gAmbientLight;
+	// 所有光源数据
+	Light gLights[MAX_LIGHTS];
 };
 
 // 顶点着色器输入
@@ -55,8 +79,8 @@ struct VertexIn
 	float3 PosL : POSITION;
 	// 顶点颜色
 	float4 Color : COLOR;
-	// 顶点法线
-	float3 Normal : NORMAL;
+	// 局部空间顶点法线
+	float3 NormalL : NORMAL;
 };
 
 // 顶点着色器输出
@@ -64,10 +88,12 @@ struct VertexOut
 {
 	// 裁剪空间的顶点坐标
 	float4 PosH : SV_POSITION;
+	// 世界空间位置
+	float3 PosW : POSITION;
 	// 顶点颜色
 	float4 Color : COLOR;
-	// 顶点法线
-	float3 Normal : NORMAL;
+	// 世界空间顶点法线
+	float3 NormalW : NORMAL;
 };
 
 // 顶点着色器入口
@@ -76,17 +102,36 @@ VertexOut VSMain(VertexIn vIn)
 	VertexOut vOut;
 	// 转换为齐次坐标，本地坐标系变换到世界空间坐标系下
 	float4 posW = mul(float4(vIn.PosL, 1.0f), gWorldMatrix);
+	vOut.PosW = posW.xyz;
 	// 世界空间坐标系变换到裁剪空间
 	vOut.PosH = mul(posW, gViewProjMatrix);
 	// 原样传递顶点颜色
 	vOut.Color = vIn.Color;
-
-	vOut.Normal = vIn.Normal;
+	// 法线转换到世界空间下，这里假设进行的是等比缩放变换
+	vOut.NormalW = mul(vIn.NormalL, (float3x3)gWorldMatrix);
 	return vOut;
 }
 
 // 像素着色器入口
 float4 PSMain(VertexOut pIn) : SV_TARGET
 {
-	return pIn.Color;
+	// 法线变换可能导致非规范放，重新规范化法线
+	pIn.NormalW = normalize(pIn.NormalW);
+	// 光线反射表面点到观察点的方向向量
+	float3 toEye = normalize(gEyeWorldPos - pIn.PosW);
+
+	// 构建材质数据
+	Material mat;
+	mat.DiffuseAlbedo = gDiffuseAlbedo;
+	mat.FresnelR0 = gFresnelR0;
+	mat.Shininess = 1.0f - gRoughness;
+	// 直接光照反射光
+	float4 directLight = ComputeLight(gLights, mat, pIn.PosW, pIn.NormalW, toEye);
+	// 间接光照
+	float4 ambient = gAmbientLight * gDiffuseAlbedo;
+	// 表面光 = 间接反射光 + 直接反射光
+	float4 litColor = ambient + directLight;
+	// 从漫反射材质中获取alpha值是常见手段
+	litColor.a = gDiffuseAlbedo.a;
+	return litColor;
 }

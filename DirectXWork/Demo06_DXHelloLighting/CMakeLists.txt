@@ -29,11 +29,13 @@ Source/DXWorkHelloLighting/HelloLightingFrameResource.h
 Source/DXWorkHelloLighting/HelloLightingRenderItem.cpp
 Source/DXWorkHelloLighting/HelloLightingRenderItem.h
 Source/DXWorkHelloLighting/HelloLighting.hlsl
+Source/DXWorkHelloLighting/LightingUtil.hlsl
 )
 
 # 将所有Shader文件设置到SHADER_FILES变量上
 set(SHADER_FILES
 Source/DXWorkHelloLighting/HelloLighting.hlsl
+Source/DXWorkHelloLighting/LightingUtil.hlsl
 )
 
 # 排除编译HLSL文件

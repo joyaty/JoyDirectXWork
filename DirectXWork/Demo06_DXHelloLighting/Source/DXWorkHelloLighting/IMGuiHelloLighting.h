@@ -6,6 +6,7 @@
 #pragma once
 
 #include "DearIMGuiHelper/DearIMGuiBaseHelper.h"
+#include <imgui.h>
 
  // 强制声明 - 光照模型DX示例
 class DXHelloLighting;
@@ -26,7 +27,7 @@ public:
 	}
 
 public:
-	void SetWorkHelloLighting(DXHelloLighting* pHelloLighting) { m_HelloLightingDemo = pHelloLighting; }
+	void SetWorkHelloLighting(DXHelloLighting* pHelloLighting);
 
 protected:
 	void OnDrawWindow() override;
@@ -48,4 +49,13 @@ private:
 	/// 填充模式
 	/// </summary>
 	D3D12_FILL_MODE m_FillMode{ D3D12_FILL_MODE_WIREFRAME };
+
+	/// <summary>
+	/// 环境光颜色
+	/// </summary>
+	ImVec4 m_AmbientColor{};
+	/// <summary>
+	/// 直接光颜色
+	/// </summary>
+	ImVec4 m_DirectColor{};
 };

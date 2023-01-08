@@ -12,6 +12,8 @@
 #include <DirectXBaseWork/GeometryGenerator.h>
 #include <DirectXColors.h>
 
+using namespace DirectX;
+
 /// <summary>
 /// 帧资源个数
 /// </summary>
@@ -78,6 +80,7 @@ void DXHelloLighting::OnUpdate(float deltaTime, float totalTime)
 		WaitForSingleObject(eventHandle, INFINITE);
 		CloseHandle(eventHandle);
 	}
+	OnKeyboardInput(deltaTime, totalTime);
 	UpdateCamera(deltaTime, totalTime);
 	UpdateObjectCB(deltaTime, totalTime);
 	UpdateMaterialCB(deltaTime, totalTime);
@@ -183,8 +186,36 @@ void DXHelloLighting::UpdatePassCB(float deltaTime, float totalTime)
 	passObj.farZ = 1000.0f;
 	passObj.deltaTime = deltaTime;
 	passObj.totalTime = totalTime;
+	// 环境光源数据
+	passObj.ambientLight = m_AmbientLight;
+	// 光源数据
+	DirectX::XMFLOAT3 sunPos{};
+	sunPos.x = 1.f * sinf(m_SunTheta) * cosf(m_SunPhi);
+	sunPos.y = 1.f * cosf(m_SunTheta);
+	sunPos.z = 1.f * sinf(m_SunTheta) * sinf(m_SunPhi);
+	DirectX::XMVECTOR lightDir = -DirectX::XMVectorSet(sunPos.x, sunPos.y, sunPos.z, 1.f);
+	DirectX::XMStoreFloat3(&passObj.lights[0].direction, lightDir);
+	passObj.lights[0].strength = m_DirectLight;
+
 	// 拷贝数据Pass常量缓冲区上
 	m_CurrentFrameResource->pPassUploadBuffer->CopyData(0, passObj);
+}
+
+void DXHelloLighting::OnKeyboardInput(float deltaTime, float totalTime)
+{
+	if (GetAsyncKeyState(VK_LEFT) & 0x8000)
+		m_SunPhi -= 1.0f * deltaTime;
+
+	if (GetAsyncKeyState(VK_RIGHT) & 0x8000)
+		m_SunPhi += 1.0f * deltaTime;
+
+	if (GetAsyncKeyState(VK_UP) & 0x8000)
+		m_SunTheta -= 1.0f * deltaTime;
+
+	if (GetAsyncKeyState(VK_DOWN) & 0x8000)
+		m_SunTheta += 1.0f * deltaTime;
+
+	m_SunPhi = MathUtil::Clamp(m_SunPhi, 0.1f, XM_PIDIV2);
 }
 
 void DXHelloLighting::OnMouseDown(UINT8 keyCode, int x, int y)
@@ -233,8 +264,8 @@ void DXHelloLighting::BuildMaterial()
 	// 创建测试材质
 	std::unique_ptr<HelloLightingMaterial> pMaterial = std::make_unique<HelloLightingMaterial>();
 	pMaterial->name = "HelloLightingTest";
-	pMaterial->diffuseAlbedo = DirectX::XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
-	pMaterial->fresnelR0 = DirectX::XMFLOAT3(0.01f, 0.01f, 0.01f);
+	pMaterial->diffuseAlbedo = DirectX::XMFLOAT4(1.f, 1.0f, 1.0f, 1.0f);
+	pMaterial->fresnelR0 = DirectX::XMFLOAT3(0.05f, 0.05f, 0.05f);
 	pMaterial->roughness = 0.25f;
 	pMaterial->materialCBIndex = 0;
 	// 保存到材质集合中

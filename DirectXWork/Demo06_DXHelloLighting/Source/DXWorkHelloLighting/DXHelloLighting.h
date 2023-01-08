@@ -33,6 +33,27 @@ public:
 	/// <param name="fillMode"></param>
 	void UpdatePSO(D3D12_CULL_MODE cullMode, D3D12_FILL_MODE fillMode);
 
+	/// <summary>
+	/// 获取间接光
+	/// </summary>
+	/// <returns></returns>
+	const DirectX::XMFLOAT4& GetAmbientLight() const { return m_AmbientLight; }
+	/// <summary>
+	/// 设置间接光
+	/// </summary>
+	/// <param name="ambientLight"></param>
+	void SetAmbientLight(const DirectX::XMFLOAT4& ambientLight) { m_AmbientLight = ambientLight; }
+	/// <summary>
+	/// 获取直接光
+	/// </summary>
+	/// <returns></returns>
+	const DirectX::XMFLOAT3& GetDirectLight() const { return m_DirectLight; }
+	/// <summary>
+	/// 设置直接光
+	/// </summary>
+	/// <param name="directLight"></param>
+	void SetDirectLight(const DirectX::XMFLOAT3& directLight) { m_DirectLight = directLight; }
+
 public:
 	void OnMouseDown(UINT8 keyCode, int x, int y) override;
 	void OnMouseUp(UINT8 keyCode, int x, int y) override;
@@ -108,6 +129,13 @@ private:
 	/// <param name="deltaTime"></param>
 	/// <param name="totalTime"></param>
 	void UpdatePassCB(float deltaTime, float totalTime);
+
+	/// <summary>
+	/// 键盘事件处理，处理光照方向调整
+	/// </summary>
+	/// <param name="deltaTime"></param>
+	/// <param name="totalTime"></param>
+	void OnKeyboardInput(float deltaTime, float totalTime);
 
 	/// <summary>
 	/// 记录渲染指令
@@ -194,4 +222,21 @@ private:
 	/// 上次鼠标位置
 	/// </summary>
 	POINT m_LastMousePos{};
+
+	/// <summary>
+	/// 方向光位矢与Y轴的夹角
+	/// </summary>
+	float m_SunTheta{ DirectX::XM_PIDIV4 };
+	/// <summary>
+	/// 方向光位矢在XZ平面的投影和X轴的夹角
+	/// </summary>
+	float m_SunPhi{ 1.25f * DirectX::XM_PI };
+	/// <summary>
+	/// 环境光
+	/// </summary>
+	DirectX::XMFLOAT4 m_AmbientLight{ 0.25f, 0.25f, 0.35f, 1.0f };
+	/// <summary>
+	/// 直接光
+	/// </summary>
+	DirectX::XMFLOAT3 m_DirectLight{ 0.8f, 0.7f, 0.7f };
 };
