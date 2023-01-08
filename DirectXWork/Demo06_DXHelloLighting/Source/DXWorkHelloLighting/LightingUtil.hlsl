@@ -54,8 +54,8 @@ float3 SchlickFresnel(float3 R0, float3 normal, float3 lightVec)
 	// 光向量与法向量夹角余弦值
 	float cosIncidentAngle = saturate(dot(normal, lightVec));
 	// 石里克近似法公式，计算反射光百分比
-	float f0 = 1 - cosIncidentAngle;
-	float3 relectionPercent = R0 * (1- R0) * (f0 * f0 * f0 * f0 * f0);
+	float f0 = 1.0f - cosIncidentAngle;
+	float3 relectionPercent = R0 + (1.0f - R0) * (f0 * f0 * f0 * f0 * f0);
 	return relectionPercent;
 }
 
@@ -75,11 +75,12 @@ float3 BlinnPhong(float3 lightStrength, float3 lightVec, float3 normal, float3 t
 	// 粗糙度因子
 	float roughnessFactor = (m + 8.0f) * pow(max(dot(normal, halfVec), 0.0f), m) / 8.0f;
 	// 菲涅尔因子
-	float3 fresnelFactor = SchlickFresnel(mat.FresnelR0, normal, lightVec);
+	float3 fresnelFactor = SchlickFresnel(mat.FresnelR0, halfVec, lightVec);
 	// 镜面反照率
 	float3 specularAlbedo = fresnelFactor * roughnessFactor;
 	// 尽管是LDR(low dynamic range，低动态范围)渲染，但是镜面反射公式得到的结果仍会超出范围[0,1]，因此按其比例缩小一些
 	specularAlbedo = specularAlbedo / (specularAlbedo + 1.0f);
+	// return specularAlbedo * lightStrength;
 	// 叠加漫反射和镜面反射的反射到观察者光量
 	return (mat.DiffuseAlbedo.rgb + specularAlbedo) * lightStrength;
 }
