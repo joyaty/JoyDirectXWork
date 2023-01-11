@@ -61,6 +61,23 @@ public:
 };
 
 /// <summary>
+/// 渲染材质常量数据
+/// </summary>
+struct PerMaterialConstants
+{
+	/// <summary>
+	/// 材质名称
+	/// </summary>
+	std::string name{};
+	/// <summary>
+	/// 
+	/// </summary>
+	DirectX::XMFLOAT4 albedo{};
+
+	DirectX::XMFLOAT3 fresnelR0{};
+};
+
+/// <summary>
 /// 渲染过程的常量数据结构
 /// </summary>
 struct PerPassConstancts

@@ -9,6 +9,7 @@
 DXHelloTexture::DXHelloTexture(std::wstring title, UINT width/* = 1280U*/, UINT height/* = 720U*/)
 	: DirectXBaseWork(title, width, height)
 {
+	m_AssetPath += L"\\DirectXWork\\Demo07_DXHelloTexture\\Source\\DXWorkHelloTexture\\";
 }
 
 DXHelloTexture::~DXHelloTexture()
