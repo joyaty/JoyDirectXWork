@@ -1,11 +1,11 @@
 /*
- * 范例06 - HelloLighting示例程序
+ * 范例07 - HelloTexture 纹理贴图示例程序
  * Main.cpp
  */
 
 #include "Application/Win32Application.h"
-#include "DXWorkHelloLighting/DXHelloLighting.h"
-#include "DXWorkHelloLighting/IMGuiHelloLighting.h"
+#include "DXWorkHelloTexture/DXHelloTexture.h"
+#include "DXWorkHelloTexture/IMGuiHelloTexture.h"
 
  /// <summary>
  /// Win32入口Main函数
@@ -17,9 +17,9 @@
  /// <returns></returns>
 int WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _In_ LPWSTR lpCmdLine, _In_ int nCmdShow)
 {
-	DXHelloLighting helloLighting(L"D3D12 Hello Lighting", 1280U, 720U);
+	DXHelloTexture helloLighting(L"D3D12 Hello Texture", 1280U, 720U);
 
-	Win32Application application(hInstance, &helloLighting, IMGuiHelloLighting::GetInstance());
+	Win32Application application(hInstance, &helloLighting, IMGuiHelloTexture::GetInstance());
 	application.InitializeMainWindow();
 
 	return application.Run();
