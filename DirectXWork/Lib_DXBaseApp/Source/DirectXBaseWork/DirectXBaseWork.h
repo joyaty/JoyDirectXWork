@@ -189,7 +189,7 @@ protected:
 	UINT m_4XMSAAQualityLevel = 0U;
 
 	/// <summary>
-	/// 当前的后台缓冲区索引，作为渲染目标时需要知道数据写入到那个缓冲区上
+	/// 当前的后台缓冲区索引，作为渲染目标时需要知道数据写入到哪个缓冲区上
 	/// </summary>
 	UINT m_CurrentBackBufferIndex = 0U;
 

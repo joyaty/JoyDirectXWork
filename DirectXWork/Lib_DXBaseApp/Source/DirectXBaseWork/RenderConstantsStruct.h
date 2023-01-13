@@ -21,7 +21,6 @@
 /// </summary>
 struct Light
 {
-public:
 	/// <summary>
 	/// 光源颜色
 	/// </summary>
@@ -53,7 +52,6 @@ public:
  /// </summary>
 struct PerObjectConstants
 {
-public:
 	/// <summary>
 	/// 本地到世界空间的变换矩阵
 	/// </summary>
@@ -66,15 +64,17 @@ public:
 struct PerMaterialConstants
 {
 	/// <summary>
-	/// 材质名称
-	/// </summary>
-	std::string name{};
-	/// <summary>
-	/// 
+	/// 漫反射反照率
 	/// </summary>
 	DirectX::XMFLOAT4 albedo{};
-
+	/// <summary>
+	/// fresnel效果R0
+	/// </summary>
 	DirectX::XMFLOAT3 fresnelR0{};
+	/// <summary>
+	/// 粗糙度
+	/// </summary>
+	float roughness{};
 };
 
 /// <summary>
@@ -82,7 +82,6 @@ struct PerMaterialConstants
 /// </summary>
 struct PerPassConstancts
 {
-public:
 	/// <summary>
 	/// 观察矩阵
 	/// </summary>

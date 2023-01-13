@@ -16,7 +16,7 @@ IMGuiHelloTexture* IMGuiHelloTexture::GetInstance()
 
 void IMGuiHelloTexture::OnDrawWindow()
 {
-	ImGui::Begin("Hello Lighting");
+	ImGui::Begin("Hello Texture");
 	DrawAdapterInfo();
 	ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
 	// TODO 绘制HelloTexture的调试面板
