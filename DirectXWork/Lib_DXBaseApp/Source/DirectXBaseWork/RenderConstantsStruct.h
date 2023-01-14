@@ -10,9 +10,7 @@
 /// <summary>
 /// 最大光源数
 /// </summary>
-#ifndef MaxLights
-#define MaxLights 16
-#endif // !MaxLights
+constexpr int MaxLights = 16;
 
 /// <summary>
 /// 光源数据结构
