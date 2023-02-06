@@ -81,7 +81,7 @@ void DXHelloTexture::OnKeyboardInput(float deltaTime, float totalTime)
 	if (GetAsyncKeyState(VK_DOWN) & 0x8000)
 		m_SunTheta += 1.0f * deltaTime;
 
-	m_SunPhi = MathUtil::Clamp(m_SunPhi, 0.1f, DirectX::XM_PIDIV2);
+	m_SunTheta = MathUtil::Clamp(m_SunTheta, 0.1f, DirectX::XM_PIDIV2);
 }
 
 bool DXHelloTexture::OnInit()

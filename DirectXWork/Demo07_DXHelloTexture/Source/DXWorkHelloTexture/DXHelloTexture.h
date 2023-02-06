@@ -195,9 +195,9 @@ private:
 	/// <summary>
 	/// 方向光位矢与Y轴的夹角
 	/// </summary>
-	float m_SunTheta{ DirectX::XM_PIDIV4 };
+	float m_SunTheta{ 0.25f * DirectX::XM_PI };
 	/// <summary>
 	/// 方向光位矢在XZ平面的投影和X轴的夹角
 	/// </summary>
-	float m_SunPhi{ 1.25f * DirectX::XM_PI };
+	float m_SunPhi{ -0.25f * DirectX::XM_PI };
 };

@@ -45,6 +45,8 @@ Source/DirectXBaseWork/D3D12Util.cpp
 Source/DirectXBaseWork/D3D12Util.h
 Source/DirectXBaseWork/MathUtil.cpp
 Source/DirectXBaseWork/MathUtil.h
+Source/DirectXBaseWork/DDSTextureLoader.cpp
+Source/DirectXBaseWork/DDSTextureLoader.h
 Source/DirectXBaseWork/GeometryGenerator.cpp
 Source/DirectXBaseWork/GeometryGenerator.h
 Source/DirectXBaseWork/RenderConstantsStruct.h
