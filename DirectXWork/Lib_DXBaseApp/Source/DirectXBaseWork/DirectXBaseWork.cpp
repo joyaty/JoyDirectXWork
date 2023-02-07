@@ -21,7 +21,7 @@ DirectXBaseWork::DirectXBaseWork(std::wstring title, UINT width, UINT height)
 	m_AssetPath = assetPath;
 	size_t rootFolderIndex = m_AssetPath.find(L"\\Build", 0);
 	m_AssetPath = m_AssetPath.substr(0, rootFolderIndex);
-
+	m_AssetRootPath = m_AssetPath;
 	m_AspectRatio = static_cast<float>(m_Width) / static_cast<float>(m_Height);
 }
 

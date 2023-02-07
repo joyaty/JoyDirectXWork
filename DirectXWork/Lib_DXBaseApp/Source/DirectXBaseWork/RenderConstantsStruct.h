@@ -45,6 +45,29 @@ struct Light
 	float spotPower{ 64.f };
 };
 
+/// <summary>
+/// 纹理数据结构
+/// </summary>
+struct Texture
+{
+	/// <summary>
+	/// 纹理标识名称
+	/// </summary>
+	std::string name;
+	/// <summary>
+	/// 纹理文件名
+	/// </summary>
+	std::wstring fileName;
+	/// <summary>
+	/// 默认堆上的纹理资源
+	/// </summary>
+	Microsoft::WRL::ComPtr<ID3D12Resource> m_TextureGPU{ nullptr };
+	/// <summary>
+	/// 上传堆上的纹理资源，作为CPU拷贝数据到默认堆上的中转
+	/// </summary>
+	Microsoft::WRL::ComPtr<ID3D12Resource> m_TextureUpload{ nullptr };
+};
+
  /// <summary>
  /// 渲染物体常量数据
  /// </summary>

@@ -197,6 +197,10 @@ protected:
 	/// 资源路径
 	/// </summary>
 	std::wstring m_AssetPath;
+	/// <summary>
+	/// 资源根路径
+	/// </summary>
+	std::wstring m_AssetRootPath;
 
 	/// <summary>
 	/// 视口大小

@@ -53,6 +53,10 @@ private:
 	/// </summary>
 	void BuildGeometry();
 	/// <summary>
+	/// 加载纹理
+	/// </summary>
+	void LoadTexture();
+	/// <summary>
 	/// 初始化材质
 	/// </summary>
 	void BuildMaterial();
@@ -125,6 +129,10 @@ private:
 	/// 渲染管线状态对象
 	/// </summary>
 	Microsoft::WRL::ComPtr<ID3D12PipelineState> m_PSO{ nullptr };
+	/// <summary>
+	/// 着色器资源描述符堆
+	/// </summary>
+	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> m_SRVDescriptorHeap{ nullptr };
 
 	/// <summary>
 	/// 场景中所有的物体

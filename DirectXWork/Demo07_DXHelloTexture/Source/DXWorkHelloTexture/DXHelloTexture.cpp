@@ -6,7 +6,8 @@
 #include "stdafx.h"
 #include "DXHelloTexture.h"
 #include "IMGuiHelloTexture.h"
-#include <DirectXBaseWork/GeometryGenerator.h>
+#include "DirectXBaseWork/GeometryGenerator.h"
+#include "DirectXBaseWork/DDSTextureLoader.h"
 #include <DirectXColors.h>
 
 using namespace DirectX;
@@ -91,6 +92,7 @@ bool DXHelloTexture::OnInit()
 	ThrowIfFailed(m_CommandList->Reset(m_CommandAllocator.Get(), nullptr));
 	// 实例程序初始化
 	BuildGeometry();
+	LoadTexture();
 	BuildMaterial();
 	BuildRenderItem();
 	BuildFrameResource();
@@ -244,6 +246,34 @@ void DXHelloTexture::BuildGeometry()
 	subCube.m_BaseVertexLocation = 0;
 	pCubeGeo->m_SubMeshGeometrys["Cube"] = subCube;
 	m_Geometrys[pCubeGeo->m_Name] = std::move(pCubeGeo);
+}
+
+void DXHelloTexture::LoadTexture()
+{
+	// 创建纹理资源
+	std::unique_ptr<Texture> pTexture = std::make_unique<Texture>();
+	pTexture->name = "WoodCrate";
+	pTexture->fileName = m_AssetRootPath + L"\\Assets\\Textures\\WoodCrate02.dds";
+	ThrowIfFailed(CreateDDSTextureFromFile12(m_Device.Get(), m_CommandList.Get(), pTexture->fileName.c_str(), pTexture->m_TextureGPU, pTexture->m_TextureUpload));
+	// 创建着色器资源描述符堆
+	D3D12_DESCRIPTOR_HEAP_DESC heapDesc{};
+	heapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+	heapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+	heapDesc.NumDescriptors = 1;
+	heapDesc.NodeMask = 0U;
+	ThrowIfFailed(m_Device->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(m_SRVDescriptorHeap.GetAddressOf())));
+	// 创建着色器资源描述符
+	D3D12_SHADER_RESOURCE_VIEW_DESC shaderResourceViewDesc{};
+	shaderResourceViewDesc.Format = pTexture->m_TextureGPU->GetDesc().Format;		// 格式，使用资源的格式类型，若资源是无类型格式，则此处必须填写具体的格式类型
+	shaderResourceViewDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;			// 资源的维数，常见类型: Texture1D/Texture2D/Texture3D/TextureCube
+	shaderResourceViewDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;	// 纹理采样返回的纹理数据向量。此字段可以对返回纹理数据向量进行重新排序，不需要则指定D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING，返回默认的数据顺序
+	shaderResourceViewDesc.Texture2D.MostDetailedMip = 0U;			// 最详尽的mipmap层级索引
+	shaderResourceViewDesc.Texture2D.MipLevels = pTexture->m_TextureGPU->GetDesc().MipLevels;	// mipmap层级数量
+	shaderResourceViewDesc.Texture2D.PlaneSlice = 0U;				// 平面切片的索引
+	shaderResourceViewDesc.Texture2D.ResourceMinLODClamp = 0.f;		// 可访问的最新mipmap层级
+	// 创建着色器资源描述符
+	CD3DX12_CPU_DESCRIPTOR_HANDLE handle(m_SRVDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
+	m_Device->CreateShaderResourceView(pTexture->m_TextureGPU.Get(), &shaderResourceViewDesc, handle);
 }
 
 void DXHelloTexture::BuildMaterial()
