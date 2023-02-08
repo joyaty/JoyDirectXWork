@@ -57,6 +57,10 @@ private:
 	/// </summary>
 	void LoadTexture();
 	/// <summary>
+	/// 初始化采样器
+	/// </summary>
+	void BuildSampler();
+	/// <summary>
 	/// 初始化材质
 	/// </summary>
 	void BuildMaterial();
@@ -133,11 +137,19 @@ private:
 	/// 着色器资源描述符堆
 	/// </summary>
 	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> m_SRVDescriptorHeap{ nullptr };
+	/// <summary>
+	/// 采样器描述符堆
+	/// </summary>
+	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> m_SamplerDescriptorHeap{ nullptr };
 
 	/// <summary>
 	/// 场景中所有的物体
 	/// </summary>
 	std::unordered_map<std::string, std::unique_ptr<MeshGeometry>> m_Geometrys{};
+	/// <summary>
+	/// 场景中所用的纹理
+	/// </summary>
+	std::unordered_map<std::string, std::unique_ptr<Texture>> m_Textures{};
 	/// <summary>
 	/// 所有的材质
 	/// </summary>

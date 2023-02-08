@@ -93,6 +93,7 @@ bool DXHelloTexture::OnInit()
 	// 实例程序初始化
 	BuildGeometry();
 	LoadTexture();
+	BuildSampler();
 	BuildMaterial();
 	BuildRenderItem();
 	BuildFrameResource();
@@ -168,13 +169,19 @@ void DXHelloTexture::CompileShaderFile()
 
 void DXHelloTexture::BuildRootSignature()
 {
+	CD3DX12_DESCRIPTOR_RANGE range[2]{};
+	range[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0);
+	range[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, 1, 0);
+
 	// 构造根参数
-	CD3DX12_ROOT_PARAMETER rootParameters[3]{};
+	CD3DX12_ROOT_PARAMETER rootParameters[5]{};
 	rootParameters[0].InitAsConstantBufferView(0);		// 物体常量缓冲区根描述符
 	rootParameters[1].InitAsConstantBufferView(1);		// 材质常量缓冲区根描述符
 	rootParameters[2].InitAsConstantBufferView(2);		// 渲染过程常量缓冲区根描述符
+	rootParameters[3].InitAsDescriptorTable(1, &range[0], D3D12_SHADER_VISIBILITY_PIXEL);
+	rootParameters[4].InitAsDescriptorTable(1, &range[1], D3D12_SHADER_VISIBILITY_PIXEL);
 	// 构造根签名描述
-	CD3DX12_ROOT_SIGNATURE_DESC rootSignatureDesc(3, rootParameters, 0, nullptr, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+	CD3DX12_ROOT_SIGNATURE_DESC rootSignatureDesc(5, rootParameters, 0, nullptr, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 	// 序列化根签名
 	Microsoft::WRL::ComPtr<ID3DBlob> pSerializeRootSignature{ nullptr };
 	Microsoft::WRL::ComPtr<ID3DBlob> pErrorMsg{ nullptr };
@@ -259,7 +266,7 @@ void DXHelloTexture::LoadTexture()
 	D3D12_DESCRIPTOR_HEAP_DESC heapDesc{};
 	heapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 	heapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
-	heapDesc.NumDescriptors = 1;
+	heapDesc.NumDescriptors = 1U;
 	heapDesc.NodeMask = 0U;
 	ThrowIfFailed(m_Device->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(m_SRVDescriptorHeap.GetAddressOf())));
 	// 创建着色器资源描述符
@@ -274,6 +281,30 @@ void DXHelloTexture::LoadTexture()
 	// 创建着色器资源描述符
 	CD3DX12_CPU_DESCRIPTOR_HANDLE handle(m_SRVDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
 	m_Device->CreateShaderResourceView(pTexture->m_TextureGPU.Get(), &shaderResourceViewDesc, handle);
+	m_Textures[pTexture->name] = std::move(pTexture);
+}
+
+void DXHelloTexture::BuildSampler()
+{
+	// 创建采样器描述符堆
+	D3D12_DESCRIPTOR_HEAP_DESC heapDesc{};
+	heapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER;
+	heapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+	heapDesc.NumDescriptors = 1U;
+	heapDesc.NodeMask = 0U;
+	m_Device->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(m_SamplerDescriptorHeap.GetAddressOf()));
+	// 创建采样器描述符
+	D3D12_SAMPLER_DESC samplerDesc{};
+	samplerDesc.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR; // 纹理图双线性过滤，mipmap层级间线性过滤，可称为三线性过滤
+	samplerDesc.AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP; // 纹理水平u轴采用重复寻址模式
+	samplerDesc.AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP; // 纹理水平v轴采用重复寻址模式
+	samplerDesc.AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP; // 纹理水平w轴采用重复寻址模式
+	samplerDesc.MinLOD = 0.f; // 可供选择的最小mipmap层级
+	samplerDesc.MaxLOD = D3D12_FLOAT32_MAX; // 可供选择的最大mipmap层级
+	samplerDesc.MipLODBias = 0.f; // mipmap偏移值，例如值为2，mipmap为3，则按层级3 + 2，即mipmap层级=5采样
+	samplerDesc.MaxAnisotropy = 1; // 最大各向异性值，对于Filter = D3D12_FILTER_ANISOTROPIC或D3D12_FILTER_COMPARISON_ANISOTROPIC生效，值域[1,16]，值越大，消耗越大，效果越好
+	samplerDesc.ComparisonFunc = D3D12_COMPARISON_FUNC_ALWAYS; // 用于实现阴影贴图（shadow mapping）这类效果的高级选项，目前不使用，设置为D3D12_COMPARISON_FUNC_ALWAYS
+	m_Device->CreateSampler(&samplerDesc, m_SamplerDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
 }
 
 void DXHelloTexture::BuildMaterial()
@@ -284,6 +315,7 @@ void DXHelloTexture::BuildMaterial()
 	pMaterial->fresnelR0 = DirectX::XMFLOAT3(0.95f, 0.93f, 0.88f);
 	pMaterial->roughness = 0.25f;
 	pMaterial->matCBIndex = 0;
+	pMaterial->diffuseMapIndex = 0;
 	m_Materials[pMaterial->name] = std::move(pMaterial);
 }
 
@@ -416,8 +448,13 @@ void DXHelloTexture::PopulateCommandList()
 	m_CommandList->ClearDepthStencilView(m_DepthStencilDescriptorHandle, D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.f, 0, 0, nullptr);
 	// 绑定渲染目标和深度模板缓冲区
 	m_CommandList->OMSetRenderTargets(1, &rtvHandle, true, &m_DepthStencilDescriptorHandle);
+	// 设置使用的描述符堆
+	ID3D12DescriptorHeap* samplerHeaps[] = { m_SamplerDescriptorHeap.Get(), m_SRVDescriptorHeap.Get() };
+	m_CommandList->SetDescriptorHeaps(2, samplerHeaps);
 	// 绑定根签名
 	m_CommandList->SetGraphicsRootSignature(m_RootSignature.Get());
+	// 绑定采样器
+	m_CommandList->SetGraphicsRootDescriptorTable(4, m_SamplerDescriptorHeap->GetGPUDescriptorHandleForHeapStart());
 	// 绑定渲染过程常量缓冲区描述符
 	m_CommandList->SetGraphicsRootConstantBufferView(2, m_pCurrentFrameResource->pPerPassCB->GetResource()->GetGPUVirtualAddress());
 	// 绘制渲染项
@@ -446,6 +483,10 @@ void DXHelloTexture::DrawRenderItem()
 		m_CommandList->IASetIndexBuffer(&pRenderItem->pMeshGeo->GetIndexBufferView());
 		// 绑定图元拓扑
 		m_CommandList->IASetPrimitiveTopology(pRenderItem->primitiveType);
+		// 绑定漫反射反照率贴图
+		CD3DX12_GPU_DESCRIPTOR_HANDLE handle(m_SRVDescriptorHeap->GetGPUDescriptorHandleForHeapStart());
+		handle.Offset(pRenderItem->pMaterial->diffuseMapIndex * m_CBVUAVDescriptorSize);
+		m_CommandList->SetGraphicsRootDescriptorTable(3, handle);
 		// 绑定物体常量缓冲区描述符
 		D3D12_GPU_VIRTUAL_ADDRESS objCBAddress = m_pCurrentFrameResource->pPerObjCB->GetResource()->GetGPUVirtualAddress();
 		objCBAddress += pRenderItem->objectCBIndex * m_pCurrentFrameResource->pPerObjCB->GetElementSize();

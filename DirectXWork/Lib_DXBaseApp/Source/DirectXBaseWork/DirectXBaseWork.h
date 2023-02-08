@@ -182,6 +182,10 @@ protected:
 	/// ConstantBufferView/ShaderResourceView/UnorderedAccessView描述符大小
 	/// </summary>
 	UINT m_CBVUAVDescriptorSize = 0U;
+	/// <summary>
+	/// 采样器描述符大小
+	/// </summary>
+	UINT m_SamplerDescriptorSize = 0U;
 
 	/// <summary>
 	/// 图像质量等级，对于某种纹理格式和采样数量的组合来说，其质量级别的有效范围为[0, NumQualityLevels - 1]

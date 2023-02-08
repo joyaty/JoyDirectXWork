@@ -58,6 +58,10 @@ struct HelloTextureMaterial
 	/// 关联的材质常量缓冲区索引
 	/// </summary>
 	int matCBIndex{};
+	/// <summary>
+	/// 漫反射反照率纹理索引
+	/// </summary>
+	int diffuseMapIndex{};
 
 	/// <summary>
 	/// 脏标记，每个帧资源初始默认都为脏

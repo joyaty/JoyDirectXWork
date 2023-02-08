@@ -72,6 +72,11 @@ cbuffer cbPass : register(b2)
 	Light gLights[MAX_LIGHTS];
 };
 
+// 漫反射纹理
+Texture2D gDiffuseMap : register(t0);
+// 线性采样器 - 重复寻址模式
+SamplerState gSamLinerWrap : register(s0);
+
 // 顶点着色器输入
 struct VertexIn
 {
@@ -122,13 +127,13 @@ float4 PSMain(VertexOut pIn) : SV_TARGET
 
 	// 构建材质数据
 	Material mat;
-	mat.DiffuseAlbedo = gDiffuseAlbedo;
+	mat.DiffuseAlbedo = gDiffuseMap.Sample(gSamLinerWrap, pIn.TexCoord) * gDiffuseAlbedo;
 	mat.FresnelR0 = gFresnelR0;
 	mat.Shininess = 1.0f - gRoughness;
 	// 直接光照反射光
 	float4 directLight = ComputeLight(gLights, mat, pIn.PosW, pIn.NormalW, toEye);
 	// 间接光照
-	float4 ambient = gAmbientLight * gDiffuseAlbedo;
+	float4 ambient = gAmbientLight * mat.DiffuseAlbedo;
 	// 表面光 = 间接反射光 + 直接反射光
 	float4 litColor = ambient + directLight;
 	// 从漫反射材质中获取alpha值是常见手段
