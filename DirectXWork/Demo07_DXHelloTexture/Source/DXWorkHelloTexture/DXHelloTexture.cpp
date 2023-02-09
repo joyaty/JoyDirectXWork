@@ -94,6 +94,7 @@ bool DXHelloTexture::OnInit()
 	BuildGeometry();
 	LoadTexture();
 	BuildSampler();
+	BuildStaticSamplers();
 	BuildMaterial();
 	BuildRenderItem();
 	BuildFrameResource();
@@ -181,7 +182,7 @@ void DXHelloTexture::BuildRootSignature()
 	rootParameters[3].InitAsDescriptorTable(1, &range[0], D3D12_SHADER_VISIBILITY_PIXEL);
 	rootParameters[4].InitAsDescriptorTable(1, &range[1], D3D12_SHADER_VISIBILITY_PIXEL);
 	// 构造根签名描述
-	CD3DX12_ROOT_SIGNATURE_DESC rootSignatureDesc(5, rootParameters, 0, nullptr, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+	CD3DX12_ROOT_SIGNATURE_DESC rootSignatureDesc(5, rootParameters, (UINT)(m_StaticSamplers.size()), m_StaticSamplers.data(), D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 	// 序列化根签名
 	Microsoft::WRL::ComPtr<ID3DBlob> pSerializeRootSignature{ nullptr };
 	Microsoft::WRL::ComPtr<ID3DBlob> pErrorMsg{ nullptr };
@@ -305,6 +306,50 @@ void DXHelloTexture::BuildSampler()
 	samplerDesc.MaxAnisotropy = 1; // 最大各向异性值，对于Filter = D3D12_FILTER_ANISOTROPIC或D3D12_FILTER_COMPARISON_ANISOTROPIC生效，值域[1,16]，值越大，消耗越大，效果越好
 	samplerDesc.ComparisonFunc = D3D12_COMPARISON_FUNC_ALWAYS; // 用于实现阴影贴图（shadow mapping）这类效果的高级选项，目前不使用，设置为D3D12_COMPARISON_FUNC_ALWAYS
 	m_Device->CreateSampler(&samplerDesc, m_SamplerDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
+}
+
+void DXHelloTexture::BuildStaticSamplers()
+{
+	// 纹理和mipmap点过滤 + wrap寻址模式
+	m_StaticSamplers[0].Init(1,
+		D3D12_FILTER_MIN_MAG_MIP_POINT,
+		D3D12_TEXTURE_ADDRESS_MODE_WRAP,
+		D3D12_TEXTURE_ADDRESS_MODE_WRAP,
+		D3D12_TEXTURE_ADDRESS_MODE_WRAP);
+	// 纹理和mipmap点过滤 + clamp寻址模式
+	m_StaticSamplers[1].Init(2,
+		D3D12_FILTER_MIN_MAG_MIP_POINT,
+		D3D12_TEXTURE_ADDRESS_MODE_CLAMP,
+		D3D12_TEXTURE_ADDRESS_MODE_CLAMP,
+		D3D12_TEXTURE_ADDRESS_MODE_CLAMP);
+	// 纹理和mipmap线性过滤 + wrap寻址模式
+	m_StaticSamplers[2].Init(3,
+		D3D12_FILTER_MIN_MAG_MIP_LINEAR,
+		D3D12_TEXTURE_ADDRESS_MODE_WRAP,
+		D3D12_TEXTURE_ADDRESS_MODE_WRAP,
+		D3D12_TEXTURE_ADDRESS_MODE_WRAP);
+	// 纹理和mipmap线性过滤 + clamp寻址模式
+	m_StaticSamplers[3].Init(4,
+		D3D12_FILTER_MIN_MAG_MIP_LINEAR,
+		D3D12_TEXTURE_ADDRESS_MODE_CLAMP,
+		D3D12_TEXTURE_ADDRESS_MODE_CLAMP,
+		D3D12_TEXTURE_ADDRESS_MODE_CLAMP);
+	// 纹理和mipmap各向异性过滤 + wrap寻址模式
+	m_StaticSamplers[4].Init(5,
+		D3D12_FILTER_ANISOTROPIC,
+		D3D12_TEXTURE_ADDRESS_MODE_WRAP,
+		D3D12_TEXTURE_ADDRESS_MODE_WRAP,
+		D3D12_TEXTURE_ADDRESS_MODE_WRAP,
+		0.f,
+		8U);
+	// 纹理和mipmap各向异性过滤 + clamp寻址模式
+	m_StaticSamplers[5].Init(6,
+		D3D12_FILTER_ANISOTROPIC,
+		D3D12_TEXTURE_ADDRESS_MODE_CLAMP,
+		D3D12_TEXTURE_ADDRESS_MODE_CLAMP,
+		D3D12_TEXTURE_ADDRESS_MODE_CLAMP,
+		0.f,
+		8U);
 }
 
 void DXHelloTexture::BuildMaterial()

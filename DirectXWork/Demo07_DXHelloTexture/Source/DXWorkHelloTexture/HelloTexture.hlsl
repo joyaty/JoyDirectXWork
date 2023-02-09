@@ -76,6 +76,13 @@ cbuffer cbPass : register(b2)
 Texture2D gDiffuseMap : register(t0);
 // 线性采样器 - 重复寻址模式
 SamplerState gSamLinerWrap : register(s0);
+// 静态采样器
+SamplerState gSamPointWrapStatic : register(s1);
+SamplerState gSamPointClampStatic : register(s2);
+SamplerState gSamLinearWrapStatic : register(s3);
+SamplerState gSamLinearClampStatic : register(s4);
+SamplerState gSamAnisotropicWrapStatic : register(s5);
+SamplerState gSamAnisotropicClampStatic : register(s6);
 
 // 顶点着色器输入
 struct VertexIn
@@ -127,7 +134,7 @@ float4 PSMain(VertexOut pIn) : SV_TARGET
 
 	// 构建材质数据
 	Material mat;
-	mat.DiffuseAlbedo = gDiffuseMap.Sample(gSamLinerWrap, pIn.TexCoord) * gDiffuseAlbedo;
+	mat.DiffuseAlbedo = gDiffuseMap.Sample(gSamLinearWrapStatic, pIn.TexCoord) * gDiffuseAlbedo;
 	mat.FresnelR0 = gFresnelR0;
 	mat.Shininess = 1.0f - gRoughness;
 	// 直接光照反射光

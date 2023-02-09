@@ -6,6 +6,7 @@
 #pragma once
 
 #include <DirectXBaseWork/DirectXBaseWork.h>
+#include <array>
 #include <DirectXBaseWork/D3D12Util.h>
 #include "HelloTextureRenderItem.h"
 #include "HelloTextureFrameResource.h"
@@ -60,6 +61,10 @@ private:
 	/// 初始化采样器
 	/// </summary>
 	void BuildSampler();
+	/// <summary>
+	/// 构建静态采样器
+	/// </summary>
+	void BuildStaticSamplers();
 	/// <summary>
 	/// 初始化材质
 	/// </summary>
@@ -141,6 +146,10 @@ private:
 	/// 采样器描述符堆
 	/// </summary>
 	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> m_SamplerDescriptorHeap{ nullptr };
+	/// <summary>
+	/// 静态采样器
+	/// </summary>
+	std::array<CD3DX12_STATIC_SAMPLER_DESC, 6> m_StaticSamplers{};
 
 	/// <summary>
 	/// 场景中所有的物体
