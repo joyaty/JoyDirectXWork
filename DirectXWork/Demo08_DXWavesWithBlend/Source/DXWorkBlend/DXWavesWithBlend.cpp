@@ -3,6 +3,7 @@
  * Demo08_DXWavesWithBlend示例项目主实现文件
  **/
 
+#include "stdafx.h"
 #include "DXWavesWithBlend.h"
 #include "WavesWithBlendRenderItem.h"
 #include "DirectXBaseWork/GeometryGenerator.h"

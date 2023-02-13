@@ -3,6 +3,7 @@
  * Demo08_DXWavesWithBlend示例项目DearIMGui调试面板实现文件
  **/
 
+#include "stdafx.h"
 #include "IMGuiWavesWithBlend.h"
 #include <imgui.h>
 #include "DXWavesWithBlend.h"
