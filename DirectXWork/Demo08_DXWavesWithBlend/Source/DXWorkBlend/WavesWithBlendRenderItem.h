@@ -6,8 +6,9 @@
 #pragma once
 
 #include "DirectXBaseWork/D3D12Util.h"
+#include "DirectXBaseWork/MathUtil.h"
 
-extern int kNumFrameResource;
+extern const int kNumFrameResource;
 
 /// <summary>
 /// 顶点数据结构

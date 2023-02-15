@@ -5,9 +5,13 @@
 
 #include "stdafx.h"
 #include "DXWavesWithBlend.h"
-#include "WavesWithBlendRenderItem.h"
 #include "DirectXBaseWork/GeometryGenerator.h"
+#include "DirectXBaseWork/DDSTextureLoader.h"
 
+/// <summary>
+/// 帧资源个数
+/// </summary>
+const int kNumFrameResource = 3;
 
 DXWavesWithBlend::DXWavesWithBlend(std::wstring title, UINT width/* = 1280U*/, UINT height/* = 720U*/)
 	: DirectXBaseWork(title, width, height)
@@ -38,7 +42,22 @@ void DXWavesWithBlend::OnMouseMove(UINT8 keyCode, int x, int y)
 
 bool DXWavesWithBlend::OnInit()
 {
-	BuildTerrain();
+	// 等待基类相关的命令列表指令执行完成
+	FlushCommandQueue();
+	ThrowIfFailed(m_CommandList->Reset(m_CommandAllocator.Get(), nullptr));
+	// 实例程序相关的初始化
+	BuildTerrainMesh();
+	BuildWavesMesh();
+	BuildFenceCubeMesh();
+	LoadTextures();
+	BuildSrvHeap();
+	BuildMaterials();
+	BuildRenderItems();
+	// 执行实例初始化指令
+	ThrowIfFailed(m_CommandList->Close());
+	ID3D12CommandList* cmdLists[] = { m_CommandList.Get() };
+	m_CommandQueue->ExecuteCommandLists(1, cmdLists);
+	FlushCommandQueue();
 	return true;
 }
 
@@ -54,7 +73,7 @@ void DXWavesWithBlend::OnDestroy()
 {
 }
 
-void DXWavesWithBlend::BuildTerrain()
+void DXWavesWithBlend::BuildTerrainMesh()
 {
 	GeometryGenerator::MeshData terrainMeshData = GeometryGenerator::CreateGrid(160.f, 160.f, 50, 50);
 	UINT totalVerticeSize = (UINT)terrainMeshData.Vertices.size();
@@ -114,18 +133,213 @@ DirectX::XMFLOAT3 DXWavesWithBlend::GetHillsNormal(float x, float z)const
 	return n;
 }
 
-void DXWavesWithBlend::BuildWaves()
+void DXWavesWithBlend::BuildWavesMesh()
 {
 }
 
-void DXWavesWithBlend::BuildBox()
+void DXWavesWithBlend::BuildFenceCubeMesh()
 {
 }
 
 void DXWavesWithBlend::LoadTextures()
 {
+	// 加载山地地形贴图
+	std::unique_ptr<Texture> pTerrainTexture = std::make_unique<Texture>();
+	pTerrainTexture->name = "Terrain";
+	pTerrainTexture->fileName = m_AssetRootPath + L"\\Assets\\Textures\\grass.dds";
+	DirectX::CreateDDSTextureFromFile12(m_Device.Get(), m_CommandList.Get(), pTerrainTexture->fileName.c_str(), pTerrainTexture->m_TextureGPU, pTerrainTexture->m_TextureUpload);
+	m_AllTextures[pTerrainTexture->name] = std::move(pTerrainTexture);
+	// 加载围栏贴图
+	std::unique_ptr<Texture> pFenceTexture = std::make_unique<Texture>();
+	pFenceTexture->name = "FenceBox";
+	pFenceTexture->fileName = m_AssetRootPath + L"\\Assets\\Textures\\WireFence.dds";
+	DirectX::CreateDDSTextureFromFile12(m_Device.Get(), m_CommandList.Get(), pFenceTexture->fileName.c_str(), pFenceTexture->m_TextureGPU, pFenceTexture->m_TextureUpload);
+	m_AllTextures[pFenceTexture->name] = std::move(pFenceTexture);
+	// 加载水波贴图
+	std::unique_ptr<Texture> pWaterTexture = std::make_unique<Texture>();
+	pWaterTexture->name = "Water";
+	pWaterTexture->fileName = m_AssetRootPath + L"\\Assets\\Textures\\water1.dds";
+	DirectX::CreateDDSTextureFromFile12(m_Device.Get(), m_CommandList.Get(), pWaterTexture->fileName.c_str(), pWaterTexture->m_TextureGPU, pWaterTexture->m_TextureUpload);
+	m_AllTextures[pWaterTexture->name] = std::move(pWaterTexture);
+}
+
+void DXWavesWithBlend::BuildSrvHeap()
+{
+	// 创建着色器资源描述符堆
+	D3D12_DESCRIPTOR_HEAP_DESC srvheapDesc{};
+	srvheapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+	srvheapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+	srvheapDesc.NumDescriptors = 3U;	// 本例中有三张贴图
+	srvheapDesc.NodeMask = 0U;
+	ThrowIfFailed(m_Device->CreateDescriptorHeap(&srvheapDesc, IID_PPV_ARGS(m_SrvDescriptorHeap.GetAddressOf())));
+	// 第一个着色器资源描述符，绑定地形纹理贴图
+	CD3DX12_CPU_DESCRIPTOR_HANDLE handle(m_SrvDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
+	Texture* pTerrainTexture = m_AllTextures["Terrain"].get();
+	D3D12_SHADER_RESOURCE_VIEW_DESC terrainSrvDesc{};
+	terrainSrvDesc.Format = pTerrainTexture->m_TextureGPU->GetDesc().Format;
+	terrainSrvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+	terrainSrvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	terrainSrvDesc.Texture2D.MipLevels = pTerrainTexture->m_TextureGPU->GetDesc().MipLevels;
+	terrainSrvDesc.Texture2D.MostDetailedMip = 0U;
+	terrainSrvDesc.Texture2D.PlaneSlice = 0U;
+	terrainSrvDesc.Texture2D.ResourceMinLODClamp = 0.f;
+	m_Device->CreateShaderResourceView(pTerrainTexture->m_TextureGPU.Get(), &terrainSrvDesc, handle);
+	// 偏移到下一个着色器资源描述符，绑定围栏纹理贴图
+	handle.Offset(m_CBVUAVDescriptorSize);
+	Texture* pFenceTexture = m_AllTextures["FenceBox"].get();
+	D3D12_SHADER_RESOURCE_VIEW_DESC fenceSrvDesc{};
+	fenceSrvDesc.Format = pFenceTexture->m_TextureGPU->GetDesc().Format;
+	fenceSrvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+	fenceSrvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	fenceSrvDesc.Texture2D.MipLevels = pFenceTexture->m_TextureGPU->GetDesc().MipLevels;
+	fenceSrvDesc.Texture2D.MostDetailedMip = 0;
+	fenceSrvDesc.Texture2D.PlaneSlice = 0;
+	fenceSrvDesc.Texture2D.ResourceMinLODClamp = 0.f;
+	m_Device->CreateShaderResourceView(pFenceTexture->m_TextureGPU.Get(), &fenceSrvDesc, handle);
+	// 偏移到第三个着色器资源描述符，绑定水纹理贴图
+	handle.Offset(m_CBVUAVDescriptorSize);
+	Texture* pWaterTexture = m_AllTextures["Water"].get();
+	D3D12_SHADER_RESOURCE_VIEW_DESC waterSrvDesc{};
+	waterSrvDesc.Format = pWaterTexture->m_TextureGPU->GetDesc().Format;
+	waterSrvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+	waterSrvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	waterSrvDesc.Texture2D.MipLevels = pWaterTexture->m_TextureGPU->GetDesc().MipLevels;
+	waterSrvDesc.Texture2D.MostDetailedMip = 0U;
+	waterSrvDesc.Texture2D.PlaneSlice = 0U;
+	waterSrvDesc.Texture2D.ResourceMinLODClamp = 0.f;
+	m_Device->CreateShaderResourceView(pWaterTexture->m_TextureGPU.Get(), &waterSrvDesc, handle);
+}
+
+void DXWavesWithBlend::BuildStaticSampler()
+{
+	// 点过滤 + 重复寻址模式
+	m_StaticSamplerDesc[0].Init(0U
+		, D3D12_FILTER_MIN_MAG_MIP_POINT
+		, D3D12_TEXTURE_ADDRESS_MODE_WRAP
+		, D3D12_TEXTURE_ADDRESS_MODE_WRAP
+		, D3D12_TEXTURE_ADDRESS_MODE_WRAP
+	);
+	// 点过滤 + clamp寻址模式
+	m_StaticSamplerDesc[1].Init(1U
+		, D3D12_FILTER_MIN_MAG_MIP_POINT
+		, D3D12_TEXTURE_ADDRESS_MODE_CLAMP
+		, D3D12_TEXTURE_ADDRESS_MODE_CLAMP
+		, D3D12_TEXTURE_ADDRESS_MODE_CLAMP
+	);
+	// 线性过滤 + 重复寻址模式
+	m_StaticSamplerDesc[2].Init(2U
+		, D3D12_FILTER_MIN_MAG_MIP_LINEAR
+		, D3D12_TEXTURE_ADDRESS_MODE_WRAP
+		, D3D12_TEXTURE_ADDRESS_MODE_WRAP
+		, D3D12_TEXTURE_ADDRESS_MODE_WRAP
+	);
+	// 线性过滤 + clamp寻址模式
+	m_StaticSamplerDesc[3].Init(3U
+		, D3D12_FILTER_MIN_MAG_MIP_LINEAR
+		, D3D12_TEXTURE_ADDRESS_MODE_CLAMP
+		, D3D12_TEXTURE_ADDRESS_MODE_CLAMP
+		, D3D12_TEXTURE_ADDRESS_MODE_CLAMP
+	);
+	// 各项异性过滤 + 重复寻址模式
+	m_StaticSamplerDesc[4].Init(4U
+		, D3D12_FILTER_ANISOTROPIC
+		, D3D12_TEXTURE_ADDRESS_MODE_WRAP
+		, D3D12_TEXTURE_ADDRESS_MODE_WRAP
+		, D3D12_TEXTURE_ADDRESS_MODE_WRAP
+		, 0.f
+		, 8U
+	);
+	// 各项异性过滤 + clamp寻址模式
+	m_StaticSamplerDesc[5].Init(5U
+		, D3D12_FILTER_ANISOTROPIC
+		, D3D12_TEXTURE_ADDRESS_MODE_CLAMP
+		, D3D12_TEXTURE_ADDRESS_MODE_CLAMP
+		, D3D12_TEXTURE_ADDRESS_MODE_CLAMP
+		, 0.f
+		, 8U
+	);
 }
 
 void DXWavesWithBlend::BuildMaterials()
+{
+	// 创建地形的材质
+	std::unique_ptr<WavesWithBlendMaterial> pTerrainMaterial = std::make_unique<WavesWithBlendMaterial>();
+	pTerrainMaterial->name = "Terrain";
+	pTerrainMaterial->diffuseAlbedo = DirectX::XMFLOAT4(1.f, 1.f, 1.f, 1.f);
+	pTerrainMaterial->fresnelR0 = DirectX::XMFLOAT3(0.01f, 0.01f, 0.01f);
+	pTerrainMaterial->rougness = 0.125f;
+	pTerrainMaterial->matConstantBufferIndex = 0;
+	pTerrainMaterial->diffuseMapIndex = 0;
+	m_AllMaterials[pTerrainMaterial->name] = std::move(pTerrainMaterial);
+	// 创建围栏材质
+	std::unique_ptr<WavesWithBlendMaterial> pFenceMaterial = std::make_unique<WavesWithBlendMaterial>();
+	pFenceMaterial->name = "FenceBox";
+	pFenceMaterial->diffuseAlbedo = DirectX::XMFLOAT4(1.f, 1.f, 1.f, 1.f);
+	pFenceMaterial->fresnelR0 = DirectX::XMFLOAT3(0.1f, 0.1f, 0.1f);
+	pFenceMaterial->rougness = 0.25f;
+	pFenceMaterial->matConstantBufferIndex = 1;
+	pFenceMaterial->diffuseMapIndex = 1;
+	m_AllMaterials[pFenceMaterial->name] = std::move(pFenceMaterial);
+	// 创建水材质
+	std::unique_ptr<WavesWithBlendMaterial> pWaterMaterial = std::make_unique<WavesWithBlendMaterial>();
+	pWaterMaterial->name = "Water";
+	pWaterMaterial->diffuseAlbedo = DirectX::XMFLOAT4(1.f, 1.f, 1.f, 1.f);
+	pWaterMaterial->fresnelR0 = DirectX::XMFLOAT3(0.1f, 0.1f, 0.1f);
+	pWaterMaterial->rougness = 0.f;
+	pWaterMaterial->matConstantBufferIndex = 2;
+	pWaterMaterial->diffuseMapIndex = 2;
+	m_AllMaterials[pWaterMaterial->name] = std::move(pWaterMaterial);
+}
+
+void DXWavesWithBlend::BuildRenderItems()
+{
+	// 构建地形渲染项，使用不透明PSO
+	std::unique_ptr<WavesWithBlendRenderItem> pTerrainRenderItem = std::make_unique<WavesWithBlendRenderItem>();
+	pTerrainRenderItem->pMeshData = m_SceneObjects["HillTerrain"].get();
+	pTerrainRenderItem->pMaterial = m_AllMaterials["Terrain"].get();
+	pTerrainRenderItem->objConstantBufferIndex = 0;
+	DirectX::XMFLOAT3 worldPos = DirectX::XMFLOAT3(0.f, 0.f, 0.f);
+	DirectX::XMStoreFloat4x4(&pTerrainRenderItem->worldMatrix, DirectX::XMMatrixTranslation(worldPos.x, worldPos.y, worldPos.z));
+	pTerrainRenderItem->primitiveType = D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+	pTerrainRenderItem->indexCount = pTerrainRenderItem->pMeshData->m_SubMeshGeometrys["Terrain"].m_IndexCount;
+	pTerrainRenderItem->startIndexLocation = pTerrainRenderItem->pMeshData->m_SubMeshGeometrys["Terrain"].m_StartIndexLocation;
+	pTerrainRenderItem->startVertexLocation = pTerrainRenderItem->pMeshData->m_SubMeshGeometrys["Terrain"].m_BaseVertexLocation;
+	m_AllRenderItems.push_back(std::move(pTerrainRenderItem));
+	m_OpaqueRenderItems.push_back(m_AllRenderItems.back().get());
+	// TODO 构建水渲染项
+
+	// TODO 构建围栏渲染项
+}
+
+void DXWavesWithBlend::BuildInputLayout()
+{
+	m_InputElementDescs = {
+		{"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
+		{"NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 3 * sizeof(float), D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
+		{"TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 3 * sizeof(float) * 2, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0}
+	};
+}
+
+void DXWavesWithBlend::CompileShaderFiles()
+{
+}
+
+void DXWavesWithBlend::BuildRootSignature()
+{
+	CD3DX12_DESCRIPTOR_RANGE ranges[1];
+	ranges->Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0);
+
+	CD3DX12_ROOT_PARAMETER parameters[4];
+	parameters->InitAsDescriptorTable(1, ranges, D3D12_SHADER_VISIBILITY_PIXEL); // 着色器资源描述符表
+	parameters->InitAsConstantBufferView(0); // 物体常量缓冲区
+	parameters->InitAsConstantBufferView(1); // 材质常量缓冲区
+	parameters->InitAsConstantBufferView(2); // 渲染过程常量缓冲区
+}
+
+void DXWavesWithBlend::BuildPSOs()
+{
+}
+
+void DXWavesWithBlend::BuildFrameResource()
 {
 }

@@ -147,6 +147,13 @@ void DirectXBaseWork::OnResize(UINT width, UINT height)
 
 	// 更新裁剪区域
 	m_ScissorRect = { 0, 0, static_cast<int>(m_Width), static_cast<int>(m_Height) };
+
+	// 执行初始化指令
+	ThrowIfFailed(m_CommandList->Close());
+	ID3D12CommandList* cmdLists[] = { m_CommandList.Get() };
+	m_CommandQueue->ExecuteCommandLists(_countof(cmdLists), cmdLists);
+
+	FlushCommandQueue();
 }
 
 void DirectXBaseWork::Update(float deltaTime, float totalTime)
@@ -353,13 +360,6 @@ void DirectXBaseWork::CreateDepthStencilView()
 		D3D12_RESOURCE_STATE_COMMON,
 		D3D12_RESOURCE_STATE_DEPTH_WRITE
 	));
-
-	ThrowIfFailed(m_CommandList->Close());
-	// 执行初始化指令
-	ID3D12CommandList* cmdLists[] = { m_CommandList.Get() };
-	m_CommandQueue->ExecuteCommandLists(_countof(cmdLists), cmdLists);
-
-	FlushCommandQueue();
 }
 
 void DirectXBaseWork::FlushCommandQueue()
