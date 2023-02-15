@@ -141,7 +141,7 @@ void DXHelloTexture::OnRender()
 	// 提交指令列表
 	ID3D12CommandList* cmdList[] = { m_CommandList.Get() };
 	m_CommandQueue->ExecuteCommandLists(1U, cmdList);
-	// 交换后台换冲突
+	// 交换后台缓冲区
 	ThrowIfFailed(m_SwapChain->Present(1, 0));
 	// 更新当前使用帧资源的围栏值，并在渲染队列上设置该围栏值
 	m_pCurrentFrameResource->fenceValue = ++m_FenceValue;
