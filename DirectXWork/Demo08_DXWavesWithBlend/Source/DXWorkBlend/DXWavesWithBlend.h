@@ -99,6 +99,36 @@ private:
 	/// </summary>
 	void BuildFrameResource();
 
+	/// <summary>
+	/// 更新对象常量
+	/// </summary>
+	/// <param name="deltaTime"></param>
+	/// <param name="totalTime"></param>
+	void UpdateObjectConstant(float deltaTime, float totalTime);
+	/// <summary>
+	/// 更新材质常量
+	/// </summary>
+	/// <param name="deltaTime"></param>
+	/// <param name="totalTime"></param>
+	void UpdateMaterialConstant(float deltaTime, float totalTime);
+	/// <summary>
+	/// 更新渲染过程长
+	/// </summary>
+	/// <param name="deltaTime"></param>
+	/// <param name="totalTime"></param>
+	void UpdatePassConstant(float deltaTime, float totalTime);
+	/// <summary>
+	/// 更新相机观察空间矩阵
+	/// </summary>
+	/// <param name="deltaTime"></param>
+	/// <param name="totalTime"></param>
+	void UpdateCamera(float deltaTime, float totalTime);
+
+	/// <summary>
+	/// 记录渲染指令
+	/// </summary>
+	void PopulateCommandList();
+
 private:
 	/// <summary>
 	/// 场景上所有的对象
@@ -145,10 +175,13 @@ private:
 	/// <summary>
 	/// 静态采样器描述
 	/// </summary>
-	std::array<CD3DX12_STATIC_SAMPLER_DESC, 6> m_StaticSamplerDesc{};
+	std::array<CD3DX12_STATIC_SAMPLER_DESC, 6> m_StaticSamplerDescs{};
 	/// <summary>
 	/// 着色器资源描述符堆
 	/// </summary>
 	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> m_SrvDescriptorHeap{ nullptr };
-
+	/// <summary>
+	/// 根签名
+	/// </summary>
+	Microsoft::WRL::ComPtr<ID3D12RootSignature> m_RootSignture{ nullptr };
 };

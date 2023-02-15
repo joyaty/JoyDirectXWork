@@ -53,6 +53,7 @@ bool DXWavesWithBlend::OnInit()
 	BuildSrvHeap();
 	BuildMaterials();
 	BuildRenderItems();
+	BuildFrameResource();
 	// 执行实例初始化指令
 	ThrowIfFailed(m_CommandList->Close());
 	ID3D12CommandList* cmdLists[] = { m_CommandList.Get() };
@@ -63,10 +64,33 @@ bool DXWavesWithBlend::OnInit()
 
 void DXWavesWithBlend::OnUpdate(float deltaTime, float totalTime)
 {
+	m_CurrentFrameResourceIndex = (m_CurrentFrameResourceIndex + 1) % kNumFrameResource;
+	m_CurrentFrameResource = m_FrameResources[m_CurrentFrameResourceIndex].get();
+	if (m_CurrentFrameResource != 0 && m_CurrentFrameResource->fenceValue > m_Fence->GetCompletedValue())
+	{
+		HANDLE eventHandle = CreateEventEx(nullptr, false, false, EVENT_ALL_ACCESS);
+		ThrowIfFailed(m_Fence->SetEventOnCompletion(m_CurrentFrameResource->fenceValue, eventHandle));
+		WaitForSingleObject(eventHandle, INFINITE);
+		CloseHandle(eventHandle);
+	}
+	UpdateCamera(deltaTime, totalTime);
+	UpdateObjectConstant(deltaTime, totalTime);
+	UpdateMaterialConstant(deltaTime, totalTime);
+	UpdatePassConstant(deltaTime, totalTime);
 }
 
 void DXWavesWithBlend::OnRender()
 {
+	// 记录本帧的渲染指令
+	PopulateCommandList();
+	// 提交本帧的渲染指令
+	ID3D12CommandList* cmdList[] = { m_CommandList.Get() };
+	m_CommandQueue->ExecuteCommandLists(1, cmdList);
+	// 交互后台缓冲区
+	ThrowIfFailed(m_SwapChain->Present(1, 0));
+	// 标记围栏
+	m_CurrentFrameResource->fenceValue = ++m_FenceValue;
+	m_CommandQueue->Signal(m_Fence.Get(), m_FenceValue);
 }
 
 void DXWavesWithBlend::OnDestroy()
@@ -213,35 +237,35 @@ void DXWavesWithBlend::BuildSrvHeap()
 void DXWavesWithBlend::BuildStaticSampler()
 {
 	// 点过滤 + 重复寻址模式
-	m_StaticSamplerDesc[0].Init(0U
+	m_StaticSamplerDescs[0].Init(0U
 		, D3D12_FILTER_MIN_MAG_MIP_POINT
 		, D3D12_TEXTURE_ADDRESS_MODE_WRAP
 		, D3D12_TEXTURE_ADDRESS_MODE_WRAP
 		, D3D12_TEXTURE_ADDRESS_MODE_WRAP
 	);
 	// 点过滤 + clamp寻址模式
-	m_StaticSamplerDesc[1].Init(1U
+	m_StaticSamplerDescs[1].Init(1U
 		, D3D12_FILTER_MIN_MAG_MIP_POINT
 		, D3D12_TEXTURE_ADDRESS_MODE_CLAMP
 		, D3D12_TEXTURE_ADDRESS_MODE_CLAMP
 		, D3D12_TEXTURE_ADDRESS_MODE_CLAMP
 	);
 	// 线性过滤 + 重复寻址模式
-	m_StaticSamplerDesc[2].Init(2U
+	m_StaticSamplerDescs[2].Init(2U
 		, D3D12_FILTER_MIN_MAG_MIP_LINEAR
 		, D3D12_TEXTURE_ADDRESS_MODE_WRAP
 		, D3D12_TEXTURE_ADDRESS_MODE_WRAP
 		, D3D12_TEXTURE_ADDRESS_MODE_WRAP
 	);
 	// 线性过滤 + clamp寻址模式
-	m_StaticSamplerDesc[3].Init(3U
+	m_StaticSamplerDescs[3].Init(3U
 		, D3D12_FILTER_MIN_MAG_MIP_LINEAR
 		, D3D12_TEXTURE_ADDRESS_MODE_CLAMP
 		, D3D12_TEXTURE_ADDRESS_MODE_CLAMP
 		, D3D12_TEXTURE_ADDRESS_MODE_CLAMP
 	);
 	// 各项异性过滤 + 重复寻址模式
-	m_StaticSamplerDesc[4].Init(4U
+	m_StaticSamplerDescs[4].Init(4U
 		, D3D12_FILTER_ANISOTROPIC
 		, D3D12_TEXTURE_ADDRESS_MODE_WRAP
 		, D3D12_TEXTURE_ADDRESS_MODE_WRAP
@@ -250,7 +274,7 @@ void DXWavesWithBlend::BuildStaticSampler()
 		, 8U
 	);
 	// 各项异性过滤 + clamp寻址模式
-	m_StaticSamplerDesc[5].Init(5U
+	m_StaticSamplerDescs[5].Init(5U
 		, D3D12_FILTER_ANISOTROPIC
 		, D3D12_TEXTURE_ADDRESS_MODE_CLAMP
 		, D3D12_TEXTURE_ADDRESS_MODE_CLAMP
@@ -326,14 +350,29 @@ void DXWavesWithBlend::CompileShaderFiles()
 
 void DXWavesWithBlend::BuildRootSignature()
 {
+	// 描述符表
 	CD3DX12_DESCRIPTOR_RANGE ranges[1];
 	ranges->Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0);
-
+	// 构造根参数
 	CD3DX12_ROOT_PARAMETER parameters[4];
 	parameters->InitAsDescriptorTable(1, ranges, D3D12_SHADER_VISIBILITY_PIXEL); // 着色器资源描述符表
 	parameters->InitAsConstantBufferView(0); // 物体常量缓冲区
 	parameters->InitAsConstantBufferView(1); // 材质常量缓冲区
 	parameters->InitAsConstantBufferView(2); // 渲染过程常量缓冲区
+	// 根签名描述(根参数+静态采样器描述)
+	CD3DX12_ROOT_SIGNATURE_DESC rootSignatureDesc{};
+	rootSignatureDesc.Init(4, parameters, (UINT)m_StaticSamplerDescs.size(), m_StaticSamplerDescs.data(), D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+	// 序列化根签名参数
+	Microsoft::WRL::ComPtr<ID3DBlob> m_SerializeRootSignature{ nullptr };
+	Microsoft::WRL::ComPtr<ID3DBlob> m_ErrorMessage{ nullptr };
+	HRESULT hr = D3D12SerializeRootSignature(&rootSignatureDesc, D3D_ROOT_SIGNATURE_VERSION_1_0, m_SerializeRootSignature.GetAddressOf(), m_ErrorMessage.GetAddressOf());
+	if (hr != S_OK)
+	{
+		::OutputDebugStringA((const char*)m_ErrorMessage->GetBufferPointer());
+	}
+	ThrowIfFailed(hr);
+	// 创建根签名
+	ThrowIfFailed(m_Device->CreateRootSignature(0U, m_SerializeRootSignature->GetBufferPointer(), m_SerializeRootSignature->GetBufferSize(), IID_PPV_ARGS(m_RootSignture.GetAddressOf())));
 }
 
 void DXWavesWithBlend::BuildPSOs()
@@ -342,4 +381,50 @@ void DXWavesWithBlend::BuildPSOs()
 
 void DXWavesWithBlend::BuildFrameResource()
 {
+	for (int i = 0; i < kNumFrameResource; ++i)
+	{
+		std::unique_ptr<WavesWithBlendFrameResource> pFrameResource = std::make_unique<WavesWithBlendFrameResource>(m_Device.Get(), (int)m_SceneObjects.size(), (int)m_AllMaterials.size(), 1);
+		m_FrameResources.push_back(std::move(pFrameResource));
+	}
+	m_CurrentFrameResourceIndex = 0;
+	m_CurrentFrameResource = m_FrameResources[m_CurrentFrameResourceIndex].get();
+}
+
+void DXWavesWithBlend::UpdateObjectConstant(float deltaTime, float totalTime)
+{
+}
+
+void DXWavesWithBlend::UpdateMaterialConstant(float deltaTime, float totalTime)
+{
+}
+
+void DXWavesWithBlend::UpdatePassConstant(float deltaTime, float totalTime)
+{
+}
+
+void DXWavesWithBlend::UpdateCamera(float deltaTime, float totalTime)
+{
+}
+
+void DXWavesWithBlend::PopulateCommandList()
+{
+	// 清理当前帧资源的指令分配器和指令列表
+	ThrowIfFailed(m_CurrentFrameResource->pCmdAllocator->Reset());
+	ThrowIfFailed(m_CommandList->Reset(m_CurrentFrameResource->pCmdAllocator.Get(), nullptr));
+	// 获取当前的渲染目标缓冲区
+	ID3D12Resource* pCurrentBackBuffer = m_RenderTargets[m_CurrentBackBufferIndex].Get();
+	// 渲染目标缓冲区资源转换为渲染目标状态
+	m_CommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(pCurrentBackBuffer
+		, D3D12_RESOURCE_STATE_PRESENT
+		, D3D12_RESOURCE_STATE_RENDER_TARGET));
+
+	// TODO 渲染指令
+
+
+	// 渲染目标缓冲区资源转换为呈现状态
+	m_CommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(pCurrentBackBuffer
+		, D3D12_RESOURCE_STATE_RENDER_TARGET
+		, D3D12_RESOURCE_STATE_PRESENT));
+	// 本帧的渲染指令记录完成，关闭指令列表，准备提交
+	ThrowIfFailed(m_CommandList->Close());
 }
