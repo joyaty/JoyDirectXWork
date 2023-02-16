@@ -147,7 +147,7 @@ float3 ComputeSpotLight(Light light, Material mat, float3 normal, float3 toEye, 
 
 // 叠加场景中所有的光源效果
 // lights: 所有的光源数值，起始是方向光源，接下来是点光源，最后是聚光灯光源。所有光源按此顺序排列
-float3 ComputeLight(Light lights[MAX_LIGHTS], Material mat, float3 normal, float3 toEye, float3 pos)
+float4 ComputeLight(Light lights[MAX_LIGHTS], Material mat, float3 normal, float3 toEye, float3 pos)
 {
     float3 result = 0.0f;
     int i = 0;

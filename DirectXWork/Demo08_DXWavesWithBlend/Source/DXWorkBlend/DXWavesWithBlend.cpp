@@ -26,10 +26,15 @@ DXWavesWithBlend::~DXWavesWithBlend()
 void DXWavesWithBlend::OnResize(UINT width, UINT height)
 {
 	DirectXBaseWork::OnResize(width, height);
+	// 计算投影变换矩阵，Fov = 45，屏幕纵横比，nearZ = 1，farZ = 1000
+	DirectX::XMMATRIX projMatrix = DirectX::XMMatrixPerspectiveFovLH(DirectX::XM_PIDIV4, GetAspectRatio(), m_NearZ, m_FarZ);
+	DirectX::XMStoreFloat4x4(&m_ProjMatrix, projMatrix);
 }
 
 void DXWavesWithBlend::OnMouseDown(UINT8 keyCode, int x, int y)
 {
+	m_LastMousePos.x = x;
+	m_LastMousePos.y = y;
 }
 
 void DXWavesWithBlend::OnMouseUp(UINT8 keyCode, int x, int y)
@@ -38,6 +43,25 @@ void DXWavesWithBlend::OnMouseUp(UINT8 keyCode, int x, int y)
 
 void DXWavesWithBlend::OnMouseMove(UINT8 keyCode, int x, int y)
 {
+	if ((keyCode & MK_LBUTTON) != 0)
+	{
+		// 左键旋转
+		float dx = DirectX::XMConvertToRadians(0.25f * static_cast<float>(x - m_LastMousePos.x));
+		float dy = DirectX::XMConvertToRadians(0.25f * static_cast<float>(y - m_LastMousePos.y));
+		m_CameraPhi += dx;
+		m_CameraTheta += dy;
+		m_CameraTheta = MathUtil::Clamp(m_CameraTheta, 0.1f, MathUtil::Pi - 0.1f);
+	}
+	else if ((keyCode & MK_RBUTTON) != 0)
+	{
+		// 右键缩放
+		float dx = 0.05f * static_cast<float>(x - m_LastMousePos.x);
+		float dy = 0.05f * static_cast<float>(y - m_LastMousePos.y);
+		m_CameraDistance += dx - dy;
+		m_CameraDistance = MathUtil::Clamp(m_CameraDistance, 50.f, 300.f);
+	}
+	m_LastMousePos.x = x;
+	m_LastMousePos.y = y;
 }
 
 bool DXWavesWithBlend::OnInit()
@@ -50,10 +74,15 @@ bool DXWavesWithBlend::OnInit()
 	BuildWavesMesh();
 	BuildFenceCubeMesh();
 	LoadTextures();
+	BuildStaticSampler();
 	BuildSrvHeap();
 	BuildMaterials();
 	BuildRenderItems();
 	BuildFrameResource();
+	BuildInputLayout();
+	CompileShaderFiles();
+	BuildRootSignature();
+	BuildPSOs();
 	// 执行实例初始化指令
 	ThrowIfFailed(m_CommandList->Close());
 	ID3D12CommandList* cmdLists[] = { m_CommandList.Get() };
@@ -329,7 +358,7 @@ void DXWavesWithBlend::BuildRenderItems()
 	pTerrainRenderItem->startIndexLocation = pTerrainRenderItem->pMeshData->m_SubMeshGeometrys["Terrain"].m_StartIndexLocation;
 	pTerrainRenderItem->startVertexLocation = pTerrainRenderItem->pMeshData->m_SubMeshGeometrys["Terrain"].m_BaseVertexLocation;
 	m_AllRenderItems.push_back(std::move(pTerrainRenderItem));
-	m_OpaqueRenderItems.push_back(m_AllRenderItems.back().get());
+	m_RenderItemLayers[static_cast<int>(EnumRenderLayer::LayerOpaque)].push_back(m_AllRenderItems.back().get());
 	// TODO 构建水渲染项
 
 	// TODO 构建围栏渲染项
@@ -346,6 +375,8 @@ void DXWavesWithBlend::BuildInputLayout()
 
 void DXWavesWithBlend::CompileShaderFiles()
 {
+	m_VSByteCode = CompileShader(m_AssetPath + L"WavesWithBlend.hlsl", nullptr, "VSMain", "vs_5_0");
+	m_PSByteCode = CompileShader(m_AssetPath + L"WavesWithBlend.hlsl", nullptr, "PSMain", "ps_5_0");
 }
 
 void DXWavesWithBlend::BuildRootSignature()
@@ -354,14 +385,14 @@ void DXWavesWithBlend::BuildRootSignature()
 	CD3DX12_DESCRIPTOR_RANGE ranges[1];
 	ranges->Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0);
 	// 构造根参数
-	CD3DX12_ROOT_PARAMETER parameters[4];
-	parameters->InitAsDescriptorTable(1, ranges, D3D12_SHADER_VISIBILITY_PIXEL); // 着色器资源描述符表
-	parameters->InitAsConstantBufferView(0); // 物体常量缓冲区
-	parameters->InitAsConstantBufferView(1); // 材质常量缓冲区
-	parameters->InitAsConstantBufferView(2); // 渲染过程常量缓冲区
+	CD3DX12_ROOT_PARAMETER parameters[4]{};
+	parameters[0].InitAsDescriptorTable(1, &ranges[0], D3D12_SHADER_VISIBILITY_PIXEL); // 着色器资源描述符表
+	parameters[1].InitAsConstantBufferView(0); // 物体常量缓冲区
+	parameters[2].InitAsConstantBufferView(1); // 材质常量缓冲区
+	parameters[3].InitAsConstantBufferView(2); // 渲染过程常量缓冲区
 	// 根签名描述(根参数+静态采样器描述)
 	CD3DX12_ROOT_SIGNATURE_DESC rootSignatureDesc{};
-	rootSignatureDesc.Init(4, parameters, (UINT)m_StaticSamplerDescs.size(), m_StaticSamplerDescs.data(), D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+	rootSignatureDesc.Init(4, parameters, static_cast<UINT>(m_StaticSamplerDescs.size()), m_StaticSamplerDescs.data(), D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 	// 序列化根签名参数
 	Microsoft::WRL::ComPtr<ID3DBlob> m_SerializeRootSignature{ nullptr };
 	Microsoft::WRL::ComPtr<ID3DBlob> m_ErrorMessage{ nullptr };
@@ -377,6 +408,24 @@ void DXWavesWithBlend::BuildRootSignature()
 
 void DXWavesWithBlend::BuildPSOs()
 {
+	D3D12_GRAPHICS_PIPELINE_STATE_DESC opaquePSODesc{};
+	opaquePSODesc.NodeMask = 0U;
+	opaquePSODesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+	opaquePSODesc.pRootSignature = m_RootSignture.Get();
+	opaquePSODesc.NumRenderTargets = 1U;
+	opaquePSODesc.RTVFormats[0] = GetBackBufferFormat();
+	opaquePSODesc.DSVFormat = GetDepthStencilBufferFormat();
+	opaquePSODesc.SampleDesc.Count = Get4XMSAAEnable() ? 4 : 1;
+	opaquePSODesc.SampleDesc.Quality = Get4XMSAAEnable() ? m_4XMSAAQualityLevel - 1 : 0;
+	opaquePSODesc.SampleMask = UINT_MAX;
+	opaquePSODesc.InputLayout = { m_InputElementDescs.data(), static_cast<UINT>(m_InputElementDescs.size()) };
+	opaquePSODesc.VS = { reinterpret_cast<BYTE*>(m_VSByteCode->GetBufferPointer()), m_VSByteCode->GetBufferSize() };
+	opaquePSODesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
+	opaquePSODesc.PS = { reinterpret_cast<BYTE*>(m_PSByteCode->GetBufferPointer()), m_PSByteCode->GetBufferSize() };
+	opaquePSODesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
+	opaquePSODesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
+	// 创建Opaque渲染层级的PSO
+	ThrowIfFailed(m_Device->CreateGraphicsPipelineState(&opaquePSODesc, IID_PPV_ARGS(m_PSOs[static_cast<int>(EnumRenderLayer::LayerOpaque)].GetAddressOf())));
 }
 
 void DXWavesWithBlend::BuildFrameResource()
@@ -392,25 +441,91 @@ void DXWavesWithBlend::BuildFrameResource()
 
 void DXWavesWithBlend::UpdateObjectConstant(float deltaTime, float totalTime)
 {
+	for (size_t i = 0; i < m_AllRenderItems.size(); ++i)
+	{
+		WavesWithBlendRenderItem* pRenderItem = m_AllRenderItems[i].get();
+		if (pRenderItem->dirty > 0)
+		{
+			// DirectX数学库使用行矩阵
+			DirectX::XMMATRIX worldMatrix = DirectX::XMLoadFloat4x4(&pRenderItem->worldMatrix);
+			PerObjectConstants objCBData{};
+			// HLSL使用列矩阵，因此拷贝到常量缓冲区需要对矩阵进行一次转置
+			DirectX::XMStoreFloat4x4(&objCBData.worldMatrix, DirectX::XMMatrixTranspose(worldMatrix));
+			m_CurrentFrameResource->pObjCBuffer->CopyData(pRenderItem->objConstantBufferIndex, objCBData);
+			--pRenderItem->dirty;
+		}
+	}
 }
 
 void DXWavesWithBlend::UpdateMaterialConstant(float deltaTime, float totalTime)
 {
+	for (const auto& iter : m_AllMaterials)
+	{
+		WavesWithBlendMaterial* pMaterial = iter.second.get();
+		if (pMaterial->dirty > 0)
+		{
+			PerMaterialConstants matCBData{};
+			matCBData.albedo = pMaterial->diffuseAlbedo;
+			matCBData.fresnelR0 = pMaterial->fresnelR0;
+			matCBData.roughness = pMaterial->rougness;
+			m_CurrentFrameResource->pMatCBuffer->CopyData(pMaterial->matConstantBufferIndex, matCBData);
+			--pMaterial->dirty;
+		}
+	}
 }
 
 void DXWavesWithBlend::UpdatePassConstant(float deltaTime, float totalTime)
 {
+	DirectX::XMMATRIX viewMatrix = DirectX::XMLoadFloat4x4(&m_ViewMatrix);
+	DirectX::XMMATRIX invViewMatrix = DirectX::XMMatrixInverse(&DirectX::XMMatrixDeterminant(viewMatrix), viewMatrix);
+	DirectX::XMMATRIX projMatrix = DirectX::XMLoadFloat4x4(&m_ProjMatrix);
+	DirectX::XMMATRIX invProjMatrix = DirectX::XMMatrixInverse(&DirectX::XMMatrixDeterminant(projMatrix), projMatrix);
+	DirectX::XMMATRIX viewProjMatrix = DirectX::XMMatrixMultiply(viewMatrix, projMatrix);
+	DirectX::XMMATRIX invViewProjMatrix = DirectX::XMMatrixInverse(&DirectX::XMMatrixDeterminant(viewProjMatrix), viewProjMatrix);
+	PerPassConstancts passCBData{};
+	DirectX::XMStoreFloat4x4(&passCBData.viewMatrix, DirectX::XMMatrixTranspose(viewMatrix));
+	DirectX::XMStoreFloat4x4(&passCBData.invViewMatrix, DirectX::XMMatrixTranspose(invViewMatrix));
+	DirectX::XMStoreFloat4x4(&passCBData.projMatrix, DirectX::XMMatrixTranspose(projMatrix));
+	DirectX::XMStoreFloat4x4(&passCBData.invProjMatrix, DirectX::XMMatrixTranspose(invProjMatrix));
+	DirectX::XMStoreFloat4x4(&passCBData.viewProjMatrix, DirectX::XMMatrixTranspose(viewProjMatrix));
+	DirectX::XMStoreFloat4x4(&passCBData.invViewProjMatrix, DirectX::XMMatrixTranspose(invViewProjMatrix));
+	passCBData.eyeWorldPos = m_CameraPos;
+	passCBData.renderTargetSize = DirectX::XMFLOAT2(GetWidth(), GetHeight());
+	passCBData.invRenderTargetSize = DirectX::XMFLOAT2(1.0f / GetWidth(), 1.0f / GetHeight());
+	passCBData.nearZ = m_NearZ;
+	passCBData.farZ = m_FarZ;
+	passCBData.totalTime = totalTime;
+	passCBData.deltaTime = deltaTime;
+	passCBData.ambientLight = m_AmbientLight;
+	passCBData.lights[0].strength = m_DirectLight;
+	// 按模长为1计算，因此已经是单位向量
+	float lightPosX = 1.f * sinf(m_LightTheta) * cosf(m_LightPhi);
+	float lightPosY = 1.f * cosf(m_LightTheta);
+	float lightPosZ = 1.f * sinf(m_LightTheta) * sinf(m_LightPhi);
+	DirectX::XMVECTOR lightDir = DirectX::XMVectorSet(-lightPosX, -lightPosY, -lightPosZ, 1.0f);
+	DirectX::XMStoreFloat3(&passCBData.lights[0].direction, lightDir);
+	// 拷贝数据到渲染过程常量缓冲区
+	m_CurrentFrameResource->pPassCBuffer->CopyData(0, passCBData);
 }
 
 void DXWavesWithBlend::UpdateCamera(float deltaTime, float totalTime)
 {
+	// 极坐标转化为笛卡尔坐标系
+	m_CameraPos.x = m_CameraDistance * sinf(m_CameraTheta) * cosf(m_CameraPhi);
+	m_CameraPos.y = m_CameraDistance * cosf(m_CameraTheta);
+	m_CameraPos.z = m_CameraDistance * sinf(m_CameraTheta) * sinf(m_CameraPhi);
+	// 计算相机观察空间变换矩阵
+	DirectX::XMVECTOR eyePos = DirectX::XMVectorSet(m_CameraPos.x, m_CameraPos.y, m_CameraPos.z, 1.0f);
+	DirectX::XMVECTOR focusePos = DirectX::XMVectorZero();
+	DirectX::XMVECTOR up = DirectX::XMVectorSet(0.f, 1.f, 0.f, 0.f);
+	DirectX::XMStoreFloat4x4(&m_ViewMatrix, DirectX::XMMatrixLookAtLH(eyePos, focusePos, up));
 }
 
 void DXWavesWithBlend::PopulateCommandList()
 {
 	// 清理当前帧资源的指令分配器和指令列表
 	ThrowIfFailed(m_CurrentFrameResource->pCmdAllocator->Reset());
-	ThrowIfFailed(m_CommandList->Reset(m_CurrentFrameResource->pCmdAllocator.Get(), nullptr));
+	ThrowIfFailed(m_CommandList->Reset(m_CurrentFrameResource->pCmdAllocator.Get(), m_PSOs[static_cast<int>(EnumRenderLayer::LayerOpaque)].Get()));
 	// 获取当前的渲染目标缓冲区
 	ID3D12Resource* pCurrentBackBuffer = m_RenderTargets[m_CurrentBackBufferIndex].Get();
 	// 渲染目标缓冲区资源转换为渲染目标状态
@@ -419,7 +534,24 @@ void DXWavesWithBlend::PopulateCommandList()
 		, D3D12_RESOURCE_STATE_RENDER_TARGET));
 
 	// TODO 渲染指令
-
+	m_CommandList->RSSetViewports(1, &m_Viewport);
+	m_CommandList->RSSetScissorRects(1, &m_ScissorRect);
+	m_RenderTargetDesciptorHandles[m_CurrentBackBufferIndex];
+	// 清理目标后台缓冲区
+	m_CommandList->ClearRenderTargetView(m_RenderTargetDesciptorHandles[m_CurrentBackBufferIndex], DirectX::Colors::Gray, 0, nullptr);
+	// 清理深度模板缓冲区
+	m_CommandList->ClearDepthStencilView(m_DepthStencilDescriptorHandle, D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.f, 0.f, 0, nullptr);
+	// 绑定渲染目标后台缓冲区
+	m_CommandList->OMSetRenderTargets(1U, &m_RenderTargetDesciptorHandles[m_CurrentBackBufferIndex], true, &m_DepthStencilDescriptorHandle);
+	// 绑定SRV描述符堆
+	ID3D12DescriptorHeap* descriptorHeaps[] = { m_SrvDescriptorHeap.Get() };
+	m_CommandList->SetDescriptorHeaps(1U, descriptorHeaps);
+	// 绑定根签名
+	m_CommandList->SetGraphicsRootSignature(m_RootSignture.Get());
+	// 绑定渲染过程常量缓冲区
+	m_CommandList->SetGraphicsRootConstantBufferView(3U, m_CurrentFrameResource->pPassCBuffer->GetResource()->GetGPUVirtualAddress());
+	// 绘制不透明渲染项
+	DrawRenderItem(m_RenderItemLayers[static_cast<int>(EnumRenderLayer::LayerOpaque)]);
 
 	// 渲染目标缓冲区资源转换为呈现状态
 	m_CommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(pCurrentBackBuffer
@@ -427,4 +559,30 @@ void DXWavesWithBlend::PopulateCommandList()
 		, D3D12_RESOURCE_STATE_PRESENT));
 	// 本帧的渲染指令记录完成，关闭指令列表，准备提交
 	ThrowIfFailed(m_CommandList->Close());
+}
+
+void DXWavesWithBlend::DrawRenderItem(const std::vector<WavesWithBlendRenderItem*>& renderItems)
+{
+	for (size_t i = 0; i < renderItems.size(); ++i)
+	{
+		const WavesWithBlendRenderItem* pRenderItem = renderItems[i];
+		// 绑定顶点缓冲区
+		m_CommandList->IASetVertexBuffers(0, 1, &pRenderItem->pMeshData->GetVertexBufferView());
+		// 绑定索引缓冲区
+		m_CommandList->IASetIndexBuffer(&pRenderItem->pMeshData->GetIndexBufferView());
+		// 绑定物体缓冲区，起始位置偏移到当前渲染项索引的物体常量缓冲区
+		D3D12_GPU_VIRTUAL_ADDRESS objCBLocation = m_CurrentFrameResource->pObjCBuffer->GetResource()->GetGPUVirtualAddress();
+		objCBLocation += pRenderItem->objConstantBufferIndex * m_CurrentFrameResource->pObjCBuffer->GetElementSize();
+		m_CommandList->SetGraphicsRootConstantBufferView(1, objCBLocation);
+		// 绑定材质缓冲区
+		D3D12_GPU_VIRTUAL_ADDRESS matCBLocaton = m_CurrentFrameResource->pMatCBuffer->GetResource()->GetGPUVirtualAddress();
+		matCBLocaton += pRenderItem->pMaterial->matConstantBufferIndex * m_CurrentFrameResource->pMatCBuffer->GetElementSize();
+		m_CommandList->SetGraphicsRootConstantBufferView(2, matCBLocaton);
+		// 绑定着色器资源（纹理）描述符
+		CD3DX12_GPU_DESCRIPTOR_HANDLE handle(m_SrvDescriptorHeap->GetGPUDescriptorHandleForHeapStart());
+		handle.Offset(pRenderItem->pMaterial->diffuseMapIndex, m_CBVUAVDescriptorSize);
+		m_CommandList->SetGraphicsRootDescriptorTable(0, handle);
+		// 绘制
+		m_CommandList->DrawIndexedInstanced(pRenderItem->indexCount, 1, pRenderItem->startIndexLocation, pRenderItem->startVertexLocation, 0);
+	}
 }

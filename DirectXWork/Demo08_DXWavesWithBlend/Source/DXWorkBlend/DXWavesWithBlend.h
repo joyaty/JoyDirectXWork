@@ -129,6 +129,12 @@ private:
 	/// </summary>
 	void PopulateCommandList();
 
+	/// <summary>
+	/// 绘制指定层级渲染项
+	/// </summary>
+	/// <param name="renderItems"></param>
+	void DrawRenderItem(const std::vector<WavesWithBlendRenderItem*>& renderItems);
+
 private:
 	/// <summary>
 	/// 场景上所有的对象
@@ -147,13 +153,23 @@ private:
 	/// </summary>
 	std::vector<std::unique_ptr<WavesWithBlendRenderItem>> m_AllRenderItems{};
 	/// <summary>
-	/// 不透明渲染项
+	/// 按RenderLayer归类渲染项
 	/// </summary>
-	std::vector<WavesWithBlendRenderItem*> m_OpaqueRenderItems{};
+	std::vector<WavesWithBlendRenderItem*> m_RenderItemLayers[static_cast<int>(EnumRenderLayer::Count)];
 	/// <summary>
-	/// 透明渲染项
+	/// 渲染管线对象，opaque/transparent使用不同的渲染管线状态设置
 	/// </summary>
-	std::vector<WavesWithBlendRenderItem*> m_TransparentItems{};
+	Microsoft::WRL::ComPtr<ID3D12PipelineState> m_PSOs[static_cast<int>(EnumRenderLayer::Count)];
+
+	/// <summary>
+	/// 顶点着色器编译后字节码
+	/// </summary>
+	Microsoft::WRL::ComPtr<ID3DBlob> m_VSByteCode{ nullptr };
+	/// <summary>
+	/// 像素着色器编译后字节码
+	/// </summary>
+	Microsoft::WRL::ComPtr<ID3DBlob> m_PSByteCode{ nullptr };
+
 	/// <summary>
 	/// 输入布局元素描述
 	/// </summary>
@@ -184,4 +200,62 @@ private:
 	/// 根签名
 	/// </summary>
 	Microsoft::WRL::ComPtr<ID3D12RootSignature> m_RootSignture{ nullptr };
+
+private:
+	/// <summary>
+	/// 观察矩阵
+	/// </summary>
+	DirectX::XMFLOAT4X4 m_ViewMatrix{ MathUtil::Identity4x4() };
+	/// <summary>
+	/// 投影矩阵
+	/// </summary>
+	DirectX::XMFLOAT4X4 m_ProjMatrix{ MathUtil::Identity4x4() };
+
+	/// <summary>
+	/// 相机观察距离
+	/// </summary>
+	float m_CameraDistance{ 150.f };
+	/// <summary>
+	/// 相机视角和Y轴的夹角Theta
+	/// </summary>
+	float m_CameraTheta{ DirectX::XM_PIDIV4 };
+	/// <summary>
+	/// 相机视角在XZ平面投影与X轴的夹角
+	/// </summary>
+	float m_CameraPhi{ 1.5f * DirectX::XM_PI };
+	/// <summary>
+	/// 相机位置
+	/// </summary>
+	DirectX::XMFLOAT3 m_CameraPos{};
+	/// <summary>
+	/// 近平面
+	/// </summary>
+	float m_NearZ{ 1.f };
+	/// <summary>
+	/// 远平面
+	/// </summary>
+	float m_FarZ{ 1000.f };
+
+	/// <summary>
+	/// 上次鼠标位置
+	/// </summary>
+	POINT m_LastMousePos{};
+
+private:
+	/// <summary>
+	/// 环境光
+	/// </summary>
+	DirectX::XMFLOAT4 m_AmbientLight{ DirectX::XMFLOAT4(0.25f, 0.25f, 0.35f, 1.0f) };
+	/// <summary>
+	/// 直接光
+	/// </summary>
+	DirectX::XMFLOAT3 m_DirectLight{ DirectX::XMFLOAT3(1.0f, 1.0f, 1.0f) };
+	/// <summary>
+	/// 直接光与Y轴的夹角
+	/// </summary>
+	float m_LightTheta{ 0.3f * DirectX::XM_PI };
+	/// <summary>
+	/// 直接光在XZ平面投影与X轴的夹角
+	/// </summary>
+	float m_LightPhi{ DirectX::XM_PI };
 };

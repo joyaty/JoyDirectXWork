@@ -13,6 +13,20 @@
 constexpr int MaxLights = 16;
 
 /// <summary>
+/// 渲染层级枚举
+/// </summary>
+enum class EnumRenderLayer : unsigned char
+{
+	// 不透明层
+	LayerOpaque = 0,
+	// 透明层
+	LayerTransparent,
+
+	// RenderLayer数量
+	Count
+};
+
+/// <summary>
 /// 光源数据结构
 /// 注意成员数据的定义顺序不是随意的，而是遵循HLSL结构体封装规则。HLSL以填充对齐的形式，将结构体的元素打包为4D向量。且单个元素不能分布到两个4D向量中
 /// 这样定义成员数据顺序，恰好可以组成3个4D向量。
