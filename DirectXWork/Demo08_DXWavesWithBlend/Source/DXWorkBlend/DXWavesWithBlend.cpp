@@ -5,6 +5,7 @@
 
 #include "stdafx.h"
 #include "DXWavesWithBlend.h"
+#include "IMGuiWavesWithBlend.h"
 #include "DirectXBaseWork/GeometryGenerator.h"
 #include "DirectXBaseWork/DDSTextureLoader.h"
 
@@ -88,6 +89,9 @@ bool DXWavesWithBlend::OnInit()
 	ID3D12CommandList* cmdLists[] = { m_CommandList.Get() };
 	m_CommandQueue->ExecuteCommandLists(1, cmdLists);
 	FlushCommandQueue();
+
+	IMGuiWavesWithBlend::GetInstance()->SetWavesWithBlendDemo(this);
+
 	return true;
 }
 
@@ -106,6 +110,7 @@ void DXWavesWithBlend::OnUpdate(float deltaTime, float totalTime)
 	UpdateObjectConstant(deltaTime, totalTime);
 	UpdateMaterialConstant(deltaTime, totalTime);
 	UpdatePassConstant(deltaTime, totalTime);
+	UpdateWave(deltaTime);
 }
 
 void DXWavesWithBlend::OnRender()
@@ -188,6 +193,29 @@ DirectX::XMFLOAT3 DXWavesWithBlend::GetHillsNormal(float x, float z)const
 
 void DXWavesWithBlend::BuildWavesMesh()
 {
+	// 创建波浪
+	m_Wave = std::make_unique<Wave>(128, 128, 1.f, 0.03f, 4.f, 0.2f);
+	UINT totalIndexCount = static_cast<UINT>(m_Wave->GetIndices().size());
+	UINT indiceBufferSize = sizeof(std::uint16_t) * totalIndexCount;
+	// 生成波浪对象几何体数据
+	std::unique_ptr<MeshGeometry> pWaveMeshGeo = std::make_unique<MeshGeometry>();
+	pWaveMeshGeo->m_Name = "Wave";
+	pWaveMeshGeo->m_VertexBufferCPU = nullptr;
+	pWaveMeshGeo->m_VertexBufferGPU = nullptr;		// 波浪顶点随时间会变化，适用放在上传堆，不适用默认堆	
+	pWaveMeshGeo->m_VertexBufferUploader = nullptr;
+	pWaveMeshGeo->m_VertexSize = sizeof(Vertex) * m_Wave->GetVertexCount();
+	pWaveMeshGeo->m_VertexStride = sizeof(Vertex);
+	pWaveMeshGeo->m_IndexBufferCPU = nullptr;
+	pWaveMeshGeo->m_IndexBufferGPU = D3D12Util::CreateBufferInDefaultHeap(m_Device.Get(), m_CommandList.Get(), m_Wave->GetIndices().data(), indiceBufferSize, pWaveMeshGeo->m_IndexBufferUploader);
+	pWaveMeshGeo->m_IndexSize = indiceBufferSize;
+	pWaveMeshGeo->m_IndexFormat = DXGI_FORMAT_R16_UINT;
+	SubMeshGeometry subGeoMesh{};
+	subGeoMesh.m_IndexCount = static_cast<UINT>(m_Wave->GetIndices().size());
+	subGeoMesh.m_StartIndexLocation = 0U;
+	subGeoMesh.m_BaseVertexLocation = 0U;
+	pWaveMeshGeo->m_SubMeshGeometrys["Wave"] = subGeoMesh;
+	// 保存到场景物件集合中
+	m_SceneObjects[pWaveMeshGeo->m_Name] = std::move(pWaveMeshGeo);
 }
 
 void DXWavesWithBlend::BuildFenceCubeMesh()
@@ -359,8 +387,18 @@ void DXWavesWithBlend::BuildRenderItems()
 	pTerrainRenderItem->startVertexLocation = pTerrainRenderItem->pMeshData->m_SubMeshGeometrys["Terrain"].m_BaseVertexLocation;
 	m_AllRenderItems.push_back(std::move(pTerrainRenderItem));
 	m_RenderItemLayers[static_cast<int>(EnumRenderLayer::LayerOpaque)].push_back(m_AllRenderItems.back().get());
-	// TODO 构建水渲染项
-
+	// 构建水渲染项，使用透明PSO
+	std::unique_ptr<WavesWithBlendRenderItem> pWaveRenderItem = std::make_unique<WavesWithBlendRenderItem>();
+	pWaveRenderItem->pMeshData = m_SceneObjects["Wave"].get();
+	pWaveRenderItem->pMaterial = m_AllMaterials["Water"].get();
+	pWaveRenderItem->objConstantBufferIndex = 1;
+	DirectX::XMStoreFloat4x4(&pWaveRenderItem->worldMatrix, DirectX::XMMatrixTranslation(worldPos.x, worldPos.y, worldPos.z));
+	pWaveRenderItem->primitiveType = D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+	pWaveRenderItem->indexCount = pWaveRenderItem->pMeshData->m_SubMeshGeometrys["Wave"].m_IndexCount;
+	pWaveRenderItem->startIndexLocation = pWaveRenderItem->pMeshData->m_SubMeshGeometrys["Wave"].m_StartIndexLocation;
+	pWaveRenderItem->startVertexLocation = pWaveRenderItem->pMeshData->m_SubMeshGeometrys["Wave"].m_BaseVertexLocation;
+	m_AllRenderItems.push_back(std::move(pWaveRenderItem));
+	m_RenderItemLayers[static_cast<int>(EnumRenderLayer::LayerTransparent)].push_back(m_AllRenderItems.back().get());
 	// TODO 构建围栏渲染项
 }
 
@@ -408,6 +446,7 @@ void DXWavesWithBlend::BuildRootSignature()
 
 void DXWavesWithBlend::BuildPSOs()
 {
+	// 不透明物件的PSO配置
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC opaquePSODesc{};
 	opaquePSODesc.NodeMask = 0U;
 	opaquePSODesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
@@ -426,6 +465,22 @@ void DXWavesWithBlend::BuildPSOs()
 	opaquePSODesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
 	// 创建Opaque渲染层级的PSO
 	ThrowIfFailed(m_Device->CreateGraphicsPipelineState(&opaquePSODesc, IID_PPV_ARGS(m_PSOs[static_cast<int>(EnumRenderLayer::LayerOpaque)].GetAddressOf())));
+	// 透明物件的PSO配置
+	D3D12_GRAPHICS_PIPELINE_STATE_DESC transparentPSODesc{ opaquePSODesc };
+	CD3DX12_BLEND_DESC transparentBlendDesc{};
+	transparentBlendDesc.AlphaToCoverageEnable = false;
+	transparentBlendDesc.IndependentBlendEnable = true;
+	transparentBlendDesc.RenderTarget[0].BlendEnable = true;
+	transparentBlendDesc.RenderTarget[0].BlendOp = D3D12_BLEND_OP_ADD;
+	transparentBlendDesc.RenderTarget[0].SrcBlend = D3D12_BLEND_DEST_COLOR;
+	transparentBlendDesc.RenderTarget[0].DestBlend = D3D12_BLEND_ZERO;
+	transparentBlendDesc.RenderTarget[0].BlendOpAlpha = D3D12_BLEND_OP_ADD;
+	transparentBlendDesc.RenderTarget[0].SrcBlendAlpha = D3D12_BLEND_DEST_ALPHA;
+	transparentBlendDesc.RenderTarget[0].DestBlendAlpha = D3D12_BLEND_ZERO;
+	transparentBlendDesc.RenderTarget[0].RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
+	// 使用半透明物件的混合配置
+	transparentPSODesc.BlendState = transparentBlendDesc;
+	ThrowIfFailed(m_Device->CreateGraphicsPipelineState(&transparentPSODesc, IID_PPV_ARGS(m_PSOs[static_cast<int>(EnumRenderLayer::LayerTransparent)].GetAddressOf())));
 }
 
 void DXWavesWithBlend::BuildFrameResource()
@@ -490,7 +545,7 @@ void DXWavesWithBlend::UpdatePassConstant(float deltaTime, float totalTime)
 	DirectX::XMStoreFloat4x4(&passCBData.viewProjMatrix, DirectX::XMMatrixTranspose(viewProjMatrix));
 	DirectX::XMStoreFloat4x4(&passCBData.invViewProjMatrix, DirectX::XMMatrixTranspose(invViewProjMatrix));
 	passCBData.eyeWorldPos = m_CameraPos;
-	passCBData.renderTargetSize = DirectX::XMFLOAT2(GetWidth(), GetHeight());
+	passCBData.renderTargetSize = DirectX::XMFLOAT2(static_cast<float>(GetWidth()), static_cast<float>(GetHeight()));
 	passCBData.invRenderTargetSize = DirectX::XMFLOAT2(1.0f / GetWidth(), 1.0f / GetHeight());
 	passCBData.nearZ = m_NearZ;
 	passCBData.farZ = m_FarZ;
@@ -521,6 +576,11 @@ void DXWavesWithBlend::UpdateCamera(float deltaTime, float totalTime)
 	DirectX::XMStoreFloat4x4(&m_ViewMatrix, DirectX::XMMatrixLookAtLH(eyePos, focusePos, up));
 }
 
+void DXWavesWithBlend::UpdateWave(float deltaTime)
+{
+
+}
+
 void DXWavesWithBlend::PopulateCommandList()
 {
 	// 清理当前帧资源的指令分配器和指令列表
@@ -540,7 +600,7 @@ void DXWavesWithBlend::PopulateCommandList()
 	// 清理目标后台缓冲区
 	m_CommandList->ClearRenderTargetView(m_RenderTargetDesciptorHandles[m_CurrentBackBufferIndex], DirectX::Colors::Gray, 0, nullptr);
 	// 清理深度模板缓冲区
-	m_CommandList->ClearDepthStencilView(m_DepthStencilDescriptorHandle, D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.f, 0.f, 0, nullptr);
+	m_CommandList->ClearDepthStencilView(m_DepthStencilDescriptorHandle, D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.f, 0, 0, nullptr);
 	// 绑定渲染目标后台缓冲区
 	m_CommandList->OMSetRenderTargets(1U, &m_RenderTargetDesciptorHandles[m_CurrentBackBufferIndex], true, &m_DepthStencilDescriptorHandle);
 	// 绑定SRV描述符堆
@@ -552,6 +612,12 @@ void DXWavesWithBlend::PopulateCommandList()
 	m_CommandList->SetGraphicsRootConstantBufferView(3U, m_CurrentFrameResource->pPassCBuffer->GetResource()->GetGPUVirtualAddress());
 	// 绘制不透明渲染项
 	DrawRenderItem(m_RenderItemLayers[static_cast<int>(EnumRenderLayer::LayerOpaque)]);
+
+	// 提交DearIMGui的渲染指令
+	if (IMGuiWavesWithBlend::GetInstance() != nullptr)
+	{
+		IMGuiWavesWithBlend::GetInstance()->PopulateDearIMGuiCommand(m_CommandList.Get());
+	}
 
 	// 渲染目标缓冲区资源转换为呈现状态
 	m_CommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(pCurrentBackBuffer
@@ -570,6 +636,8 @@ void DXWavesWithBlend::DrawRenderItem(const std::vector<WavesWithBlendRenderItem
 		m_CommandList->IASetVertexBuffers(0, 1, &pRenderItem->pMeshData->GetVertexBufferView());
 		// 绑定索引缓冲区
 		m_CommandList->IASetIndexBuffer(&pRenderItem->pMeshData->GetIndexBufferView());
+		// 图元拓扑类型
+		m_CommandList->IASetPrimitiveTopology(pRenderItem->primitiveType);
 		// 绑定物体缓冲区，起始位置偏移到当前渲染项索引的物体常量缓冲区
 		D3D12_GPU_VIRTUAL_ADDRESS objCBLocation = m_CurrentFrameResource->pObjCBuffer->GetResource()->GetGPUVirtualAddress();
 		objCBLocation += pRenderItem->objConstantBufferIndex * m_CurrentFrameResource->pObjCBuffer->GetElementSize();

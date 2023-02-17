@@ -31,6 +31,12 @@ public:
 	/// <param name="deltaTime"></param>
 	void UpdateWave(float deltaTime);
 
+	/// <summary>
+	/// 指定(i,j)位置，产生一个高度为magnitude的涟漪
+	/// </summary>
+	/// <param name="i"></param>
+	/// <param name="j"></param>
+	/// <param name="magnitude"></param>
 	void Disturb(int i, int j, float magnitude);
 
 	int RowCount() const { return m_NumRows; }

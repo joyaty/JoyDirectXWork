@@ -14,7 +14,7 @@ IMGuiWavesWithBlend* IMGuiWavesWithBlend::GetInstance()
 	return &s_Instance;
 }
 
-inline void IMGuiWavesWithBlend::SetWavesWithBlendDemo(DXWavesWithBlend* pDemo)
+void IMGuiWavesWithBlend::SetWavesWithBlendDemo(DXWavesWithBlend* pDemo)
 {
 	m_WavesWithBlendDemo = pDemo;
 }

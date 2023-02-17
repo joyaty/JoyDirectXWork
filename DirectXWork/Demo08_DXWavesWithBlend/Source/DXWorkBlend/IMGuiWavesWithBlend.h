@@ -19,7 +19,7 @@ public:
 	static IMGuiWavesWithBlend* GetInstance();
 
 public:
-	inline void SetWavesWithBlendDemo(DXWavesWithBlend* pDemo);
+	void SetWavesWithBlendDemo(DXWavesWithBlend* pDemo);
 
 protected:
 	void OnDrawWindow() override;

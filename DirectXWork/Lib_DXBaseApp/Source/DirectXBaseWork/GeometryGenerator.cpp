@@ -305,7 +305,7 @@ GeometryGenerator::MeshData GeometryGenerator::CreateGrid(float width, float dep
 	// 列纹理间隔U
 	float du = 1.f / (col - 1);
 	// 行纹理间隔V
-	float dv = 1.f / (row - 11);
+	float dv = 1.f / (row - 1);
 	// 填充网格顶点数据集合
 	meshData.Vertices.resize(vertexCount);
 	for (uint32 i = 0; i < row; ++i)

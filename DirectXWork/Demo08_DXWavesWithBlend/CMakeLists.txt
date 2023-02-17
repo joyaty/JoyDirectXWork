@@ -3,9 +3,9 @@ cmake_minimum_required(VERSION 3.0)
 # 包含CMake宏定义文件
 include("${CMAKE_SOURCE_DIR}/CMake/CMakeMacro.cmake")
 # 添加头文件搜索路径
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/Source)
 include_directories(${CMAKE_SOURCE_DIR}/DirectXWork/Lib_DXBaseApp/Source)
 include_directories(${CMAKE_SOURCE_DIR}/ThirdParts/DearIMGui/Source/)
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/Source)
 # 添加预编译头文件和源文件路径
 set(STDAFX_PCH_H ${CMAKE_CURRENT_SOURCE_DIR}/Source/stdafx.h)
 set(STDAFX_PCH_C ${CMAKE_CURRENT_SOURCE_DIR}/Source/stdafx.cpp)
@@ -24,6 +24,8 @@ Source/DXWorkBlend/WavesWithBlendFrameResource.cpp
 Source/DXWorkBlend/WavesWithBlendFrameResource.h
 Source/DXWorkBlend/WavesWithBlendRenderItem.cpp
 Source/DXWorkBlend/WavesWithBlendRenderItem.h
+Source/DXWorkBlend/Wave.cpp
+Source/DXWorkBlend/Wave.h
 Source/DXWorkBlend/WavesWithBlend.hlsl
 Source/DXWorkBlend/Lighting.hlsl
 )

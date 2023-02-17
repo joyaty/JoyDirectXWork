@@ -117,7 +117,7 @@ void Wave::UpdateWave(float deltaTime)
 
 void Wave::Disturb(int i, int j, float magnitude)
 {
-	// Don't disturb boundaries.
+	// 边界位置不产生涟漪
 	assert(i > 1 && i < m_NumRows - 2);
 	assert(j > 1 && j < m_NumCols - 2);
 

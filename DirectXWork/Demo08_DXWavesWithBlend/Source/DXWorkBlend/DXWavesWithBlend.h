@@ -8,6 +8,7 @@
 #include "DirectXBaseWork/DirectXBaseWork.h"
 #include "WavesWithBlendRenderItem.h"
 #include "WavesWithBlendFrameResource.h"
+#include "Wave.h"
 
 /// <summary>
 /// Demo08_DXWavesWithBlend示例项目主实现
@@ -123,6 +124,11 @@ private:
 	/// <param name="deltaTime"></param>
 	/// <param name="totalTime"></param>
 	void UpdateCamera(float deltaTime, float totalTime);
+	/// <summary>
+	/// 更新波浪动画顶点数据
+	/// </summary>
+	/// <param name="deltaTime"></param>
+	void UpdateWave(float deltaTime);
 
 	/// <summary>
 	/// 记录渲染指令
@@ -136,6 +142,7 @@ private:
 	void DrawRenderItem(const std::vector<WavesWithBlendRenderItem*>& renderItems);
 
 private:
+	std::unique_ptr<Wave> m_Wave{ nullptr };
 	/// <summary>
 	/// 场景上所有的对象
 	/// </summary>
