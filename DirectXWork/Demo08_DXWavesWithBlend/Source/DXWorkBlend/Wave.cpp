@@ -40,7 +40,7 @@ Wave::Wave(int row, int col, float inveral, float timeStep, float speed, float d
 	float d = damping * timeStep + 2.f;
 	float e = (speed * speed) * (timeStep * timeStep) / (inveral * inveral);
 	m_K1 = (damping * timeStep - 2.f) / d;
-	m_K2 = (4.f - 8.f * 2) / d;
+	m_K2 = (4.f - 8.f * e) / d;
 	m_K3 = (2.f * e) / d;
 }
 

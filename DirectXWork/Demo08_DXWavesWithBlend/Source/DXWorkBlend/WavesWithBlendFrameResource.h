@@ -7,11 +7,12 @@
 
 #include "DirectXBaseWork/UploadBuffer.h"
 #include "DirectXBaseWork/RenderConstantsStruct.h"
+#include "WavesWithBlendRenderItem.h"
 
 struct WavesWithBlendFrameResource
 {
 public:
-	WavesWithBlendFrameResource(ID3D12Device* pDevice, int objectCount, int matCount, int passCount = 1);
+	WavesWithBlendFrameResource(ID3D12Device* pDevice, int objectCount, int matCount, int waveVertexCount, int passCount = 1);
 	WavesWithBlendFrameResource(const WavesWithBlendFrameResource& frameResource) = delete;
 	WavesWithBlendFrameResource operator=(const WavesWithBlendFrameResource& frameResource) = delete;
 	~WavesWithBlendFrameResource();
@@ -33,6 +34,10 @@ public:
 	/// 独立的渲染Pass常量缓冲区
 	/// </summary>
 	std::unique_ptr<UploadBuffer<PerPassConstancts>> pPassCBuffer{ nullptr };
+	/// <summary>
+	/// 在上传堆的动态顶点缓冲区
+	/// </summary>
+	std::unique_ptr<UploadBuffer<Vertex>> pDynamicVertexBuffer{ nullptr };
 
 	/// <summary>
 	/// 围栏值，与当前管线执行到的围栏值对比，确认当前帧资源是否已使用

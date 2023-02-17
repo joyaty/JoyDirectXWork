@@ -138,6 +138,6 @@ float4 PSMain(VertexOut pIn) : SV_TARGET
     float4 ambientDiffuse = gAmbientLight * mat.DiffuseAlbedo;
     // 表面光= 直接光 + 间接光
     float4 litColor = directDiffuse + ambientDiffuse;
-    litColor.a = gDiffuseAlbedo.a;
+    litColor.a = mat.DiffuseAlbedo.a;
     return litColor;
 }

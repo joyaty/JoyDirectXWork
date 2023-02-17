@@ -212,8 +212,6 @@ void D3D12LandAndWaves::UpdateWave(float deltaTime, float totalTime)
 
 	m_pWave->UpdateWave(deltaTime);
 
-	std::vector<Vertex> waveVertices(m_pWave->VertexCount());
-
 	UploadBuffer<Vertex>* pVertexBuffer = m_pCurrentFrameResource->pDynamicVertices.get();
 	for (int i = 0; i < m_pWave->VertexCount(); ++i)
 	{

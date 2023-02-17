@@ -128,7 +128,8 @@ private:
 	/// 更新波浪动画顶点数据
 	/// </summary>
 	/// <param name="deltaTime"></param>
-	void UpdateWave(float deltaTime);
+	/// <param name="totalTime"></param>
+	void UpdateWave(float deltaTime, float totalTime);
 
 	/// <summary>
 	/// 记录渲染指令

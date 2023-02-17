@@ -34,6 +34,8 @@ public:
 	float GetWidth() const { return m_SpatialStep * m_NumCols; }
 	float GetHeight() const { return m_SpatialStep * m_NumRows; }
 	const DirectX::XMFLOAT3& GetPosition(int index) const { return m_CurPositions[index]; }
+	const DirectX::XMFLOAT3& GetNormal(int index) const { return m_Normals[index]; }
+	const DirectX::XMFLOAT2& GetTexCoord(int index) const { return m_TexCoords[index]; }
 
 private:
 	/// <summary>

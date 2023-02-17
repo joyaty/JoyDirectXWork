@@ -110,7 +110,7 @@ void DXWavesWithBlend::OnUpdate(float deltaTime, float totalTime)
 	UpdateObjectConstant(deltaTime, totalTime);
 	UpdateMaterialConstant(deltaTime, totalTime);
 	UpdatePassConstant(deltaTime, totalTime);
-	UpdateWave(deltaTime);
+	UpdateWave(deltaTime, totalTime);
 }
 
 void DXWavesWithBlend::OnRender()
@@ -364,7 +364,7 @@ void DXWavesWithBlend::BuildMaterials()
 	// 创建水材质
 	std::unique_ptr<WavesWithBlendMaterial> pWaterMaterial = std::make_unique<WavesWithBlendMaterial>();
 	pWaterMaterial->name = "Water";
-	pWaterMaterial->diffuseAlbedo = DirectX::XMFLOAT4(1.f, 1.f, 1.f, 1.f);
+	pWaterMaterial->diffuseAlbedo = DirectX::XMFLOAT4(1.f, 1.f, 1.f, 0.5f);
 	pWaterMaterial->fresnelR0 = DirectX::XMFLOAT3(0.1f, 0.1f, 0.1f);
 	pWaterMaterial->rougness = 0.f;
 	pWaterMaterial->matConstantBufferIndex = 2;
@@ -472,12 +472,14 @@ void DXWavesWithBlend::BuildPSOs()
 	transparentBlendDesc.IndependentBlendEnable = true;
 	transparentBlendDesc.RenderTarget[0].BlendEnable = true;
 	transparentBlendDesc.RenderTarget[0].BlendOp = D3D12_BLEND_OP_ADD;
-	transparentBlendDesc.RenderTarget[0].SrcBlend = D3D12_BLEND_DEST_COLOR;
-	transparentBlendDesc.RenderTarget[0].DestBlend = D3D12_BLEND_ZERO;
+	transparentBlendDesc.RenderTarget[0].SrcBlend = D3D12_BLEND_SRC_ALPHA;
+	transparentBlendDesc.RenderTarget[0].DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
 	transparentBlendDesc.RenderTarget[0].BlendOpAlpha = D3D12_BLEND_OP_ADD;
-	transparentBlendDesc.RenderTarget[0].SrcBlendAlpha = D3D12_BLEND_DEST_ALPHA;
+	transparentBlendDesc.RenderTarget[0].SrcBlendAlpha = D3D12_BLEND_ONE;
 	transparentBlendDesc.RenderTarget[0].DestBlendAlpha = D3D12_BLEND_ZERO;
 	transparentBlendDesc.RenderTarget[0].RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
+	transparentBlendDesc.RenderTarget[0].LogicOpEnable = false;
+	transparentBlendDesc.RenderTarget[0].LogicOp = D3D12_LOGIC_OP_NOOP;
 	// 使用半透明物件的混合配置
 	transparentPSODesc.BlendState = transparentBlendDesc;
 	ThrowIfFailed(m_Device->CreateGraphicsPipelineState(&transparentPSODesc, IID_PPV_ARGS(m_PSOs[static_cast<int>(EnumRenderLayer::LayerTransparent)].GetAddressOf())));
@@ -487,7 +489,7 @@ void DXWavesWithBlend::BuildFrameResource()
 {
 	for (int i = 0; i < kNumFrameResource; ++i)
 	{
-		std::unique_ptr<WavesWithBlendFrameResource> pFrameResource = std::make_unique<WavesWithBlendFrameResource>(m_Device.Get(), (int)m_SceneObjects.size(), (int)m_AllMaterials.size(), 1);
+		std::unique_ptr<WavesWithBlendFrameResource> pFrameResource = std::make_unique<WavesWithBlendFrameResource>(m_Device.Get(), (int)m_SceneObjects.size(), (int)m_AllMaterials.size(), m_Wave->GetVertexCount(), 1);
 		m_FrameResources.push_back(std::move(pFrameResource));
 	}
 	m_CurrentFrameResourceIndex = 0;
@@ -576,9 +578,33 @@ void DXWavesWithBlend::UpdateCamera(float deltaTime, float totalTime)
 	DirectX::XMStoreFloat4x4(&m_ViewMatrix, DirectX::XMMatrixLookAtLH(eyePos, focusePos, up));
 }
 
-void DXWavesWithBlend::UpdateWave(float deltaTime)
+void DXWavesWithBlend::UpdateWave(float deltaTime, float totalTime)
 {
+	static float s_NextTriggerTime = 0.f;
+	// 每0.25s产生一个水波涟漪
+	if ((totalTime - s_NextTriggerTime) >= 0.25f)
+	{
+		s_NextTriggerTime += 0.25f;
+		// 随机一个行和列，边界位置禁止随机，避免涟漪扩散越界
+		int randomRow = MathUtil::Rand(4, m_Wave->GetRowNum() - 5);
+		int randomCol = MathUtil::Rand(4, m_Wave->GetColNum() - 5);
+		// 随机一个波峰高度
+		float r = MathUtil::RandF(0.2f, 0.5f);
+		m_Wave->Disturb(randomRow, randomCol, r);
+	}
+	m_Wave->UpdateWave(deltaTime);
+	// 每帧更新动态顶点缓冲区数据
+	for (int i = 0; i < m_Wave->GetVertexCount(); ++i)
+	{
+		Vertex vert{};
+		vert.position = m_Wave->GetPosition(i);
+		vert.normal = m_Wave->GetNormal(i);
+		vert.texCoord = m_Wave->GetTexCoord(i);
 
+		m_CurrentFrameResource->pDynamicVertexBuffer->CopyData(i, vert);
+	}
+	// 设置动态顶点缓冲区
+	m_SceneObjects["Wave"]->m_VertexBufferGPU = m_CurrentFrameResource->pDynamicVertexBuffer->GetResource();
 }
 
 void DXWavesWithBlend::PopulateCommandList()
@@ -612,6 +638,13 @@ void DXWavesWithBlend::PopulateCommandList()
 	m_CommandList->SetGraphicsRootConstantBufferView(3U, m_CurrentFrameResource->pPassCBuffer->GetResource()->GetGPUVirtualAddress());
 	// 绘制不透明渲染项
 	DrawRenderItem(m_RenderItemLayers[static_cast<int>(EnumRenderLayer::LayerOpaque)]);
+	// 切换到透明渲染管线状态对象
+	m_CommandList->SetPipelineState(m_PSOs[static_cast<int>(EnumRenderLayer::LayerTransparent)].Get());
+	// 设置自定义的混合因子，Blend状态设置为D3D12_BLEND_BLEND_FACTOR时可以使用
+	float blendFactor[4] = { 0.0f, 0.0f, 0.0f, 0.f };
+	m_CommandList->OMSetBlendFactor(blendFactor);
+	// 绘制透明渲染项
+	DrawRenderItem(m_RenderItemLayers[static_cast<int>(EnumRenderLayer::LayerTransparent)]);
 
 	// 提交DearIMGui的渲染指令
 	if (IMGuiWavesWithBlend::GetInstance() != nullptr)
