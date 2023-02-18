@@ -83,7 +83,7 @@ bool DXWavesWithBlend::OnInit()
 	BuildInputLayout();
 	CompileShaderFiles();
 	BuildRootSignature();
-	BuildPSOs(IMGuiWavesWithBlend::GetInstance()->GetEnableFrog());
+	BuildPSOs(IMGuiWavesWithBlend::GetInstance()->GetEnableFog());
 	// 执行实例初始化指令
 	ThrowIfFailed(m_CommandList->Close());
 	ID3D12CommandList* cmdLists[] = { m_CommandList.Get() };
@@ -467,11 +467,11 @@ void DXWavesWithBlend::CompileShaderFiles()
 	// 标准像素着色器
 	m_StandardPSByteCode = CompileShader(m_AssetPath + L"WavesWithBlend.hlsl", nullptr, "PSMain", "ps_5_0");
 	// 开启雾效的宏
-	D3D_SHADER_MACRO frogEnableMacros[] = {
-		{ "FROG_ENABLE", "1" },
+	D3D_SHADER_MACRO fogEnableMacros[] = {
+		{ "FOG_ENABLE", "1" },
 		{ NULL, NULL }
 	};
-	m_EnableFrogPSByteCode = CompileShader(m_AssetPath + L"WavesWithBlend.hlsl", frogEnableMacros, "PSMain", "ps_5_0");
+	m_EnableFogPSByteCode = CompileShader(m_AssetPath + L"WavesWithBlend.hlsl", fogEnableMacros, "PSMain", "ps_5_0");
 	// 开启Alpha_Test的像素着色器
 	D3D_SHADER_MACRO enaleAlphaTestMacros[] =
 	{
@@ -480,16 +480,16 @@ void DXWavesWithBlend::CompileShaderFiles()
 		{ NULL, NULL },
 	};
 	m_PSWithAlphaTestByteCode = CompileShader(m_AssetPath + L"WavesWithBlend.hlsl", enaleAlphaTestMacros, "PSMain", "ps_5_0");
-	// 开启Alpha_Test和Frog的像素着色器
-	D3D_SHADER_MACRO enaleAlphaTestAndFrogMacros[] = 
+	// 开启Alpha_Test和Fog的像素着色器
+	D3D_SHADER_MACRO enaleAlphaTestAndFogMacros[] = 
 	{
-		{ "FROG_ENABLE", "1" },
+		{ "FOG_ENABLE", "1" },
 		// 宏名称, 宏定义值
 		{ "ALPHA_TEST", "1" },
 		// 最后需要定义一个NULL，指定宏定义数组结束标识
 		{ NULL, NULL },
 	};
-	m_EnableFrogPSWithAlphaTestByteCode = CompileShader(m_AssetPath + L"WavesWithBlend.hlsl", enaleAlphaTestAndFrogMacros, "PSMain", "ps_5_0");
+	m_EnableFogPSWithAlphaTestByteCode = CompileShader(m_AssetPath + L"WavesWithBlend.hlsl", enaleAlphaTestAndFogMacros, "PSMain", "ps_5_0");
 }
 
 void DXWavesWithBlend::BuildRootSignature()
@@ -519,7 +519,7 @@ void DXWavesWithBlend::BuildRootSignature()
 	ThrowIfFailed(m_Device->CreateRootSignature(0U, m_SerializeRootSignature->GetBufferPointer(), m_SerializeRootSignature->GetBufferSize(), IID_PPV_ARGS(m_RootSignture.GetAddressOf())));
 }
 
-void DXWavesWithBlend::BuildPSOs(bool enableFrog)
+void DXWavesWithBlend::BuildPSOs(bool enableFog)
 {
 	// 不透明物件的PSO配置
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC opaquePSODesc{};
@@ -535,9 +535,9 @@ void DXWavesWithBlend::BuildPSOs(bool enableFrog)
 	opaquePSODesc.InputLayout = { m_InputElementDescs.data(), static_cast<UINT>(m_InputElementDescs.size()) };
 	opaquePSODesc.VS = { reinterpret_cast<BYTE*>(m_VSByteCode->GetBufferPointer()), m_VSByteCode->GetBufferSize() };
 	opaquePSODesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
-	if (enableFrog)
+	if (enableFog)
 	{
-		opaquePSODesc.PS = { reinterpret_cast<BYTE*>(m_EnableFrogPSByteCode->GetBufferPointer()), m_EnableFrogPSByteCode->GetBufferSize() };
+		opaquePSODesc.PS = { reinterpret_cast<BYTE*>(m_EnableFogPSByteCode->GetBufferPointer()), m_EnableFogPSByteCode->GetBufferSize() };
 	}
 	else
 	{
@@ -568,9 +568,9 @@ void DXWavesWithBlend::BuildPSOs(bool enableFrog)
 	// AlphaTest的PSO配置
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC alphaTestPSODesc{ opaquePSODesc };
 	// 使用带有ALPHA_TEST宏开关的PS
-	if (enableFrog)
+	if (enableFog)
 	{
-		alphaTestPSODesc.PS = { reinterpret_cast<BYTE*>(m_EnableFrogPSWithAlphaTestByteCode->GetBufferPointer()), m_EnableFrogPSWithAlphaTestByteCode->GetBufferSize() };
+		alphaTestPSODesc.PS = { reinterpret_cast<BYTE*>(m_EnableFogPSWithAlphaTestByteCode->GetBufferPointer()), m_EnableFogPSWithAlphaTestByteCode->GetBufferSize() };
 	}
 	else
 	{
@@ -756,6 +756,7 @@ void DXWavesWithBlend::PopulateCommandList()
 	// 绑定渲染过程常量缓冲区
 	m_CommandList->SetGraphicsRootConstantBufferView(3U, m_CurrentFrameResource->pPassCBuffer->GetResource()->GetGPUVirtualAddress());
 	// 绘制不透明渲染项
+	// m_CommandList->SetPipelineState(m_PSOs[static_cast<int>(EnumRenderLayer::LayerOpaque)].Get());
 	DrawRenderItem(m_RenderItemLayers[static_cast<int>(EnumRenderLayer::LayerOpaque)]);
 	// 切换到透明渲染管线状态对象
 	m_CommandList->SetPipelineState(m_PSOs[static_cast<int>(EnumRenderLayer::LayerTransparent)].Get());

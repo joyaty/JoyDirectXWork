@@ -20,7 +20,7 @@ public:
 	virtual ~DXWavesWithBlend();
 
 public:
-	void SwitchFrogState(bool enableFrog) { BuildPSOs(enableFrog); };
+	void SwitchFogState(bool enableFog) { BuildPSOs(enableFog); };
 	void SetBlendFactor(float r, float g, float b, float a)
 	{
 		m_BlendFactor[0] = r;
@@ -104,7 +104,7 @@ private:
 	/// <summary>
 	/// 创建渲染管线状态对象
 	/// </summary>
-	void BuildPSOs(bool enableFrog);
+	void BuildPSOs(bool enableFog);
 	/// <summary>
 	/// 创建帧资源
 	/// </summary>
@@ -195,7 +195,7 @@ private:
 	/// <summary>
 	/// 开启雾效的像素着色器编译后字节码
 	/// </summary>
-	Microsoft::WRL::ComPtr<ID3DBlob> m_EnableFrogPSByteCode{ nullptr };
+	Microsoft::WRL::ComPtr<ID3DBlob> m_EnableFogPSByteCode{ nullptr };
 	/// <summary>
 	/// 带有AlphaTest预编译宏的像素着色器编译后字节码
 	/// </summary>
@@ -203,7 +203,7 @@ private:
 	/// <summary>
 	/// 带有AlphaTest预编译宏的像素着色器编译后字节码
 	/// </summary>
-	Microsoft::WRL::ComPtr<ID3DBlob> m_EnableFrogPSWithAlphaTestByteCode{ nullptr };
+	Microsoft::WRL::ComPtr<ID3DBlob> m_EnableFogPSWithAlphaTestByteCode{ nullptr };
 
 	/// <summary>
 	/// 输入布局元素描述

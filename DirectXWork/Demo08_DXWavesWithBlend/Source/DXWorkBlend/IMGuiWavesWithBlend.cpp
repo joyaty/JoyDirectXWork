@@ -26,10 +26,10 @@ void IMGuiWavesWithBlend::OnDrawWindow()
 	DrawAdapterInfo();
 	ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
 	// 雾效开关
-	bool isChange = ImGui::Checkbox("Enable frog", &m_EnableFrog);
+	bool isChange = ImGui::Checkbox("Enable fog", &m_EnableFog);
 	if (isChange)
 	{
-		m_WavesWithBlendDemo->SwitchFrogState(m_EnableFrog);
+		m_WavesWithBlendDemo->SwitchFogState(m_EnableFog);
 	}
 	// 混合因子设置
 	isChange = ImGui::SliderFloat3("Blend factor", m_BlendFactor, 0.f, 1.f);

@@ -21,13 +21,13 @@ public:
 public:
 	void SetWavesWithBlendDemo(DXWavesWithBlend* pDemo);
 
-	bool GetEnableFrog() const { return m_EnableFrog; }
+	bool GetEnableFog() const { return m_EnableFog; }
 
 protected:
 	void OnDrawWindow() override;
 
 private:
 	DXWavesWithBlend* m_WavesWithBlendDemo{ nullptr };
-	bool m_EnableFrog{ true };
+	bool m_EnableFog{ true };
 	float m_BlendFactor[4]{ 0.4f, 0.4f, 0.4f, 1.f };
 };

@@ -186,17 +186,17 @@ struct PerPassConstancts
 	/// <summary>
 	/// 雾的颜色
 	/// </summary>
-	DirectX::XMFLOAT4 frogColor{ DirectX::XMFLOAT4(0.5f, 0.5f, 0.5f, 1.0f) };
+	DirectX::XMFLOAT4 fogColor{ DirectX::XMFLOAT4(0.5f, 0.5f, 0.5f, 1.0f) };
 	/// <summary>
 	/// 雾开始影响的到摄像机的距离
 	/// </summary>
-	float frogStart{ 75.f };
+	float fogStart{ 75.f };
 	/// <summary>
 	/// 雾的范围
 	/// </summary>
-	float frogRange{ 150.f };
+	float fogRange{ 150.f };
 	/// <summary>
-	/// 填充占位，与frogStart,frogRange构成4D向量
+	/// 填充占位，与fogStart,fogRange构成4D向量
 	/// </summary>
 	float __padding1[2];
 	/// <summary>

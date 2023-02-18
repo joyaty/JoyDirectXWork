@@ -70,12 +70,12 @@ cbuffer cbPerPass: register(b2)
     // 帧间隔时间
     float gDeltaTime;
     // 雾的颜色
-    float4 gFrogColor;
+    float4 gFogColor;
     // 雾开始的距离
-    float gFrogStart;
+    float gFogStart;
     // 雾的范围
-    float gFrogRange;
-    // 占位，与gFrogStart,gFrogRange构成4D向量
+    float gFogRange;
+    // 占位，与gFogStart,gFogRange构成4D向量
     float2 __padding1;
     // 环境光
     float4 gAmbientLight;
@@ -157,9 +157,9 @@ float4 PSMain(VertexOut pIn) : SV_TARGET
     float4 ambientDiffuse = gAmbientLight * diffuseAlbedo;
     // 表面光= 直接光 + 间接光
     float4 litColor = directDiffuse + ambientDiffuse;
-#if (FROG_ENABLE == 1)
-    float frogFactor = saturate((distToEye - gFrogStart) / gFrogRange);
-    litColor = lerp(litColor, gFrogColor, frogFactor);
+#if (FOG_ENABLE == 1)
+    float fogFactor = saturate((distToEye - gFogStart) / gFogRange);
+    litColor = lerp(litColor, gFogColor, fogFactor);
 #endif
     litColor.a = diffuseAlbedo.a;
     return litColor;
