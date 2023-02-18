@@ -83,7 +83,7 @@ bool DXWavesWithBlend::OnInit()
 	BuildInputLayout();
 	CompileShaderFiles();
 	BuildRootSignature();
-	BuildPSOs();
+	BuildPSOs(IMGuiWavesWithBlend::GetInstance()->GetEnableFrog());
 	// 执行实例初始化指令
 	ThrowIfFailed(m_CommandList->Close());
 	ID3D12CommandList* cmdLists[] = { m_CommandList.Get() };
@@ -462,17 +462,34 @@ void DXWavesWithBlend::BuildInputLayout()
 
 void DXWavesWithBlend::CompileShaderFiles()
 {
+	// 标准顶点着色器
 	m_VSByteCode = CompileShader(m_AssetPath + L"WavesWithBlend.hlsl", nullptr, "VSMain", "vs_5_0");
-	m_PSByteCode = CompileShader(m_AssetPath + L"WavesWithBlend.hlsl", nullptr, "PSMain", "ps_5_0");
-	// Shader的预编译宏定义，
-	D3D_SHADER_MACRO enaleAlphaTestMacros[] = 
+	// 标准像素着色器
+	m_StandardPSByteCode = CompileShader(m_AssetPath + L"WavesWithBlend.hlsl", nullptr, "PSMain", "ps_5_0");
+	// 开启雾效的宏
+	D3D_SHADER_MACRO frogEnableMacros[] = {
+		{ "FROG_ENABLE", "1" },
+		{ NULL, NULL }
+	};
+	m_EnableFrogPSByteCode = CompileShader(m_AssetPath + L"WavesWithBlend.hlsl", frogEnableMacros, "PSMain", "ps_5_0");
+	// 开启Alpha_Test的像素着色器
+	D3D_SHADER_MACRO enaleAlphaTestMacros[] =
 	{
-		// 宏名称, 宏定义值
 		{ "ALPHA_TEST", "1" },
 		// 最后需要定义一个NULL，指定宏定义数组结束标识
 		{ NULL, NULL },
 	};
 	m_PSWithAlphaTestByteCode = CompileShader(m_AssetPath + L"WavesWithBlend.hlsl", enaleAlphaTestMacros, "PSMain", "ps_5_0");
+	// 开启Alpha_Test和Frog的像素着色器
+	D3D_SHADER_MACRO enaleAlphaTestAndFrogMacros[] = 
+	{
+		{ "FROG_ENABLE", "1" },
+		// 宏名称, 宏定义值
+		{ "ALPHA_TEST", "1" },
+		// 最后需要定义一个NULL，指定宏定义数组结束标识
+		{ NULL, NULL },
+	};
+	m_EnableFrogPSWithAlphaTestByteCode = CompileShader(m_AssetPath + L"WavesWithBlend.hlsl", enaleAlphaTestAndFrogMacros, "PSMain", "ps_5_0");
 }
 
 void DXWavesWithBlend::BuildRootSignature()
@@ -502,7 +519,7 @@ void DXWavesWithBlend::BuildRootSignature()
 	ThrowIfFailed(m_Device->CreateRootSignature(0U, m_SerializeRootSignature->GetBufferPointer(), m_SerializeRootSignature->GetBufferSize(), IID_PPV_ARGS(m_RootSignture.GetAddressOf())));
 }
 
-void DXWavesWithBlend::BuildPSOs()
+void DXWavesWithBlend::BuildPSOs(bool enableFrog)
 {
 	// 不透明物件的PSO配置
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC opaquePSODesc{};
@@ -518,7 +535,14 @@ void DXWavesWithBlend::BuildPSOs()
 	opaquePSODesc.InputLayout = { m_InputElementDescs.data(), static_cast<UINT>(m_InputElementDescs.size()) };
 	opaquePSODesc.VS = { reinterpret_cast<BYTE*>(m_VSByteCode->GetBufferPointer()), m_VSByteCode->GetBufferSize() };
 	opaquePSODesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
-	opaquePSODesc.PS = { reinterpret_cast<BYTE*>(m_PSByteCode->GetBufferPointer()), m_PSByteCode->GetBufferSize() };
+	if (enableFrog)
+	{
+		opaquePSODesc.PS = { reinterpret_cast<BYTE*>(m_EnableFrogPSByteCode->GetBufferPointer()), m_EnableFrogPSByteCode->GetBufferSize() };
+	}
+	else
+	{
+		opaquePSODesc.PS = { reinterpret_cast<BYTE*>(m_StandardPSByteCode->GetBufferPointer()), m_StandardPSByteCode->GetBufferSize() };
+	}
 	opaquePSODesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
 	opaquePSODesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
 	// 创建Opaque渲染层级的PSO
@@ -544,7 +568,14 @@ void DXWavesWithBlend::BuildPSOs()
 	// AlphaTest的PSO配置
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC alphaTestPSODesc{ opaquePSODesc };
 	// 使用带有ALPHA_TEST宏开关的PS
-	alphaTestPSODesc.PS = { reinterpret_cast<BYTE*>(m_PSWithAlphaTestByteCode->GetBufferPointer()), m_PSWithAlphaTestByteCode->GetBufferSize() };
+	if (enableFrog)
+	{
+		alphaTestPSODesc.PS = { reinterpret_cast<BYTE*>(m_EnableFrogPSWithAlphaTestByteCode->GetBufferPointer()), m_EnableFrogPSWithAlphaTestByteCode->GetBufferSize() };
+	}
+	else
+	{
+		alphaTestPSODesc.PS = { reinterpret_cast<BYTE*>(m_PSWithAlphaTestByteCode->GetBufferPointer()), m_PSWithAlphaTestByteCode->GetBufferSize() };
+	}
 	// 不剔除，避免裁剪alpha=0的部分，穿透看到背后穿帮
 	alphaTestPSODesc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
 	ThrowIfFailed(m_Device->CreateGraphicsPipelineState(&alphaTestPSODesc, IID_PPV_ARGS(m_PSOs[static_cast<int>(EnumRenderLayer::LayerAlphaTest)].GetAddressOf())));
@@ -729,8 +760,7 @@ void DXWavesWithBlend::PopulateCommandList()
 	// 切换到透明渲染管线状态对象
 	m_CommandList->SetPipelineState(m_PSOs[static_cast<int>(EnumRenderLayer::LayerTransparent)].Get());
 	// 设置自定义的混合因子，Blend状态设置为D3D12_BLEND_BLEND_FACTOR时可以使用
-	float blendFactor[4] = { 0.4f, 0.4f, 0.4f, 1.0f };
-	m_CommandList->OMSetBlendFactor(blendFactor);
+	m_CommandList->OMSetBlendFactor(m_BlendFactor);
 	// 绘制透明渲染项
 	DrawRenderItem(m_RenderItemLayers[static_cast<int>(EnumRenderLayer::LayerTransparent)]);
 	// 绘制需要ALPHA_TEST的渲染项

@@ -66,6 +66,14 @@ cbuffer cbPass : register(b2)
 	float gTotalTime;
 	// 帧间隔时间
 	float gDeltaTime;
+	// 雾的颜色
+	float4 gFrogColor;
+	// 雾开始的距离
+	float gFrogStart;
+	// 雾的范围
+	float gFrogRange;
+	// 占位，与gFrogStart,gFrogRange构成4D向量
+	float2 __padding1;
 	// 环境光
 	float4 gAmbientLight;
 	// 所有光源数据

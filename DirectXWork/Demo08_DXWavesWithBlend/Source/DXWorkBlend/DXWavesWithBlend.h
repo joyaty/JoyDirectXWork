@@ -20,6 +20,16 @@ public:
 	virtual ~DXWavesWithBlend();
 
 public:
+	void SwitchFrogState(bool enableFrog) { BuildPSOs(enableFrog); };
+	void SetBlendFactor(float r, float g, float b, float a)
+	{
+		m_BlendFactor[0] = r;
+		m_BlendFactor[1] = g;
+		m_BlendFactor[2] = b;
+		m_BlendFactor[3] = a;
+	}
+
+public:
 	void OnResize(UINT width, UINT height) override;
 	void OnMouseDown(UINT8 keyCode, int x, int y) override;
 	void OnMouseUp(UINT8 keyCode, int x, int y) override;
@@ -94,7 +104,7 @@ private:
 	/// <summary>
 	/// 创建渲染管线状态对象
 	/// </summary>
-	void BuildPSOs();
+	void BuildPSOs(bool enableFrog);
 	/// <summary>
 	/// 创建帧资源
 	/// </summary>
@@ -141,7 +151,6 @@ private:
 	/// 记录渲染指令
 	/// </summary>
 	void PopulateCommandList();
-
 	/// <summary>
 	/// 绘制指定层级渲染项
 	/// </summary>
@@ -180,13 +189,21 @@ private:
 	/// </summary>
 	Microsoft::WRL::ComPtr<ID3DBlob> m_VSByteCode{ nullptr };
 	/// <summary>
-	/// 像素着色器编译后字节码
+	/// 标准像素着色器编译后字节码
 	/// </summary>
-	Microsoft::WRL::ComPtr<ID3DBlob> m_PSByteCode{ nullptr };
+	Microsoft::WRL::ComPtr<ID3DBlob> m_StandardPSByteCode{ nullptr };
+	/// <summary>
+	/// 开启雾效的像素着色器编译后字节码
+	/// </summary>
+	Microsoft::WRL::ComPtr<ID3DBlob> m_EnableFrogPSByteCode{ nullptr };
 	/// <summary>
 	/// 带有AlphaTest预编译宏的像素着色器编译后字节码
 	/// </summary>
 	Microsoft::WRL::ComPtr<ID3DBlob> m_PSWithAlphaTestByteCode{ nullptr };
+	/// <summary>
+	/// 带有AlphaTest预编译宏的像素着色器编译后字节码
+	/// </summary>
+	Microsoft::WRL::ComPtr<ID3DBlob> m_EnableFrogPSWithAlphaTestByteCode{ nullptr };
 
 	/// <summary>
 	/// 输入布局元素描述
@@ -276,4 +293,10 @@ private:
 	/// 直接光在XZ平面投影与X轴的夹角
 	/// </summary>
 	float m_LightPhi{ DirectX::XM_PI };
+
+private:
+	/// <summary>
+	/// 混合因子
+	/// </summary>
+	float m_BlendFactor[4];
 };

@@ -69,6 +69,14 @@ cbuffer cbPerPass: register(b2)
     float gTotalTime;
     // 帧间隔时间
     float gDeltaTime;
+    // 雾的颜色
+    float4 gFrogColor;
+    // 雾开始的距离
+    float gFrogStart;
+    // 雾的范围
+    float gFrogRange;
+    // 占位，与gFrogStart,gFrogRange构成4D向量
+    float2 __padding1;
     // 环境光
     float4 gAmbientLight;
     // 所有光源数据
@@ -136,7 +144,8 @@ float4 PSMain(VertexOut pIn) : SV_TARGET
     // 法线变换可能导致规范化丢失，重新规范化
     float3 normal = normalize(pIn.NormalW);
     // 观察向量
-    float3 toEye = normalize(gEyePos - pIn.PosW);
+	float distToEye = distance(gEyePos, pIn.PosW);
+    float3 toEye = (gEyePos - pIn.PosW) / distToEye;
     // 构建材质
     Material mat;
     mat.DiffuseAlbedo = diffuseAlbedo; // 叠加材质的反照率和漫反射贴图的反照率
@@ -148,6 +157,10 @@ float4 PSMain(VertexOut pIn) : SV_TARGET
     float4 ambientDiffuse = gAmbientLight * diffuseAlbedo;
     // 表面光= 直接光 + 间接光
     float4 litColor = directDiffuse + ambientDiffuse;
+#if (FROG_ENABLE == 1)
+    float frogFactor = saturate((distToEye - gFrogStart) / gFrogRange);
+    litColor = lerp(litColor, gFrogColor, frogFactor);
+#endif
     litColor.a = diffuseAlbedo.a;
     return litColor;
 }
