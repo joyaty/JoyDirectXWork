@@ -183,6 +183,10 @@ private:
 	/// 像素着色器编译后字节码
 	/// </summary>
 	Microsoft::WRL::ComPtr<ID3DBlob> m_PSByteCode{ nullptr };
+	/// <summary>
+	/// 带有AlphaTest预编译宏的像素着色器编译后字节码
+	/// </summary>
+	Microsoft::WRL::ComPtr<ID3DBlob> m_PSWithAlphaTestByteCode{ nullptr };
 
 	/// <summary>
 	/// 输入布局元素描述
@@ -263,7 +267,7 @@ private:
 	/// <summary>
 	/// 直接光
 	/// </summary>
-	DirectX::XMFLOAT3 m_DirectLight{ DirectX::XMFLOAT3(1.0f, 1.0f, 1.0f) };
+	DirectX::XMFLOAT3 m_DirectLight{ DirectX::XMFLOAT3(0.7f, 0.7f, 0.7f) };
 	/// <summary>
 	/// 直接光与Y轴的夹角
 	/// </summary>

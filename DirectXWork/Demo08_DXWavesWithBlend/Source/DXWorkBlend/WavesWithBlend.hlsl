@@ -5,7 +5,7 @@
 
 // 定义方向光源数量
 #ifndef NUM_DIR_LIGHTS
-#define NUM_DIR_LIGHTS 1
+#define NUM_DIR_LIGHTS 2
 #endif
 // 定义点光源数量
 #ifndef NUM_POINT_LIGHTS
@@ -127,23 +127,27 @@ VertexOut VSMain(VertexIn vIn)
 
 float4 PSMain(VertexOut pIn) : SV_TARGET
 {
+    // 采样当前纹理坐标位置的纹素
+    float4 diffuseAlbedo = gDiffuseMap.Sample(gLinearWrapSampler, pIn.TexCoord) * gDiffuseAlbedo;
+#if (ALPHA_TEST == 1)
+    // 开启ALPHA_TEST宏，检查是否是全透明像素，是全透明像素则丢弃
+    clip(diffuseAlbedo.a - 0.1f);
+#endif
     // 法线变换可能导致规范化丢失，重新规范化
     float3 normal = normalize(pIn.NormalW);
     // 观察向量
     float3 toEye = normalize(gEyePos - pIn.PosW);
-    // 采样当前纹理坐标位置的纹素
-    float4 diffuseMapAlbedo = gDiffuseMap.Sample(gLinearWrapSampler, pIn.TexCoord);
     // 构建材质
     Material mat;
-    mat.DiffuseAlbedo = gDiffuseAlbedo * diffuseMapAlbedo; // 叠加材质的反照率和漫反射贴图的反照率
+    mat.DiffuseAlbedo = diffuseAlbedo; // 叠加材质的反照率和漫反射贴图的反照率
     mat.FresnelR0 = gFresnelR0;
     mat.Shininess = 1.0f - gRoughness;
     // 计算直接光反射光强
     float4 directDiffuse = ComputeLight(gLights, mat, normal, toEye, pIn.PosW);
     // 计算环境光反射
-    float4 ambientDiffuse = gAmbientLight * mat.DiffuseAlbedo;
+    float4 ambientDiffuse = gAmbientLight * diffuseAlbedo;
     // 表面光= 直接光 + 间接光
     float4 litColor = directDiffuse + ambientDiffuse;
-    litColor.a = mat.DiffuseAlbedo.a;
+    litColor.a = diffuseAlbedo.a;
     return litColor;
 }

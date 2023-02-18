@@ -221,6 +221,40 @@ void DXWavesWithBlend::BuildWavesMesh()
 
 void DXWavesWithBlend::BuildFenceCubeMesh()
 {
+	GeometryGenerator::MeshData cube = GeometryGenerator::CreateCube(10.f, 10.f, 10.f, 0);
+	// 拷贝顶点数据
+	int vertexCount = static_cast<int>(cube.Vertices.size());
+	std::vector<Vertex> vertices{};
+	vertices.resize(vertexCount);
+	for (int i = 0; i < vertexCount; ++i)
+	{
+		vertices[i].position = cube.Vertices[i].Position;
+		vertices[i].normal = cube.Vertices[i].Normal;
+		vertices[i].texCoord = cube.Vertices[i].TexCoord;
+	}
+	// 拷贝索引数据
+	int indexCount = static_cast<int>(cube.GetIndices16().size());
+	std::vector<std::uint16_t> indices{};
+	indices.insert(indices.cend(), cube.GetIndices16().begin(), cube.GetIndices16().end());
+	// 创建几何体对象
+	int vertexBufferSize = sizeof(Vertex) * vertexCount;
+	int indexBufferSize = sizeof(std::uint16_t) * indexCount;
+	std::unique_ptr<MeshGeometry> pCubeGeo = std::make_unique<MeshGeometry>();
+	pCubeGeo->m_Name = "FenceCube";
+	pCubeGeo->m_VertexBufferCPU = nullptr;
+	pCubeGeo->m_VertexBufferGPU = D3D12Util::CreateBufferInDefaultHeap(m_Device.Get(), m_CommandList.Get(), vertices.data(), vertexBufferSize, pCubeGeo->m_VertexBufferUploader);
+	pCubeGeo->m_VertexSize = vertexBufferSize;
+	pCubeGeo->m_VertexStride = sizeof(Vertex);
+	pCubeGeo->m_IndexBufferCPU = nullptr;
+	pCubeGeo->m_IndexBufferGPU = D3D12Util::CreateBufferInDefaultHeap(m_Device.Get(), m_CommandList.Get(), indices.data(), indexBufferSize, pCubeGeo->m_IndexBufferUploader);
+	pCubeGeo->m_IndexSize = indexBufferSize;
+	pCubeGeo->m_IndexFormat = DXGI_FORMAT_R16_UINT;
+	SubMeshGeometry subMesh{};
+	subMesh.m_IndexCount = indexCount;
+	subMesh.m_StartIndexLocation = 0U;
+	subMesh.m_BaseVertexLocation = 0U;
+	pCubeGeo->m_SubMeshGeometrys["Cube"] = subMesh;
+	m_SceneObjects[pCubeGeo->m_Name] = std::move(pCubeGeo);
 }
 
 void DXWavesWithBlend::LoadTextures()
@@ -402,7 +436,19 @@ void DXWavesWithBlend::BuildRenderItems()
 	pWaveRenderItem->startVertexLocation = pWaveRenderItem->pMeshData->m_SubMeshGeometrys["Wave"].m_BaseVertexLocation;
 	m_AllRenderItems.push_back(std::move(pWaveRenderItem));
 	m_RenderItemLayers[static_cast<int>(EnumRenderLayer::LayerTransparent)].push_back(m_AllRenderItems.back().get());
-	// TODO 构建围栏渲染项
+	// 构建围栏渲染项，围栏有的像素是完全透明的，可以直接丢弃，使用透明度测试PSO
+	std::unique_ptr<WavesWithBlendRenderItem> pFenceRenderItem = std::make_unique<WavesWithBlendRenderItem>();
+	pFenceRenderItem->pMeshData = m_SceneObjects["FenceCube"].get();
+	pFenceRenderItem->pMaterial = m_AllMaterials["FenceBox"].get();
+	pFenceRenderItem->primitiveType = D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+	pFenceRenderItem->objConstantBufferIndex = 2;
+	DirectX::XMFLOAT3 fenceCubeWorldPos = DirectX::XMFLOAT3(0.f, 5.f, -7.f);
+	DirectX::XMStoreFloat4x4(&pFenceRenderItem->worldMatrix, DirectX::XMMatrixTranslation(fenceCubeWorldPos.x, fenceCubeWorldPos.y, fenceCubeWorldPos.z));
+	pFenceRenderItem->indexCount = pFenceRenderItem->pMeshData->m_SubMeshGeometrys["Cube"].m_IndexCount;
+	pFenceRenderItem->startIndexLocation = pFenceRenderItem->pMeshData->m_SubMeshGeometrys["Cube"].m_StartIndexLocation;
+	pFenceRenderItem->startVertexLocation = pFenceRenderItem->pMeshData->m_SubMeshGeometrys["Cube"].m_BaseVertexLocation;
+	m_AllRenderItems.push_back(std::move(pFenceRenderItem));
+	m_RenderItemLayers[static_cast<int>(EnumRenderLayer::LayerAlphaTest)].push_back(m_AllRenderItems.back().get());
 }
 
 void DXWavesWithBlend::BuildInputLayout()
@@ -418,6 +464,15 @@ void DXWavesWithBlend::CompileShaderFiles()
 {
 	m_VSByteCode = CompileShader(m_AssetPath + L"WavesWithBlend.hlsl", nullptr, "VSMain", "vs_5_0");
 	m_PSByteCode = CompileShader(m_AssetPath + L"WavesWithBlend.hlsl", nullptr, "PSMain", "ps_5_0");
+	// Shader的预编译宏定义，
+	D3D_SHADER_MACRO enaleAlphaTestMacros[] = 
+	{
+		// 宏名称, 宏定义值
+		{ "ALPHA_TEST", "1" },
+		// 最后需要定义一个NULL，指定宏定义数组结束标识
+		{ NULL, NULL },
+	};
+	m_PSWithAlphaTestByteCode = CompileShader(m_AssetPath + L"WavesWithBlend.hlsl", enaleAlphaTestMacros, "PSMain", "ps_5_0");
 }
 
 void DXWavesWithBlend::BuildRootSignature()
@@ -475,8 +530,8 @@ void DXWavesWithBlend::BuildPSOs()
 	transparentBlendDesc.IndependentBlendEnable = true;
 	transparentBlendDesc.RenderTarget[0].BlendEnable = true;
 	transparentBlendDesc.RenderTarget[0].BlendOp = D3D12_BLEND_OP_ADD;
-	transparentBlendDesc.RenderTarget[0].SrcBlend = D3D12_BLEND_SRC_ALPHA;
-	transparentBlendDesc.RenderTarget[0].DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
+	transparentBlendDesc.RenderTarget[0].SrcBlend = D3D12_BLEND_BLEND_FACTOR;
+	transparentBlendDesc.RenderTarget[0].DestBlend = D3D12_BLEND_INV_BLEND_FACTOR;
 	transparentBlendDesc.RenderTarget[0].BlendOpAlpha = D3D12_BLEND_OP_ADD;
 	transparentBlendDesc.RenderTarget[0].SrcBlendAlpha = D3D12_BLEND_ONE;
 	transparentBlendDesc.RenderTarget[0].DestBlendAlpha = D3D12_BLEND_ZERO;
@@ -486,6 +541,13 @@ void DXWavesWithBlend::BuildPSOs()
 	// 使用半透明物件的混合配置
 	transparentPSODesc.BlendState = transparentBlendDesc;
 	ThrowIfFailed(m_Device->CreateGraphicsPipelineState(&transparentPSODesc, IID_PPV_ARGS(m_PSOs[static_cast<int>(EnumRenderLayer::LayerTransparent)].GetAddressOf())));
+	// AlphaTest的PSO配置
+	D3D12_GRAPHICS_PIPELINE_STATE_DESC alphaTestPSODesc{ opaquePSODesc };
+	// 使用带有ALPHA_TEST宏开关的PS
+	alphaTestPSODesc.PS = { reinterpret_cast<BYTE*>(m_PSWithAlphaTestByteCode->GetBufferPointer()), m_PSWithAlphaTestByteCode->GetBufferSize() };
+	// 不剔除，避免裁剪alpha=0的部分，穿透看到背后穿帮
+	alphaTestPSODesc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
+	ThrowIfFailed(m_Device->CreateGraphicsPipelineState(&alphaTestPSODesc, IID_PPV_ARGS(m_PSOs[static_cast<int>(EnumRenderLayer::LayerAlphaTest)].GetAddressOf())));
 }
 
 void DXWavesWithBlend::BuildFrameResource()
@@ -527,7 +589,6 @@ void DXWavesWithBlend::UpdateMaterialConstant(float deltaTime, float totalTime)
 		if (pMaterial->dirty > 0)
 		{
 			PerMaterialConstants matCBData{};
-			
 			matCBData.albedo = pMaterial->diffuseAlbedo;
 			matCBData.fresnelR0 = pMaterial->fresnelR0;
 			matCBData.roughness = pMaterial->rougness;
@@ -569,6 +630,10 @@ void DXWavesWithBlend::UpdatePassConstant(float deltaTime, float totalTime)
 	float lightPosZ = 1.f * sinf(m_LightTheta) * sinf(m_LightPhi);
 	DirectX::XMVECTOR lightDir = DirectX::XMVectorSet(-lightPosX, -lightPosY, -lightPosZ, 1.0f);
 	DirectX::XMStoreFloat3(&passCBData.lights[0].direction, lightDir);
+	// 第二个光源
+	passCBData.lights[1].strength = DirectX::XMFLOAT3(0.5f, 0.5f, 0.4f);
+	passCBData.lights[1].direction = DirectX::XMFLOAT3(0.f, -0.866f, 0.5f);
+
 	// 拷贝数据到渲染过程常量缓冲区
 	m_CurrentFrameResource->pPassCBuffer->CopyData(0, passCBData);
 }
@@ -664,17 +729,18 @@ void DXWavesWithBlend::PopulateCommandList()
 	// 切换到透明渲染管线状态对象
 	m_CommandList->SetPipelineState(m_PSOs[static_cast<int>(EnumRenderLayer::LayerTransparent)].Get());
 	// 设置自定义的混合因子，Blend状态设置为D3D12_BLEND_BLEND_FACTOR时可以使用
-	float blendFactor[4] = { 0.0f, 0.0f, 0.0f, 0.f };
+	float blendFactor[4] = { 0.4f, 0.4f, 0.4f, 1.0f };
 	m_CommandList->OMSetBlendFactor(blendFactor);
 	// 绘制透明渲染项
 	DrawRenderItem(m_RenderItemLayers[static_cast<int>(EnumRenderLayer::LayerTransparent)]);
-
+	// 绘制需要ALPHA_TEST的渲染项
+	m_CommandList->SetPipelineState(m_PSOs[static_cast<int>(EnumRenderLayer::LayerAlphaTest)].Get());
+	DrawRenderItem(m_RenderItemLayers[static_cast<int>(EnumRenderLayer::LayerAlphaTest)]);
 	// 提交DearIMGui的渲染指令
 	if (IMGuiWavesWithBlend::GetInstance() != nullptr)
 	{
 		IMGuiWavesWithBlend::GetInstance()->PopulateDearIMGuiCommand(m_CommandList.Get());
 	}
-
 	// 渲染目标缓冲区资源转换为呈现状态
 	m_CommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(pCurrentBackBuffer
 		, D3D12_RESOURCE_STATE_RENDER_TARGET

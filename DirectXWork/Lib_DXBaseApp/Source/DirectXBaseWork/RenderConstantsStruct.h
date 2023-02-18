@@ -21,6 +21,8 @@ enum class EnumRenderLayer : unsigned char
 	LayerOpaque = 0,
 	// 透明层
 	LayerTransparent,
+	// 透明度测试，透明片段直接丢弃
+	LayerAlphaTest,
 
 	// RenderLayer数量
 	Count
