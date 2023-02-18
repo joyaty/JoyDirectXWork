@@ -107,6 +107,7 @@ void DXWavesWithBlend::OnUpdate(float deltaTime, float totalTime)
 		CloseHandle(eventHandle);
 	}
 	UpdateCamera(deltaTime, totalTime);
+	WaveFlow(deltaTime, totalTime);
 	UpdateObjectConstant(deltaTime, totalTime);
 	UpdateMaterialConstant(deltaTime, totalTime);
 	UpdatePassConstant(deltaTime, totalTime);
@@ -381,6 +382,7 @@ void DXWavesWithBlend::BuildRenderItems()
 	pTerrainRenderItem->objConstantBufferIndex = 0;
 	DirectX::XMFLOAT3 worldPos = DirectX::XMFLOAT3(0.f, 0.f, 0.f);
 	DirectX::XMStoreFloat4x4(&pTerrainRenderItem->worldMatrix, DirectX::XMMatrixTranslation(worldPos.x, worldPos.y, worldPos.z));
+	DirectX::XMStoreFloat4x4(&pTerrainRenderItem->texMatrix, DirectX::XMMatrixScaling(5.f, 5.f, 1.f));
 	pTerrainRenderItem->primitiveType = D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
 	pTerrainRenderItem->indexCount = pTerrainRenderItem->pMeshData->m_SubMeshGeometrys["Terrain"].m_IndexCount;
 	pTerrainRenderItem->startIndexLocation = pTerrainRenderItem->pMeshData->m_SubMeshGeometrys["Terrain"].m_StartIndexLocation;
@@ -393,6 +395,7 @@ void DXWavesWithBlend::BuildRenderItems()
 	pWaveRenderItem->pMaterial = m_AllMaterials["Water"].get();
 	pWaveRenderItem->objConstantBufferIndex = 1;
 	DirectX::XMStoreFloat4x4(&pWaveRenderItem->worldMatrix, DirectX::XMMatrixTranslation(worldPos.x, worldPos.y, worldPos.z));
+	DirectX::XMStoreFloat4x4(&pWaveRenderItem->texMatrix, DirectX::XMMatrixScaling(4.f, 4.f, 1.f));
 	pWaveRenderItem->primitiveType = D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
 	pWaveRenderItem->indexCount = pWaveRenderItem->pMeshData->m_SubMeshGeometrys["Wave"].m_IndexCount;
 	pWaveRenderItem->startIndexLocation = pWaveRenderItem->pMeshData->m_SubMeshGeometrys["Wave"].m_StartIndexLocation;
@@ -505,9 +508,11 @@ void DXWavesWithBlend::UpdateObjectConstant(float deltaTime, float totalTime)
 		{
 			// DirectX数学库使用行矩阵
 			DirectX::XMMATRIX worldMatrix = DirectX::XMLoadFloat4x4(&pRenderItem->worldMatrix);
+			DirectX::XMMATRIX texMatrix = DirectX::XMLoadFloat4x4(&pRenderItem->texMatrix);
 			PerObjectConstants objCBData{};
 			// HLSL使用列矩阵，因此拷贝到常量缓冲区需要对矩阵进行一次转置
 			DirectX::XMStoreFloat4x4(&objCBData.worldMatrix, DirectX::XMMatrixTranspose(worldMatrix));
+			DirectX::XMStoreFloat4x4(&objCBData.texMatrix, DirectX::XMMatrixTranspose(texMatrix));
 			m_CurrentFrameResource->pObjCBuffer->CopyData(pRenderItem->objConstantBufferIndex, objCBData);
 			--pRenderItem->dirty;
 		}
@@ -522,9 +527,12 @@ void DXWavesWithBlend::UpdateMaterialConstant(float deltaTime, float totalTime)
 		if (pMaterial->dirty > 0)
 		{
 			PerMaterialConstants matCBData{};
+			
 			matCBData.albedo = pMaterial->diffuseAlbedo;
 			matCBData.fresnelR0 = pMaterial->fresnelR0;
 			matCBData.roughness = pMaterial->rougness;
+			DirectX::XMMATRIX matMatrix = DirectX::XMLoadFloat4x4(&pMaterial->matMatrix);
+			DirectX::XMStoreFloat4x4(&matCBData.uvMatrix, DirectX::XMMatrixTranspose(matMatrix));
 			m_CurrentFrameResource->pMatCBuffer->CopyData(pMaterial->matConstantBufferIndex, matCBData);
 			--pMaterial->dirty;
 		}
@@ -605,6 +613,21 @@ void DXWavesWithBlend::UpdateWave(float deltaTime, float totalTime)
 	}
 	// 设置动态顶点缓冲区
 	m_SceneObjects["Wave"]->m_VertexBufferGPU = m_CurrentFrameResource->pDynamicVertexBuffer->GetResource();
+}
+
+void DXWavesWithBlend::WaveFlow(float deltaTime, float totalTime)
+{
+	WavesWithBlendMaterial* pMaterial = m_AllMaterials["Water"].get();
+	// 行矩阵，位置在矩阵第三行
+	float& offsetU = pMaterial->matMatrix(3, 0);
+	float& offsetV = pMaterial->matMatrix(3, 1);
+	// UV移动动画
+	offsetU += 0.07f * deltaTime;
+	offsetV += 0.02f * deltaTime;
+	offsetU = offsetU > 1.f ? offsetU - 1.f : offsetU;
+	offsetV = offsetV > 1.f ? offsetV - 1.f : offsetV;
+	// 重新标记材质数据更新
+	pMaterial->dirty = kNumFrameResource;
 }
 
 void DXWavesWithBlend::PopulateCommandList()

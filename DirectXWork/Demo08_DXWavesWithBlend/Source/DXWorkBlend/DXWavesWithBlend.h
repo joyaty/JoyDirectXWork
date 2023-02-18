@@ -130,6 +130,12 @@ private:
 	/// <param name="deltaTime"></param>
 	/// <param name="totalTime"></param>
 	void UpdateWave(float deltaTime, float totalTime);
+	/// <summary>
+	/// 水体流动
+	/// </summary>
+	/// <param name="deltaTime"></param>
+	/// <param name="totalTime"></param>
+	void WaveFlow(float deltaTime, float totalTime);
 
 	/// <summary>
 	/// 记录渲染指令

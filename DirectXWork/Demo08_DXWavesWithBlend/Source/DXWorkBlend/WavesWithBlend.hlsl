@@ -23,6 +23,8 @@ cbuffer cbPerObject : register(b0)
 {
     // 世界变换矩阵
     float4x4 gWorldMatrix;
+    // 纹理坐标变换矩阵
+    float4x4 gTexMatrix;
 };
 
 // 材质常量缓冲区
@@ -34,6 +36,8 @@ cbuffer cbPerMaterial : register(b1)
     float3 gFresnelR0;
     // 粗糙度
     float gRoughness;
+    // uv变换矩阵
+    float4x4 gMatMatrix;
 };
 
 // 渲染过程常量缓冲区
@@ -78,7 +82,7 @@ SamplerState gPointClampSampler : register(s1);
 // 静态采样器 线性过滤 + Wrap寻址
 SamplerState gLinearWrapSampler : register(s2);
 // 静态采样器 线性过滤 + Clamp寻址
-SamplerState gLinearClampSamper : register(s3);
+SamplerState gLinearClampSampler : register(s3);
 // 静态采样器 各向异性过滤 + Wrap寻址
 SamplerState gAnisotropicWrapSampler : register(s4);
 // 静态采样器 各向异性过滤 + Clamp寻址
@@ -114,8 +118,10 @@ VertexOut VSMain(VertexIn vIn)
     vOut.PosH = mul(posW, gViewProjMatrix);
     // 法线变换到世界空间下，这里假设进行等比缩放，非等比缩放需要乘世界变换矩阵的逆转置矩阵
     vOut.NormalW = mul(vIn.NormalL, (float3x3)gWorldMatrix);
-    // 原样输出纹理坐标
-    vOut.TexCoord = vIn.TexCoord;
+    // 纹理坐标经过texMatrix变换和matMatrix变换
+    float4 texCoord = mul(float4(vIn.TexCoord, 1.0f, 1.0f), gTexMatrix);
+    texCoord = mul(texCoord, gMatMatrix);
+    vOut.TexCoord = texCoord.xy;
     return vOut;
 }
 

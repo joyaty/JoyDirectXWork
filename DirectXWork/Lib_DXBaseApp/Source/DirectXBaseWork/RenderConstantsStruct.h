@@ -91,6 +91,10 @@ struct PerObjectConstants
 	/// 本地到世界空间的变换矩阵
 	/// </summary>
 	DirectX::XMFLOAT4X4 worldMatrix{ MathUtil::Identity4x4() };
+	/// <summary>
+	/// 纹理坐标变换矩阵
+	/// </summary>
+	DirectX::XMFLOAT4X4 texMatrix{ MathUtil::Identity4x4() };
 };
 
 /// <summary>
@@ -110,6 +114,10 @@ struct PerMaterialConstants
 	/// 粗糙度
 	/// </summary>
 	float roughness{};
+	/// <summary>
+	/// UV变换矩阵
+	/// </summary>
+	DirectX::XMFLOAT4X4 uvMatrix{ MathUtil::Identity4x4() };
 };
 
 /// <summary>

@@ -35,6 +35,12 @@ struct Vertex
 struct WavesWithBlendMaterial
 {
 	std::string name;
+
+	/// <summary>
+	/// UV变换矩阵
+	/// </summary>
+	DirectX::XMFLOAT4X4 matMatrix{ MathUtil::Identity4x4() };
+
 	/// <summary>
 	/// 漫反射反照率
 	/// </summary>
@@ -82,6 +88,10 @@ struct WavesWithBlendRenderItem
 	/// 世界空间变换矩阵
 	/// </summary>
 	DirectX::XMFLOAT4X4 worldMatrix{ MathUtil::Identity4x4() };
+	/// <summary>
+	/// 纹理坐标变换矩阵
+	/// </summary>
+	DirectX::XMFLOAT4X4 texMatrix{ MathUtil::Identity4x4() };
 	/// <summary>
 	/// 图元拓扑类型
 	/// </summary>

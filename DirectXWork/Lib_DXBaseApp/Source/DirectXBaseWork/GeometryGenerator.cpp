@@ -317,7 +317,7 @@ GeometryGenerator::MeshData GeometryGenerator::CreateGrid(float width, float dep
 			meshData.Vertices[i * col + j].Position = XMFLOAT3(x, 0.f, z);
 			meshData.Vertices[i * col + j].Normal = XMFLOAT3(0.f, 1.f, 0.f);
 			meshData.Vertices[i * col + j].TangentU = XMFLOAT3(1.f, 0.f, 0.f);
-			meshData.Vertices[i * col + j].TexCoord = XMFLOAT2(i * du, j * dv);
+			meshData.Vertices[i * col + j].TexCoord = XMFLOAT2(j * du, i * dv);
 		}
 	}
 	// 填充网格索引数据集合
