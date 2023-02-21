@@ -744,7 +744,6 @@ void DXWavesWithBlend::PopulateCommandList()
 	// TODO 渲染指令
 	m_CommandList->RSSetViewports(1, &m_Viewport);
 	m_CommandList->RSSetScissorRects(1, &m_ScissorRect);
-	m_RenderTargetDesciptorHandles[m_CurrentBackBufferIndex];
 	// 清理目标后台缓冲区
 	m_CommandList->ClearRenderTargetView(m_RenderTargetDesciptorHandles[m_CurrentBackBufferIndex], DirectX::Colors::Gray, 0, nullptr);
 	// 清理深度模板缓冲区

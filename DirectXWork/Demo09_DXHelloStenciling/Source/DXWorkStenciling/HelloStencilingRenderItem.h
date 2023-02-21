@@ -29,7 +29,7 @@ struct Vertex
 	/// <summary>
 	/// 顶点纹理坐标
 	/// </summary>
-	DirectX::XMFLOAT3 texCoord{};
+	DirectX::XMFLOAT2 texCoord{};
 };
 
 /// <summary>
@@ -58,7 +58,7 @@ struct HelloStencilingMaterial
 	/// <summary>
 	/// 粗糙度
 	/// </summary>
-	float rougness{};
+	float roughness{};
 
 	/// <summary>
 	/// 漫反射反照率贴图索引

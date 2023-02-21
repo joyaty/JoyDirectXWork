@@ -66,7 +66,7 @@ float3 BlinnPhong(float3 lightStrength, float3 normal, float3 lightVec, float3 t
 {
     float3 halfVec = normalize(lightVec + toEye);
     // fresnel因子
-    float fresnelFactor = SchlickFresnel(mat.FresnelR0, halfVec, lightVec);
+    float3 fresnelFactor = SchlickFresnel(mat.FresnelR0, halfVec, lightVec);
     // 粗糙度因子
     const float m = mat.Shininess * 256.0f;
     float roughnessFactor = (m + 8) * pow(max(dot(halfVec, lightVec), 0), m) / 8;

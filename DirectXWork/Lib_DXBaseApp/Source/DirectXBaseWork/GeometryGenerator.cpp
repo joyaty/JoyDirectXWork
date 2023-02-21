@@ -314,10 +314,10 @@ GeometryGenerator::MeshData GeometryGenerator::CreateGrid(float width, float dep
 		for (uint32 j = 0; j < col; ++j)
 		{
 			float x = -halfWidth + j * dx;
-			meshData.Vertices[i * col + j].Position = XMFLOAT3(x, 0.f, z);
-			meshData.Vertices[i * col + j].Normal = XMFLOAT3(0.f, 1.f, 0.f);
-			meshData.Vertices[i * col + j].TangentU = XMFLOAT3(1.f, 0.f, 0.f);
-			meshData.Vertices[i * col + j].TexCoord = XMFLOAT2(j * du, i * dv);
+			meshData.Vertices[i * row + j].Position = XMFLOAT3(x, 0.f, z);
+			meshData.Vertices[i * row + j].Normal = XMFLOAT3(0.f, 1.f, 0.f);
+			meshData.Vertices[i * row + j].TangentU = XMFLOAT3(1.f, 0.f, 0.f);
+			meshData.Vertices[i * row + j].TexCoord = XMFLOAT2(j * du, i * dv);
 		}
 	}
 	// 填充网格索引数据集合
@@ -344,29 +344,56 @@ GeometryGenerator::MeshData GeometryGenerator::CreateGrid(float width, float dep
 
 GeometryGenerator::MeshData GeometryGenerator::CreateQuad(float width, float height, uint32 row/* = 1U*/, uint32 col/* = 1U*/)
 {
-	// TODO Quad的Mesh数据
-	//MeshData meshData{};
-	//uint32 totalVertexCount = (row + 1) * (col + 1); // 行列有两边，边的交叉点总数为顶点总数
-	//uint32 totalTriangleCount = row * col * 2; // 
-	//// 列间隔
-	//float dx = width / col;
-	//// 行间隔
-	//float dy = height / row;
-	//// 纹理坐标u间隔
-	//float du = 1.f / col;
-	//// 纹理坐标v间隔
-	//float dv = 1.f / row;
+	// Quad的Mesh数据
+	MeshData meshData{};
+	uint32 totalVertexCount = (row + 1) * (col + 1); // 行列有两边，边的交叉点总数为顶点总数
+	uint32 totalTriangleCount = row * col * 2; // 行列构成四边形数，每个四边形由两个三角形组成
+	// 列间隔
+	float dx = width / col;
+	// 行间隔
+	float dy = height / row;
+	// 纹理坐标u间隔
+	float du = 1.f / col;
+	// 纹理坐标v间隔
+	float dv = 1.f / row;
+	// 填充网格索引数据集合
+	float halfWidth = width * 0.5f;
+	float halfHeigh = height * 0.5f;
+	meshData.Vertices.resize(totalVertexCount);
+	for (uint32 i = 0; i < row + 1; ++i)
+	{
+		float y = -halfHeigh + i * dy;
+		for (uint32 j = 0; j < col + 1; ++j)
+		{
+			float x = -halfWidth + j * dx;
+			int index = i * (row + 1) + j;
+			meshData.Vertices[index].Position = DirectX::XMFLOAT3(x, y, 0.f);
+			meshData.Vertices[index].Normal = DirectX::XMFLOAT3(0.f, 0.f, -1.f);
+			meshData.Vertices[index].TangentU = DirectX::XMFLOAT3(-1.f, 0.f, 0.f);
+			meshData.Vertices[index].TexCoord = DirectX::XMFLOAT2(j * du, 1.0f - i * dv);
+		}
+	}
+	// 填充网格索引数据集合
+	int k = 0;
+	meshData.Indices32.resize(totalTriangleCount * 3);
+	for (uint32 i = 0; i < row; ++i)
+	{
+		for (uint32 j = 0; j < col; ++j)
+		{
+			// 第一个三角形
+			meshData.Indices32[k] = i * (row + 1) + j;
+			meshData.Indices32[k + 1] = (i + 1) * (row + 1) + j + 1;
+			meshData.Indices32[k + 2] = i * (row + 1) + j + 1;
+			// 第二个三角形
+			meshData.Indices32[k + 3] = i * (row + 1) + j;
+			meshData.Indices32[k + 4] = (i + 1) * (row + 1) + j;
+			meshData.Indices32[k + 5] = (i + 1) * (row + 1) + j + 1;
+			// 每个四边形有6个索引组成2个三角形
+			k += 6;
+		}
+	}
 
-	//float halfWidth = width * 0.5f;
-	//float halfHeigh = height * 0.5f;
-
-	//for (int i = 0; i < row + 1; ++i)
-	//{
-	//	for (int j = 0; j < col + 1; ++j)
-	//	{
-
-	//	}
-	//}
+	return meshData;
 }
 
 void GeometryGenerator::SubDivide(GeometryGenerator::MeshData& meshData)

@@ -19,5 +19,34 @@ void IMGuiHelloStenciling::OnDrawWindow()
 	DrawAdapterInfo();
 	ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
 
+	// 雾效开关
+	bool isChange = ImGui::Checkbox("Enable fog", &m_EnableFog);
+	if (isChange)
+	{
+		m_HelloStencilingDemo->SetEnableFog(m_EnableFog);
+	}
+
+	static int fillMode = 0;
+	if (ImGui::Combo("Fill Mode: ", &fillMode, "D3D12_FILL_MODE_SOLID\0D3D12_FILL_MODE_WIREFRAME\0"))
+	{
+		switch (fillMode)
+		{
+		case 0:
+			m_FillMode = D3D12_FILL_MODE_SOLID;
+			if (m_HelloStencilingDemo != nullptr)
+			{
+				m_HelloStencilingDemo->SetFillMode(m_FillMode);
+			}
+			break;
+		case 1:
+			m_FillMode = D3D12_FILL_MODE_WIREFRAME;
+			if (m_HelloStencilingDemo != nullptr)
+			{
+				m_HelloStencilingDemo->SetFillMode(m_FillMode);
+			}
+			break;
+		}
+	}
+
 	ImGui::End();
 }
