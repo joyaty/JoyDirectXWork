@@ -342,6 +342,33 @@ GeometryGenerator::MeshData GeometryGenerator::CreateGrid(float width, float dep
 	return meshData;
 }
 
+GeometryGenerator::MeshData GeometryGenerator::CreateQuad(float width, float height, uint32 row/* = 1U*/, uint32 col/* = 1U*/)
+{
+	// TODO Quad的Mesh数据
+	//MeshData meshData{};
+	//uint32 totalVertexCount = (row + 1) * (col + 1); // 行列有两边，边的交叉点总数为顶点总数
+	//uint32 totalTriangleCount = row * col * 2; // 
+	//// 列间隔
+	//float dx = width / col;
+	//// 行间隔
+	//float dy = height / row;
+	//// 纹理坐标u间隔
+	//float du = 1.f / col;
+	//// 纹理坐标v间隔
+	//float dv = 1.f / row;
+
+	//float halfWidth = width * 0.5f;
+	//float halfHeigh = height * 0.5f;
+
+	//for (int i = 0; i < row + 1; ++i)
+	//{
+	//	for (int j = 0; j < col + 1; ++j)
+	//	{
+
+	//	}
+	//}
+}
+
 void GeometryGenerator::SubDivide(GeometryGenerator::MeshData& meshData)
 {
 	MeshData inputCopy = meshData;

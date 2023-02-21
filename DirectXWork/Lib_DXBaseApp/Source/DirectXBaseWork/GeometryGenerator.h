@@ -147,7 +147,15 @@ public:
 	/// <returns></returns>
 	static GeometryGenerator::MeshData CreateGrid(float width, float depth, uint32 row, uint32 col);
 
-	//static GeometryGenerator::MeshData CreateQuad()
+	/// <summary>
+	/// 构建网格XY平面
+	/// </summary>
+	/// <param name="width">平面宽度</param>
+	/// <param name="height">平面高度</param>
+	/// <param name="row">行数</param>
+	/// <param name="col">列数</param>
+	/// <returns></returns>
+	static GeometryGenerator::MeshData CreateQuad(float width, float height, uint32 row = 1U, uint32 col = 1U);
 
 private:
 	/// <summary>
