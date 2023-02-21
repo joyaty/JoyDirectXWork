@@ -38,5 +38,27 @@ void IMGuiWavesWithBlend::OnDrawWindow()
 		m_WavesWithBlendDemo->SetBlendFactor(m_BlendFactor[0], m_BlendFactor[1], m_BlendFactor[2], m_BlendFactor[3]);
 	}
 
+	static int fillMode = 0;
+	if (ImGui::Combo("Fill Mode: ", &fillMode, "D3D12_FILL_MODE_SOLID\0D3D12_FILL_MODE_WIREFRAME\0"))
+	{
+		switch (fillMode)
+		{
+		case 0:
+			m_FillMode = D3D12_FILL_MODE_SOLID;
+			if (m_WavesWithBlendDemo != nullptr)
+			{
+				m_WavesWithBlendDemo->SetFillMode(m_FillMode);
+			}
+			break;
+		case 1:
+			m_FillMode = D3D12_FILL_MODE_WIREFRAME;
+			if (m_WavesWithBlendDemo != nullptr)
+			{
+				m_WavesWithBlendDemo->SetFillMode(m_FillMode);
+			}
+			break;
+		}
+	}
+
 	ImGui::End();
 }

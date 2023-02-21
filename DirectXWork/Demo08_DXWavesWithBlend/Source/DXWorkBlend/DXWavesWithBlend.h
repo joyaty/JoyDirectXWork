@@ -20,7 +20,10 @@ public:
 	virtual ~DXWavesWithBlend();
 
 public:
-	void SwitchFogState(bool enableFog) { BuildPSOs(enableFog); };
+	void SwitchFogState(bool enableFog) 
+	{ 
+		BuildPSOs(enableFog, m_FillMode);
+	}
 	void SetBlendFactor(float r, float g, float b, float a)
 	{
 		m_BlendFactor[0] = r;
@@ -28,6 +31,8 @@ public:
 		m_BlendFactor[2] = b;
 		m_BlendFactor[3] = a;
 	}
+
+	void SetFillMode(D3D12_FILL_MODE fillMode) { BuildPSOs(m_EnableFog, fillMode); }
 
 public:
 	void OnResize(UINT width, UINT height) override;
@@ -104,7 +109,9 @@ private:
 	/// <summary>
 	/// 创建渲染管线状态对象
 	/// </summary>
-	void BuildPSOs(bool enableFog);
+	/// <param name="enableFog"></param>
+	/// <param name="fillMode"></param>
+	void BuildPSOs(bool enableFog, D3D12_FILL_MODE fillMode);
 	/// <summary>
 	/// 创建帧资源
 	/// </summary>
@@ -299,4 +306,6 @@ private:
 	/// 混合因子
 	/// </summary>
 	float m_BlendFactor[4];
+	bool m_EnableFog{ true };
+	D3D12_FILL_MODE m_FillMode{ D3D12_FILL_MODE_SOLID };
 };

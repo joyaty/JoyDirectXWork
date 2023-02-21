@@ -83,7 +83,7 @@ bool DXWavesWithBlend::OnInit()
 	BuildInputLayout();
 	CompileShaderFiles();
 	BuildRootSignature();
-	BuildPSOs(IMGuiWavesWithBlend::GetInstance()->GetEnableFog());
+	BuildPSOs(IMGuiWavesWithBlend::GetInstance()->GetEnableFog(), IMGuiWavesWithBlend::GetInstance()->GetFillMode());
 	// 执行实例初始化指令
 	ThrowIfFailed(m_CommandList->Close());
 	ID3D12CommandList* cmdLists[] = { m_CommandList.Get() };
@@ -519,8 +519,10 @@ void DXWavesWithBlend::BuildRootSignature()
 	ThrowIfFailed(m_Device->CreateRootSignature(0U, m_SerializeRootSignature->GetBufferPointer(), m_SerializeRootSignature->GetBufferSize(), IID_PPV_ARGS(m_RootSignture.GetAddressOf())));
 }
 
-void DXWavesWithBlend::BuildPSOs(bool enableFog)
+void DXWavesWithBlend::BuildPSOs(bool enableFog, D3D12_FILL_MODE fillMode)
 {
+	m_EnableFog = enableFog;
+	m_FillMode = fillMode;
 	// 不透明物件的PSO配置
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC opaquePSODesc{};
 	opaquePSODesc.NodeMask = 0U;
@@ -535,6 +537,7 @@ void DXWavesWithBlend::BuildPSOs(bool enableFog)
 	opaquePSODesc.InputLayout = { m_InputElementDescs.data(), static_cast<UINT>(m_InputElementDescs.size()) };
 	opaquePSODesc.VS = { reinterpret_cast<BYTE*>(m_VSByteCode->GetBufferPointer()), m_VSByteCode->GetBufferSize() };
 	opaquePSODesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
+	opaquePSODesc.RasterizerState.FillMode = fillMode;
 	if (enableFog)
 	{
 		opaquePSODesc.PS = { reinterpret_cast<BYTE*>(m_EnableFogPSByteCode->GetBufferPointer()), m_EnableFogPSByteCode->GetBufferSize() };
