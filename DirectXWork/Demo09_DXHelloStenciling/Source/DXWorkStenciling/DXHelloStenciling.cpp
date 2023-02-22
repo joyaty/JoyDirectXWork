@@ -8,6 +8,7 @@
 #include "IMGuiHelloStenciling.h"
 #include "DirectXBaseWork/GeometryGenerator.h"
 #include "DirectXBaseWork/DDSTextureLoader.h"
+#include <fstream>
 
 /// <summary>
 /// 帧资源个数
@@ -71,6 +72,7 @@ bool DXHelloStenciling::OnInit()
 	ThrowIfFailed(m_CommandList->Reset(m_CommandAllocator.Get(), nullptr));
 	// 初始化HelloStenciling
 	BuildRoomGeoMesh();
+	BuildSkullGeoMesh();
 	LoadTexture();
 	BuildStaticSampler();
 	BuildMaterial();
@@ -186,6 +188,63 @@ void DXHelloStenciling::BuildRoomGeoMesh()
 	m_SceneObjects[pMeshGeo->m_Name] = std::move(pMeshGeo);
 }
 
+void DXHelloStenciling::BuildSkullGeoMesh()
+{
+	// 从文件中读取模型的顶点数据和三角面数据
+	std::ifstream fin(m_AssetRootPath + L"\\Assets\\Models\\skull.txt");
+	std::uint32_t vertexCount{ 0 };
+	std::uint32_t triangleCount{ 0 };
+	std::string ignore{};
+	// 读取顶点数
+	fin >> ignore >> vertexCount;
+	// 读取三角面数
+	fin >> ignore >> triangleCount;
+	// 文件格式占位字符串
+	fin >> ignore >> ignore >> ignore;
+	fin >> ignore;
+	// 读取顶点
+	std::vector<Vertex> vertices{};
+	vertices.resize(vertexCount);
+	for (std::uint32_t i = 0; i < vertexCount; ++i)
+	{
+		fin >> vertices[i].position.x >> vertices[i].position.y >> vertices[i].position.z
+			>> vertices[i].normal.x >> vertices[i].normal.y >> vertices[i].normal.z;
+		// 没有纹理，纹理坐标直接设置为0
+		vertices[i].texCoord = DirectX::XMFLOAT2(0.f, 0.f);
+	}
+	// 文件格式占位字符串
+	fin >> ignore;
+	fin >> ignore;
+	fin >> ignore;
+	// 读取三角面索引
+	std::vector<std::uint16_t> indices{};
+	indices.resize(triangleCount * 3);
+	for (std::uint32_t i = 0; i < triangleCount; i = ++i)
+	{
+		fin >> indices[i * 3] >> indices[i * 3 + 1] >> indices[i * 3 + 2];
+	}
+	fin.close();
+	// 创建骷髅头几何体
+	UINT vertexBufferSize = sizeof(Vertex) * vertexCount;
+	UINT indexBufferSize = sizeof(std::uint16_t) * triangleCount * 3;
+	std::unique_ptr<MeshGeometry> pSkullGeo = std::make_unique<MeshGeometry>();
+	pSkullGeo->m_Name = "Skull";
+	pSkullGeo->m_VertexBufferCPU = nullptr;
+	pSkullGeo->m_VertexBufferGPU = D3D12Util::CreateBufferInDefaultHeap(m_Device.Get(), m_CommandList.Get(), vertices.data(), vertexBufferSize, pSkullGeo->m_VertexBufferUploader);
+	pSkullGeo->m_VertexSize = vertexBufferSize;
+	pSkullGeo->m_VertexStride = sizeof(Vertex);
+	pSkullGeo->m_IndexBufferCPU = nullptr;
+	pSkullGeo->m_IndexBufferGPU = D3D12Util::CreateBufferInDefaultHeap(m_Device.Get(), m_CommandList.Get(), indices.data(), indexBufferSize, pSkullGeo->m_IndexBufferUploader);
+	pSkullGeo->m_IndexSize = indexBufferSize;
+	pSkullGeo->m_IndexFormat = DXGI_FORMAT_R16_UINT;
+	SubMeshGeometry subMesh{};
+	subMesh.m_IndexCount = triangleCount * 3;
+	subMesh.m_StartIndexLocation = 0U;
+	subMesh.m_BaseVertexLocation = 0U;
+	pSkullGeo->m_SubMeshGeometrys["Skull"] = subMesh;
+	m_SceneObjects[pSkullGeo->m_Name] = std::move(pSkullGeo);
+}
+
 void DXHelloStenciling::LoadTexture()
 {
 	// 加载地面纹理
@@ -198,11 +257,16 @@ void DXHelloStenciling::LoadTexture()
 	pWallTexture->name = "Wall";
 	pWallTexture->fileName = m_AssetRootPath + L"\\Assets\\Textures\\bricks3.dds";
 	ThrowIfFailed(DirectX::CreateDDSTextureFromFile12(m_Device.Get(), m_CommandList.Get(), pWallTexture->fileName.c_str(), pWallTexture->m_TextureGPU, pWallTexture->m_TextureUpload));
-	
+	// 加载纯白纹理，用于贴图几何体
+	std::unique_ptr<Texture> pWhiteTexture = std::make_unique<Texture>();
+	pWhiteTexture->name = "White";
+	pWhiteTexture->fileName = m_AssetRootPath + L"\\Assets\\Textures\\white1x1.dds";
+	ThrowIfFailed(DirectX::CreateDDSTextureFromFile12(m_Device.Get(), m_CommandList.Get(), pWhiteTexture->fileName.c_str(), pWhiteTexture->m_TextureGPU, pWhiteTexture->m_TextureUpload));
+
 	// 创建着色器资源描述符堆
 	D3D12_DESCRIPTOR_HEAP_DESC heapDesc{};
 	heapDesc.NodeMask = 0U;
-	heapDesc.NumDescriptors = 2;
+	heapDesc.NumDescriptors = 3;
 	heapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 	heapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 	ThrowIfFailed(m_Device->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(m_SRVDescriptorHeap.GetAddressOf())));
@@ -228,10 +292,22 @@ void DXHelloStenciling::LoadTexture()
 	wallSrvDesc.Texture2D.PlaneSlice = 0U;
 	wallSrvDesc.Texture2D.ResourceMinLODClamp = 0.f;
 	m_Device->CreateShaderResourceView(pWallTexture->m_TextureGPU.Get(), &wallSrvDesc, handle);
+	// 偏移到下一个描述符，绑定纯白纹理
+	handle.Offset(m_CBVUAVDescriptorSize);
+	D3D12_SHADER_RESOURCE_VIEW_DESC whiteSrvDesc{};
+	whiteSrvDesc.Format = pWhiteTexture->m_TextureGPU->GetDesc().Format;
+	whiteSrvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+	whiteSrvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	whiteSrvDesc.Texture2D.MipLevels = pWhiteTexture->m_TextureGPU->GetDesc().MipLevels;
+	whiteSrvDesc.Texture2D.MostDetailedMip = 0U;
+	whiteSrvDesc.Texture2D.PlaneSlice = 0U;
+	whiteSrvDesc.Texture2D.ResourceMinLODClamp = 0.f;
+	m_Device->CreateShaderResourceView(pWhiteTexture->m_TextureGPU.Get(), &whiteSrvDesc, handle);
 
 	// 纹理保存到纹理集合中
 	m_AllTextures[pFloorTexture->name] = std::move(pFloorTexture);
 	m_AllTextures[pWallTexture->name] = std::move(pWallTexture);
+	m_AllTextures[pWhiteTexture->name] = std::move(pWhiteTexture);
 }
 
 void DXHelloStenciling::BuildStaticSampler()
@@ -286,6 +362,7 @@ void DXHelloStenciling::BuildStaticSampler()
 
 void DXHelloStenciling::BuildMaterial()
 {
+	// 地面材质
 	std::unique_ptr<HelloStencilingMaterial> pFloorMaterial = std::make_unique<HelloStencilingMaterial>();
 	pFloorMaterial->name = "FloorMat";
 	pFloorMaterial->diffuseAlbedo = DirectX::XMFLOAT4(1.f, 1.f, 1.f, 1.f);
@@ -293,7 +370,7 @@ void DXHelloStenciling::BuildMaterial()
 	pFloorMaterial->roughness = 0.25f;
 	pFloorMaterial->matCBufferIndex = 0;
 	pFloorMaterial->diffuseMapIndex = 0;
-
+	// 墙面材质
 	std::unique_ptr<HelloStencilingMaterial> pWallMaterial = std::make_unique<HelloStencilingMaterial>();
 	pWallMaterial->name = "WallMat";
 	pWallMaterial->diffuseAlbedo = DirectX::XMFLOAT4(1.f, 1.f, 1.f, 1.f);
@@ -301,9 +378,18 @@ void DXHelloStenciling::BuildMaterial()
 	pWallMaterial->roughness = 0.3f;
 	pWallMaterial->matCBufferIndex = 1;
 	pWallMaterial->diffuseMapIndex = 1;
+	// 骷髅材质
+	std::unique_ptr<HelloStencilingMaterial> pSkullMaterial = std::make_unique<HelloStencilingMaterial>();
+	pSkullMaterial->name = "SkullMat";
+	pSkullMaterial->diffuseAlbedo = DirectX::XMFLOAT4(1.f, 1.f, 1.f, 1.f);
+	pSkullMaterial->fresnelR0 = DirectX::XMFLOAT3(0.09f, 0.09f, 0.09f);
+	pSkullMaterial->roughness = 0.5f;
+	pSkullMaterial->matCBufferIndex = 2;
+	pSkullMaterial->diffuseMapIndex = 2;
 
 	m_AllMaterials[pFloorMaterial->name] = std::move(pFloorMaterial);
 	m_AllMaterials[pWallMaterial->name] = std::move(pWallMaterial);
+	m_AllMaterials[pSkullMaterial->name] = std::move(pSkullMaterial);
 }
 
 void DXHelloStenciling::BuildRenderItem()
@@ -335,6 +421,25 @@ void DXHelloStenciling::BuildRenderItem()
 	pWallRenderItem->startIndexLoaction = pWallRenderItem->pGeometryMesh->m_SubMeshGeometrys["Wall"].m_StartIndexLocation;
 	pWallRenderItem->startVertexLocation = pWallRenderItem->pGeometryMesh->m_SubMeshGeometrys["Wall"].m_BaseVertexLocation;
 	m_AllRenderItem.push_back(std::move(pWallRenderItem));
+	m_RenderItemLayouts[static_cast<int>(EnumRenderLayer::LayerOpaque)].push_back(m_AllRenderItem.back().get());
+	// 创建骷髅渲染项
+	std::unique_ptr<HelloStencilingRenderItem> pSkullRenderItem = std::make_unique<HelloStencilingRenderItem>();
+	pSkullRenderItem->pGeometryMesh = m_SceneObjects["Skull"].get();
+	pSkullRenderItem->pMaterial = m_AllMaterials["SkullMat"].get();
+	worldPos = DirectX::XMFLOAT3(0.f, 3.f, 0.f);
+	// 混合位移与旋转的复合变换矩阵
+	DirectX::XMMATRIX transMatrix = DirectX::XMMatrixTranslation(worldPos.x, worldPos.y, worldPos.z);
+	DirectX::XMMATRIX rotaMatrix = DirectX::XMMatrixRotationY(DirectX::XM_PIDIV2);
+	DirectX::XMMATRIX scaleMatrix = DirectX::XMMatrixScaling(0.8f, 0.8f, 0.8f);
+	DirectX::XMMATRIX mixMatrix = scaleMatrix * rotaMatrix * transMatrix;
+	DirectX::XMStoreFloat4x4(&pSkullRenderItem->worldMatrix, mixMatrix);
+	pSkullRenderItem->texMatrix = MathUtil::Identity4x4();
+	pSkullRenderItem->objectCBufferIndex = 2;
+	pSkullRenderItem->primitiveType = D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+	pSkullRenderItem->indexCount = pSkullRenderItem->pGeometryMesh->m_SubMeshGeometrys["Skull"].m_IndexCount;
+	pSkullRenderItem->startIndexLoaction = pSkullRenderItem->pGeometryMesh->m_SubMeshGeometrys["Skull"].m_StartIndexLocation;
+	pSkullRenderItem->startVertexLocation = pSkullRenderItem->pGeometryMesh->m_SubMeshGeometrys["Skull"].m_BaseVertexLocation;
+	m_AllRenderItem.push_back(std::move(pSkullRenderItem));
 	m_RenderItemLayouts[static_cast<int>(EnumRenderLayer::LayerOpaque)].push_back(m_AllRenderItem.back().get());
 }
 

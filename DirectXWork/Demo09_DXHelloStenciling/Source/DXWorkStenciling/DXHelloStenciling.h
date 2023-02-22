@@ -40,6 +40,10 @@ private:
 	/// </summary>
 	void BuildRoomGeoMesh();
 	/// <summary>
+	/// 创建骷髅网格集合体
+	/// </summary>
+	void BuildSkullGeoMesh();
+	/// <summary>
 	/// 加载纹理文件
 	/// </summary>
 	void LoadTexture();
