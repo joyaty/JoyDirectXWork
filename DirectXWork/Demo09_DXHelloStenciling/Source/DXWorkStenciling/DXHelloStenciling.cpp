@@ -73,6 +73,7 @@ bool DXHelloStenciling::OnInit()
 	// 初始化HelloStenciling
 	BuildRoomGeoMesh();
 	BuildSkullGeoMesh();
+	BuildMirrorGeoMesh();
 	LoadTexture();
 	BuildStaticSampler();
 	BuildMaterial();
@@ -133,11 +134,11 @@ void DXHelloStenciling::OnDestroy()
 void DXHelloStenciling::BuildRoomGeoMesh()
 {
 	// 地面网格数据
-	GeometryGenerator::MeshData gridMesh = GeometryGenerator::CreateGrid(m_FloorWidh, m_FloorWidh, 2, 2);
+	GeometryGenerator::MeshData gridMesh = GeometryGenerator::CreateGrid(m_FloorWidth, m_FloorWidth, 2, 2);
 	UINT gridVertexCount = static_cast<UINT>(gridMesh.Vertices.size());
 	UINT gridIndexCount = static_cast<UINT>(gridMesh.GetIndices16().size());
 	// 墙面网格数据
-	GeometryGenerator::MeshData quadMesh = GeometryGenerator::CreateQuad(m_FloorWidh, m_FloorWidh * 0.5f, 1, 1);
+	GeometryGenerator::MeshData quadMesh = GeometryGenerator::CreateQuad(m_FloorWidth, m_FloorWidth * 0.5f, 1, 1);
 	UINT quadVertexCount = static_cast<UINT>(quadMesh.Vertices.size());
 	UINT quadIndexCount = static_cast<UINT>(quadMesh.GetIndices16().size());
 	// 地面与墙面整合为一个大的顶点缓冲区
@@ -245,6 +246,43 @@ void DXHelloStenciling::BuildSkullGeoMesh()
 	m_SceneObjects[pSkullGeo->m_Name] = std::move(pSkullGeo);
 }
 
+void DXHelloStenciling::BuildMirrorGeoMesh()
+{
+	GeometryGenerator::MeshData quadMesh = GeometryGenerator::CreateQuad(20.f, 10.f);
+	int vertexCount = static_cast<int>(quadMesh.Vertices.size());
+	int indexCount = static_cast<int>(quadMesh.GetIndices16().size());
+
+	std::vector<Vertex> vertices{};
+	vertices.resize(vertexCount);
+	for (int i = 0; i < vertexCount; ++i)
+	{
+		vertices[i].position = quadMesh.Vertices[i].Position;
+		vertices[i].normal = quadMesh.Vertices[i].Normal;
+		vertices[i].texCoord = quadMesh.Vertices[i].TexCoord;
+	}
+	std::vector<std::uint16_t> indices{};
+	indices.insert(indices.cend(), quadMesh.GetIndices16().begin(), quadMesh.GetIndices16().end());
+
+	UINT vertexBufferSize = sizeof(Vertex) * vertexCount;
+	UINT indexBufferSize = sizeof(std::uint16_t) * indexCount;
+	std::unique_ptr<MeshGeometry> pMirrorGeo = std::make_unique<MeshGeometry>();
+	pMirrorGeo->m_Name = "Mirror";
+	pMirrorGeo->m_VertexBufferCPU = nullptr;
+	pMirrorGeo->m_VertexBufferGPU = D3D12Util::CreateBufferInDefaultHeap(m_Device.Get(), m_CommandList.Get(), vertices.data(), vertexBufferSize, pMirrorGeo->m_VertexBufferUploader);
+	pMirrorGeo->m_VertexSize = vertexBufferSize;
+	pMirrorGeo->m_VertexStride = sizeof(Vertex);
+	pMirrorGeo->m_IndexBufferCPU = nullptr;
+	pMirrorGeo->m_IndexBufferGPU = D3D12Util::CreateBufferInDefaultHeap(m_Device.Get(), m_CommandList.Get(), indices.data(), indexBufferSize, pMirrorGeo->m_IndexBufferUploader);
+	pMirrorGeo->m_IndexSize = indexBufferSize;
+	pMirrorGeo->m_IndexFormat = DXGI_FORMAT_R16_UINT;
+	SubMeshGeometry subMesh{};
+	subMesh.m_IndexCount = indexCount;
+	subMesh.m_StartIndexLocation = 0U;
+	subMesh.m_BaseVertexLocation = 0U;
+	pMirrorGeo->m_SubMeshGeometrys["Mirror"] = subMesh;
+	m_SceneObjects[pMirrorGeo->m_Name] = std::move(pMirrorGeo);
+}
+
 void DXHelloStenciling::LoadTexture()
 {
 	// 加载地面纹理
@@ -262,11 +300,15 @@ void DXHelloStenciling::LoadTexture()
 	pWhiteTexture->name = "White";
 	pWhiteTexture->fileName = m_AssetRootPath + L"\\Assets\\Textures\\white1x1.dds";
 	ThrowIfFailed(DirectX::CreateDDSTextureFromFile12(m_Device.Get(), m_CommandList.Get(), pWhiteTexture->fileName.c_str(), pWhiteTexture->m_TextureGPU, pWhiteTexture->m_TextureUpload));
+	std::unique_ptr<Texture> pMirrorTexture = std::make_unique<Texture>();
+	pMirrorTexture->name = "Mirror";
+	pMirrorTexture->fileName = m_AssetRootPath + L"\\Assets\\Textures\\ice.dds";
+	ThrowIfFailed(DirectX::CreateDDSTextureFromFile12(m_Device.Get(), m_CommandList.Get(), pMirrorTexture->fileName.c_str(), pMirrorTexture->m_TextureGPU, pMirrorTexture->m_TextureUpload));
 
 	// 创建着色器资源描述符堆
 	D3D12_DESCRIPTOR_HEAP_DESC heapDesc{};
 	heapDesc.NodeMask = 0U;
-	heapDesc.NumDescriptors = 3;
+	heapDesc.NumDescriptors = 4U;
 	heapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 	heapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 	ThrowIfFailed(m_Device->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(m_SRVDescriptorHeap.GetAddressOf())));
@@ -303,11 +345,23 @@ void DXHelloStenciling::LoadTexture()
 	whiteSrvDesc.Texture2D.PlaneSlice = 0U;
 	whiteSrvDesc.Texture2D.ResourceMinLODClamp = 0.f;
 	m_Device->CreateShaderResourceView(pWhiteTexture->m_TextureGPU.Get(), &whiteSrvDesc, handle);
+	// 偏移到下一个描述符，绑定镜面纹理
+	handle.Offset(m_CBVUAVDescriptorSize);
+	D3D12_SHADER_RESOURCE_VIEW_DESC mirrorSrvDesc{};
+	mirrorSrvDesc.Format = pMirrorTexture->m_TextureGPU->GetDesc().Format;
+	mirrorSrvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	mirrorSrvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+	mirrorSrvDesc.Texture2D.MipLevels = pMirrorTexture->m_TextureGPU->GetDesc().MipLevels;
+	mirrorSrvDesc.Texture2D.MostDetailedMip = 0U;
+	mirrorSrvDesc.Texture2D.PlaneSlice = 0U;
+	mirrorSrvDesc.Texture2D.ResourceMinLODClamp = 0.f;
+	m_Device->CreateShaderResourceView(pMirrorTexture->m_TextureGPU.Get(), &mirrorSrvDesc, handle);
 
 	// 纹理保存到纹理集合中
 	m_AllTextures[pFloorTexture->name] = std::move(pFloorTexture);
 	m_AllTextures[pWallTexture->name] = std::move(pWallTexture);
 	m_AllTextures[pWhiteTexture->name] = std::move(pWhiteTexture);
+	m_AllTextures[pMirrorTexture->name] = std::move(pMirrorTexture);
 }
 
 void DXHelloStenciling::BuildStaticSampler()
@@ -383,13 +437,22 @@ void DXHelloStenciling::BuildMaterial()
 	pSkullMaterial->name = "SkullMat";
 	pSkullMaterial->diffuseAlbedo = DirectX::XMFLOAT4(1.f, 1.f, 1.f, 1.f);
 	pSkullMaterial->fresnelR0 = DirectX::XMFLOAT3(0.09f, 0.09f, 0.09f);
-	pSkullMaterial->roughness = 0.5f;
+	pSkullMaterial->roughness = 0.3f;
 	pSkullMaterial->matCBufferIndex = 2;
 	pSkullMaterial->diffuseMapIndex = 2;
+	// 镜面材质
+	std::unique_ptr<HelloStencilingMaterial> pMirrorMaterial = std::make_unique<HelloStencilingMaterial>();
+	pMirrorMaterial->name = "MirrorMat";
+	pMirrorMaterial->diffuseAlbedo = DirectX::XMFLOAT4(1.f, 1.f, 1.f, 1.f);
+	pMirrorMaterial->fresnelR0 = DirectX::XMFLOAT3(0.1f, 0.1f, 0.1f);
+	pMirrorMaterial->roughness = 0.5f;
+	pMirrorMaterial->diffuseMapIndex = 3;
+	pMirrorMaterial->matCBufferIndex = 3;
 
 	m_AllMaterials[pFloorMaterial->name] = std::move(pFloorMaterial);
 	m_AllMaterials[pWallMaterial->name] = std::move(pWallMaterial);
 	m_AllMaterials[pSkullMaterial->name] = std::move(pSkullMaterial);
+	m_AllMaterials[pMirrorMaterial->name] = std::move(pMirrorMaterial);
 }
 
 void DXHelloStenciling::BuildRenderItem()
@@ -412,7 +475,7 @@ void DXHelloStenciling::BuildRenderItem()
 	std::unique_ptr<HelloStencilingRenderItem> pWallRenderItem = std::make_unique<HelloStencilingRenderItem>();
 	pWallRenderItem->pGeometryMesh = m_SceneObjects["Room"].get();
 	pWallRenderItem->pMaterial = m_AllMaterials["WallMat"].get();
-	worldPos = DirectX::XMFLOAT3(0.f, m_FloorWidh * 0.5f * 0.5f, m_FloorWidh * 0.5f);
+	worldPos = DirectX::XMFLOAT3(0.f, m_FloorWidth * 0.5f * 0.5f, m_FloorWidth * 0.5f);
 	DirectX::XMStoreFloat4x4(&pWallRenderItem->worldMatrix, DirectX::XMMatrixTranslation(worldPos.x, worldPos.y, worldPos.z));
 	DirectX::XMStoreFloat4x4(&pWallRenderItem->texMatrix, DirectX::XMMatrixScaling(5.f, 5.f, 1.f));
 	pWallRenderItem->objectCBufferIndex = 1;
@@ -441,6 +504,20 @@ void DXHelloStenciling::BuildRenderItem()
 	pSkullRenderItem->startVertexLocation = pSkullRenderItem->pGeometryMesh->m_SubMeshGeometrys["Skull"].m_BaseVertexLocation;
 	m_AllRenderItem.push_back(std::move(pSkullRenderItem));
 	m_RenderItemLayouts[static_cast<int>(EnumRenderLayer::LayerOpaque)].push_back(m_AllRenderItem.back().get());
+	// 创建镜面渲染项
+	std::unique_ptr<HelloStencilingRenderItem> pMirrorRenderItem = std::make_unique<HelloStencilingRenderItem>();
+	pMirrorRenderItem->pGeometryMesh = m_SceneObjects["Mirror"].get();
+	pMirrorRenderItem->pMaterial = m_AllMaterials["MirrorMat"].get();
+	pMirrorRenderItem->primitiveType = D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+	pMirrorRenderItem->objectCBufferIndex = 3;
+	pMirrorRenderItem->texMatrix = MathUtil::Identity4x4();
+	worldPos = DirectX::XMFLOAT3(0, 5.f, m_FloorWidth * 0.5f - 0.1f);
+	DirectX::XMStoreFloat4x4(&pMirrorRenderItem->worldMatrix, DirectX::XMMatrixTranslation(worldPos.x, worldPos.y, worldPos.z));
+	pMirrorRenderItem->indexCount = pMirrorRenderItem->pGeometryMesh->m_SubMeshGeometrys["Mirror"].m_IndexCount;
+	pMirrorRenderItem->startIndexLoaction = pMirrorRenderItem->pGeometryMesh->m_SubMeshGeometrys["Mirror"].m_StartIndexLocation;
+	pMirrorRenderItem->startVertexLocation = pMirrorRenderItem->pGeometryMesh->m_SubMeshGeometrys["Mirror"].m_BaseVertexLocation;
+	m_AllRenderItem.push_back(std::move(pMirrorRenderItem));
+	m_RenderItemLayouts[static_cast<int>(EnumRenderLayer::LayerStencilMask)].push_back(m_AllRenderItem.back().get());
 }
 
 void DXHelloStenciling::BuildFrameResource()
@@ -533,6 +610,33 @@ void DXHelloStenciling::BuildPSOs(bool enableFog, D3D12_FILL_MODE fillMode)
 	opaqueDesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
 	opaqueDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
 	ThrowIfFailed(m_Device->CreateGraphicsPipelineState(&opaqueDesc, IID_PPV_ARGS(m_PSOs[static_cast<int>(EnumRenderLayer::LayerOpaque)].GetAddressOf())));
+
+	// 标记模板缓冲区PSO，目的指向向模板缓冲区写入标志数据，已备后面渲染其他物体生死用，而不是渲染当前物体到后台缓冲区
+	D3D12_GRAPHICS_PIPELINE_STATE_DESC stencilMaskPSODesc{ opaqueDesc };
+	// 设置混合状态，禁止后台缓冲写入
+	stencilMaskPSODesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
+	stencilMaskPSODesc.BlendState.RenderTarget[0].RenderTargetWriteMask = 0U;
+	// 构造深度模板状态描述
+	D3D12_DEPTH_STENCIL_DESC depthStencilDesc{};
+	// 开启深度测试，禁止写入深度缓冲区
+	depthStencilDesc.DepthEnable = true;
+	depthStencilDesc.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
+	depthStencilDesc.DepthFunc = D3D12_COMPARISON_FUNC_LESS;
+	// 开启模板测试，设置模板测试总是成功，深度测试也成功，则将模板缓冲区标记为StencilRef的值，否则保此模板缓冲区，以此来达到将反射镜面位置信息写入到模板缓冲区的目的
+	depthStencilDesc.StencilEnable = true;
+	depthStencilDesc.StencilReadMask = 0xff;
+	depthStencilDesc.StencilWriteMask = 0xff;
+	depthStencilDesc.FrontFace.StencilFunc = D3D12_COMPARISON_FUNC_ALWAYS;
+	depthStencilDesc.FrontFace.StencilPassOp = D3D12_STENCIL_OP_REPLACE;
+	depthStencilDesc.FrontFace.StencilFailOp = D3D12_STENCIL_OP_KEEP;
+	depthStencilDesc.FrontFace.StencilDepthFailOp = D3D12_STENCIL_OP_KEEP;
+	// 背面被剔除，不用关系模板设置
+	depthStencilDesc.BackFace.StencilFunc = D3D12_COMPARISON_FUNC_ALWAYS;
+	depthStencilDesc.BackFace.StencilPassOp = D3D12_STENCIL_OP_REPLACE;
+	depthStencilDesc.BackFace.StencilFailOp = D3D12_STENCIL_OP_KEEP;
+	depthStencilDesc.BackFace.StencilDepthFailOp = D3D12_STENCIL_OP_KEEP;
+	stencilMaskPSODesc.DepthStencilState = depthStencilDesc;
+	ThrowIfFailed(m_Device->CreateGraphicsPipelineState(&stencilMaskPSODesc, IID_PPV_ARGS(m_PSOs[static_cast<int>(EnumRenderLayer::LayerStencilMask)].GetAddressOf())));
 }
 
 void DXHelloStenciling::UpdateCamera(float deltaTime, float totalTime)
@@ -654,6 +758,13 @@ void DXHelloStenciling::PopulateCommandList()
 	m_CommandList->SetGraphicsRootConstantBufferView(3U, m_ActiveFrameResource->pPassCBuffer->GetResource()->GetGPUVirtualAddress());
 	// 绘制不透明渲染项
 	DrawRenderItem(m_RenderItemLayouts[static_cast<int>(EnumRenderLayer::LayerOpaque)]);
+	// 切换到标记模板缓冲区的渲染管线状态
+	m_CommandList->SetPipelineState(m_PSOs[static_cast<int>(EnumRenderLayer::LayerStencilMask)].Get());
+	// 设置模板参考值为1
+	m_CommandList->OMSetStencilRef(1U);
+	// 清理模板缓冲区
+	m_CommandList->ClearDepthStencilView(m_DepthStencilDescriptorHandle, D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0U, 0, nullptr);
+	DrawRenderItem(m_RenderItemLayouts[static_cast<int>(EnumRenderLayer::LayerStencilMask)]);
 
 	// 提交IMGUI渲染指令
 	IMGuiHelloStenciling::GetInstance()->PopulateDearIMGuiCommand(m_CommandList.Get());

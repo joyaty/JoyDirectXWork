@@ -40,9 +40,13 @@ private:
 	/// </summary>
 	void BuildRoomGeoMesh();
 	/// <summary>
-	/// 创建骷髅网格集合体
+	/// 创建骷髅网格几何体
 	/// </summary>
 	void BuildSkullGeoMesh();
+	/// <summary>
+	/// 创建镜子网格几何体
+	/// </summary>
+	void BuildMirrorGeoMesh();
 	/// <summary>
 	/// 加载纹理文件
 	/// </summary>
@@ -156,7 +160,7 @@ private:
 	/// <summary>
 	/// 地面宽度
 	/// </summary>
-	float m_FloorWidh{ 30.f };
+	float m_FloorWidth{ 30.f };
 
 private:
 	/// <summary>
