@@ -161,6 +161,18 @@ private:
 	/// 地面宽度
 	/// </summary>
 	float m_FloorWidth{ 30.f };
+	/// <summary>
+	/// 墙面高度
+	/// </summary>
+	float m_WallHeight{ m_FloorWidth * 0.5f };
+	/// <summary>
+	/// 镜面的高度
+	/// </summary>
+	float m_MirrorHeight{ m_WallHeight * 0.75f };
+	/// <summary>
+	/// 镜面的宽度
+	/// </summary>
+	float m_MirrorWidth{ m_FloorWidth * 0.5f };
 
 private:
 	/// <summary>

@@ -137,56 +137,120 @@ void DXHelloStenciling::BuildRoomGeoMesh()
 	GeometryGenerator::MeshData gridMesh = GeometryGenerator::CreateGrid(m_FloorWidth, m_FloorWidth, 2, 2);
 	UINT gridVertexCount = static_cast<UINT>(gridMesh.Vertices.size());
 	UINT gridIndexCount = static_cast<UINT>(gridMesh.GetIndices16().size());
-	// 墙面网格数据
-	GeometryGenerator::MeshData quadMesh = GeometryGenerator::CreateQuad(m_FloorWidth, m_FloorWidth * 0.5f, 1, 1);
-	UINT quadVertexCount = static_cast<UINT>(quadMesh.Vertices.size());
-	UINT quadIndexCount = static_cast<UINT>(quadMesh.GetIndices16().size());
-	// 地面与墙面整合为一个大的顶点缓冲区
-	std::vector<Vertex> vertices{};
-	vertices.resize(gridVertexCount + quadVertexCount);
+	std::vector<Vertex> floorVertices{};
+	floorVertices.resize(gridVertexCount);
 	for (UINT i = 0; i < gridVertexCount; ++i)
 	{
-		vertices[i].position = gridMesh.Vertices[i].Position;
-		vertices[i].normal = gridMesh.Vertices[i].Normal;
-		vertices[i].texCoord = gridMesh.Vertices[i].TexCoord;
+		floorVertices[i].position = gridMesh.Vertices[i].Position;
+		floorVertices[i].normal = gridMesh.Vertices[i].Normal;
+		floorVertices[i].texCoord = gridMesh.Vertices[i].TexCoord;
 	}
-	for (UINT i = 0; i < quadVertexCount; ++i)
-	{
-		int index = gridVertexCount + i;
-		vertices[index].position = quadMesh.Vertices[i].Position;
-		vertices[index].normal = quadMesh.Vertices[i].Normal;
-		vertices[index].texCoord = quadMesh.Vertices[i].TexCoord;
-	}
-	// 整合为一个大的索引缓冲区
-	std::vector<std::uint16_t> indices{};
-	indices.insert(indices.end(), gridMesh.GetIndices16().begin(), gridMesh.GetIndices16().end());
-	indices.insert(indices.end(), quadMesh.GetIndices16().begin(), quadMesh.GetIndices16().end());
-	// 创建房间几何体(地面 + 墙面)
-	UINT vertexBufferSize = sizeof(Vertex) * (gridVertexCount + quadVertexCount);
-	UINT indexBufferSize = sizeof(std::uint16_t) * (gridIndexCount + quadIndexCount);
-	std::unique_ptr<MeshGeometry> pMeshGeo = std::make_unique<MeshGeometry>();
-	pMeshGeo->m_Name = "Room";
-	pMeshGeo->m_VertexBufferCPU = nullptr;
-	pMeshGeo->m_VertexBufferGPU = D3D12Util::CreateBufferInDefaultHeap(m_Device.Get(), m_CommandList.Get(), vertices.data(), vertexBufferSize, pMeshGeo->m_VertexBufferUploader);
-	pMeshGeo->m_VertexSize = vertexBufferSize;
-	pMeshGeo->m_VertexStride = sizeof(Vertex);
-	pMeshGeo->m_IndexBufferCPU = nullptr;
-	pMeshGeo->m_IndexBufferGPU = D3D12Util::CreateBufferInDefaultHeap(m_Device.Get(), m_CommandList.Get(), indices.data(), indexBufferSize, pMeshGeo->m_IndexBufferUploader);
-	pMeshGeo->m_IndexSize = indexBufferSize;
-	pMeshGeo->m_IndexFormat = DXGI_FORMAT_R16_UINT;
-	// Room由地面和墙面子Mesh组成
+	std::vector<std::uint16_t> floorIndices{};
+	floorIndices.insert(floorIndices.cend(), gridMesh.GetIndices16().begin(), gridMesh.GetIndices16().end());
+	UINT floorVertexBufferSize = sizeof(Vertex) * gridVertexCount;
+	UINT floorIndexBufferSize = sizeof(std::uint16_t) * gridIndexCount;
+	std::unique_ptr<MeshGeometry> pFloorGeo = std::make_unique<MeshGeometry>();
+	pFloorGeo->m_Name = "Floor";
+	pFloorGeo->m_VertexBufferCPU = nullptr;
+	pFloorGeo->m_VertexBufferGPU = D3D12Util::CreateBufferInDefaultHeap(m_Device.Get(), m_CommandList.Get(), floorVertices.data(), floorVertexBufferSize, pFloorGeo->m_VertexBufferUploader);
+	pFloorGeo->m_VertexSize = floorVertexBufferSize;
+	pFloorGeo->m_VertexStride = sizeof(Vertex);
+	pFloorGeo->m_IndexBufferCPU = nullptr;
+	pFloorGeo->m_IndexBufferGPU = D3D12Util::CreateBufferInDefaultHeap(m_Device.Get(), m_CommandList.Get(), floorIndices.data(), floorIndexBufferSize, pFloorGeo->m_IndexBufferUploader);
+	pFloorGeo->m_IndexSize = floorIndexBufferSize;
+	pFloorGeo->m_IndexFormat = DXGI_FORMAT_R16_UINT;
 	SubMeshGeometry floor{};
 	floor.m_IndexCount = gridIndexCount;
 	floor.m_StartIndexLocation = 0;
 	floor.m_BaseVertexLocation = 0;
-	SubMeshGeometry wall{};
-	wall.m_IndexCount = quadIndexCount;
-	wall.m_StartIndexLocation = gridIndexCount;
-	wall.m_BaseVertexLocation = gridVertexCount;
-	pMeshGeo->m_SubMeshGeometrys["Floor"] = floor;
-	pMeshGeo->m_SubMeshGeometrys["Wall"] = wall;
+	pFloorGeo->m_SubMeshGeometrys["Floor"] = floor;
 	// 加入场景物件集合中
-	m_SceneObjects[pMeshGeo->m_Name] = std::move(pMeshGeo);
+	m_SceneObjects[pFloorGeo->m_Name] = std::move(pFloorGeo);
+
+	// 构建三个Quad，组成底部中间镂空的墙面
+	float leftQuadWidth = (m_FloorWidth - m_MirrorWidth) * 0.5f;
+	float rightQuadWidth = (m_FloorWidth - m_MirrorWidth) * 0.5f;
+	float topQuadHeight = m_WallHeight - m_MirrorHeight;
+	GeometryGenerator::MeshData leftQuadMesh = GeometryGenerator::CreateQuad(leftQuadWidth, m_MirrorHeight, 1, 1);
+	GeometryGenerator::MeshData rightQuadMesh = GeometryGenerator::CreateQuad(rightQuadWidth, m_MirrorHeight, 1, 1);
+	GeometryGenerator::MeshData topQuadMesh = GeometryGenerator::CreateQuad(m_FloorWidth, topQuadHeight, 1, 1);
+	UINT leftQuadVertexCount = static_cast<UINT>(leftQuadMesh.Vertices.size());
+	UINT rightQuadVertexCount = static_cast<UINT>(rightQuadMesh.Vertices.size());
+	UINT topQuadVertexCount = static_cast<UINT>(topQuadMesh.Vertices.size());
+	UINT leftQuadIndexCount = static_cast<UINT>(leftQuadMesh.GetIndices16().size());
+	UINT rightQuadIndexCount = static_cast<UINT>(rightQuadMesh.GetIndices16().size());
+	UINT topQuadIndexCount = static_cast<UINT>(topQuadMesh.GetIndices16().size());
+	// 墙面三部分整合为一个大的顶点缓冲区
+	std::vector<Vertex> wallVertices{};
+	wallVertices.resize(leftQuadVertexCount + rightQuadVertexCount + topQuadVertexCount);
+	// 左面墙
+	DirectX::XMFLOAT3 leftQuadBasePosition = DirectX::XMFLOAT3((leftQuadWidth - m_FloorWidth) * 0.5f, (m_MirrorHeight - m_WallHeight) * 0.5f, 0.f);
+	for (UINT i = 0; i < leftQuadVertexCount; ++i)
+	{
+		DirectX::XMFLOAT3 offsetPos = leftQuadMesh.Vertices[i].Position;
+		wallVertices[i].position = DirectX::XMFLOAT3(leftQuadBasePosition.x + offsetPos.x, leftQuadBasePosition.y + offsetPos.y, leftQuadBasePosition.z + offsetPos.z);
+		wallVertices[i].normal = leftQuadMesh.Vertices[i].Normal;
+		wallVertices[i].texCoord = DirectX::XMFLOAT2(offsetPos.x / m_FloorWidth, 1.f - offsetPos.y / m_WallHeight);
+	}
+	// 右面墙
+	DirectX::XMFLOAT3 rightQuadBasePosition = DirectX::XMFLOAT3(leftQuadWidth + m_MirrorWidth + rightQuadWidth * 0.5f - m_FloorWidth * 0.5f, (m_MirrorHeight - m_WallHeight) * 0.5f, 0.f);
+	for (UINT i = 0; i < rightQuadVertexCount; ++i)
+	{
+		UINT index = leftQuadVertexCount + i;
+		DirectX::XMFLOAT3 offsetPos = rightQuadMesh.Vertices[i].Position;
+		wallVertices[index].position = DirectX::XMFLOAT3(rightQuadBasePosition.x + offsetPos.x, rightQuadBasePosition.y + offsetPos.y, rightQuadBasePosition.z + offsetPos.z);
+		wallVertices[index].normal = rightQuadMesh.Vertices[i].Normal;
+		wallVertices[index].texCoord = DirectX::XMFLOAT2((leftQuadWidth + m_MirrorWidth + offsetPos.x) / m_FloorWidth, 1.f - offsetPos.y / m_WallHeight);
+	}
+	// 顶面墙
+	DirectX::XMFLOAT3 topQuadBasePosition = DirectX::XMFLOAT3(0.f, topQuadHeight * 0.5f + m_MirrorHeight - m_WallHeight * 0.5f, 0.f);
+	for (UINT i = 0; i < topQuadVertexCount; ++i)
+	{
+		UINT index = leftQuadVertexCount + rightQuadVertexCount + i;
+		DirectX::XMFLOAT3 offsetPos = topQuadMesh.Vertices[i].Position;
+		wallVertices[index].position = DirectX::XMFLOAT3(topQuadBasePosition.x + offsetPos.x, topQuadBasePosition.y + offsetPos.y, topQuadBasePosition.z + offsetPos.z);
+		wallVertices[index].normal = topQuadMesh.Vertices[i].Normal;
+		wallVertices[index].texCoord = DirectX::XMFLOAT2(offsetPos.x / m_FloorWidth, (topQuadHeight - offsetPos.y) / m_WallHeight);
+	}
+	// 整合为一个大的索引缓冲区
+	std::vector<std::uint16_t> wallIndices{};
+	wallIndices.resize(leftQuadIndexCount + rightQuadIndexCount + topQuadIndexCount);
+	// 拷贝左面墙索引
+	for (UINT i = 0; i < leftQuadIndexCount; ++i)
+	{
+		wallIndices[i] = leftQuadMesh.GetIndices16()[i];
+	}
+	wallIndices.insert(wallIndices.end(), leftQuadMesh.GetIndices16().begin(), leftQuadMesh.GetIndices16().end());
+	// 拷贝右面墙索引，需要加左面墙顶点数偏移
+	for (UINT i = 0; i < rightQuadIndexCount; ++i)
+	{
+		wallIndices[leftQuadIndexCount + i] = static_cast<std::uint16_t>(leftQuadVertexCount + rightQuadMesh.GetIndices16()[i]);
+	}
+	// 拷贝顶面墙索引，需要加左面墙和右面墙顶点数偏移
+	for (UINT i = 0; i < topQuadIndexCount; ++i)
+	{
+		wallIndices[leftQuadIndexCount + rightQuadIndexCount + i] = static_cast<std::uint16_t>(leftQuadVertexCount + rightQuadVertexCount + topQuadMesh.GetIndices16()[i]);
+	}
+	// 创建墙面几何体
+	UINT wallVertexBufferSize = sizeof(Vertex) * (leftQuadVertexCount + rightQuadVertexCount + topQuadVertexCount);
+	UINT wallIndexBufferSize = sizeof(std::uint16_t) * (leftQuadIndexCount + rightQuadIndexCount + topQuadIndexCount);
+	std::unique_ptr<MeshGeometry> pWallGeo = std::make_unique<MeshGeometry>();
+	pWallGeo->m_Name = "Wall";
+	pWallGeo->m_VertexBufferCPU = nullptr;
+	pWallGeo->m_VertexBufferGPU = D3D12Util::CreateBufferInDefaultHeap(m_Device.Get(), m_CommandList.Get(), wallVertices.data(), wallVertexBufferSize, pWallGeo->m_VertexBufferUploader);
+	pWallGeo->m_VertexSize = wallVertexBufferSize;
+	pWallGeo->m_VertexStride = sizeof(Vertex);
+	pWallGeo->m_IndexBufferCPU = nullptr;
+	pWallGeo->m_IndexBufferGPU = D3D12Util::CreateBufferInDefaultHeap(m_Device.Get(), m_CommandList.Get(), wallIndices.data(), wallIndexBufferSize, pWallGeo->m_IndexBufferUploader);
+	pWallGeo->m_IndexSize = wallIndexBufferSize;
+	pWallGeo->m_IndexFormat = DXGI_FORMAT_R16_UINT;
+	SubMeshGeometry wall{};
+	wall.m_IndexCount = leftQuadIndexCount + rightQuadIndexCount + topQuadIndexCount;
+	wall.m_StartIndexLocation = 0;
+	wall.m_BaseVertexLocation = 0;
+	pWallGeo->m_SubMeshGeometrys["Wall"] = wall;
+	// 加入场景物件集合中
+	m_SceneObjects[pWallGeo->m_Name] = std::move(pWallGeo);
 }
 
 void DXHelloStenciling::BuildSkullGeoMesh()
@@ -248,7 +312,7 @@ void DXHelloStenciling::BuildSkullGeoMesh()
 
 void DXHelloStenciling::BuildMirrorGeoMesh()
 {
-	GeometryGenerator::MeshData quadMesh = GeometryGenerator::CreateQuad(20.f, 10.f);
+	GeometryGenerator::MeshData quadMesh = GeometryGenerator::CreateQuad(m_MirrorWidth, m_MirrorHeight);
 	int vertexCount = static_cast<int>(quadMesh.Vertices.size());
 	int indexCount = static_cast<int>(quadMesh.GetIndices16().size());
 
@@ -459,7 +523,7 @@ void DXHelloStenciling::BuildRenderItem()
 {
 	// 创建地面渲染项
 	std::unique_ptr<HelloStencilingRenderItem> pFloorRenderItem = std::make_unique<HelloStencilingRenderItem>();
-	pFloorRenderItem->pGeometryMesh = m_SceneObjects["Room"].get();
+	pFloorRenderItem->pGeometryMesh = m_SceneObjects["Floor"].get();
 	pFloorRenderItem->pMaterial = m_AllMaterials["FloorMat"].get();
 	DirectX::XMFLOAT3 worldPos = DirectX::XMFLOAT3(0.f, 0.f, 0.f);
 	DirectX::XMStoreFloat4x4(&pFloorRenderItem->worldMatrix, DirectX::XMMatrixTranslation(worldPos.x, worldPos.y, worldPos.z));
@@ -473,9 +537,9 @@ void DXHelloStenciling::BuildRenderItem()
 	m_RenderItemLayouts[static_cast<int>(EnumRenderLayer::LayerOpaque)].push_back(m_AllRenderItem.back().get());
 	// 创建墙面渲染项
 	std::unique_ptr<HelloStencilingRenderItem> pWallRenderItem = std::make_unique<HelloStencilingRenderItem>();
-	pWallRenderItem->pGeometryMesh = m_SceneObjects["Room"].get();
+	pWallRenderItem->pGeometryMesh = m_SceneObjects["Wall"].get();
 	pWallRenderItem->pMaterial = m_AllMaterials["WallMat"].get();
-	worldPos = DirectX::XMFLOAT3(0.f, m_FloorWidth * 0.5f * 0.5f, m_FloorWidth * 0.5f);
+	worldPos = DirectX::XMFLOAT3(0.f, m_WallHeight * 0.5f, m_FloorWidth * 0.5f);
 	DirectX::XMStoreFloat4x4(&pWallRenderItem->worldMatrix, DirectX::XMMatrixTranslation(worldPos.x, worldPos.y, worldPos.z));
 	DirectX::XMStoreFloat4x4(&pWallRenderItem->texMatrix, DirectX::XMMatrixScaling(5.f, 5.f, 1.f));
 	pWallRenderItem->objectCBufferIndex = 1;
@@ -511,7 +575,7 @@ void DXHelloStenciling::BuildRenderItem()
 	pMirrorRenderItem->primitiveType = D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
 	pMirrorRenderItem->objectCBufferIndex = 3;
 	pMirrorRenderItem->texMatrix = MathUtil::Identity4x4();
-	worldPos = DirectX::XMFLOAT3(0, 5.f, m_FloorWidth * 0.5f - 0.1f);
+	worldPos = DirectX::XMFLOAT3(0, m_MirrorHeight * 0.5f, m_FloorWidth * 0.5f);
 	DirectX::XMStoreFloat4x4(&pMirrorRenderItem->worldMatrix, DirectX::XMMatrixTranslation(worldPos.x, worldPos.y, worldPos.z));
 	pMirrorRenderItem->indexCount = pMirrorRenderItem->pGeometryMesh->m_SubMeshGeometrys["Mirror"].m_IndexCount;
 	pMirrorRenderItem->startIndexLoaction = pMirrorRenderItem->pGeometryMesh->m_SubMeshGeometrys["Mirror"].m_StartIndexLocation;
