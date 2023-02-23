@@ -25,7 +25,13 @@ void IMGuiHelloStenciling::OnDrawWindow()
 	{
 		m_HelloStencilingDemo->SetEnableFog(m_EnableFog);
 	}
-
+	// 镜像物件模板测试开关
+	isChange = ImGui::Checkbox("Enable Reflect Stencil", &m_EnableStencil);
+	if (isChange)
+	{
+		m_HelloStencilingDemo->SetEnableStencil(m_EnableStencil);
+	}
+	// 裁剪模式开关
 	static int fillMode = 0;
 	if (ImGui::Combo("Fill Mode: ", &fillMode, "D3D12_FILL_MODE_SOLID\0D3D12_FILL_MODE_WIREFRAME\0"))
 	{

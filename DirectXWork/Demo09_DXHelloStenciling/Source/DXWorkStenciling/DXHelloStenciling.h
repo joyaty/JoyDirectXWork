@@ -19,8 +19,9 @@ public:
 	virtual ~DXHelloStenciling();
 
 public:
-	void SetEnableFog(bool enableFog) { BuildPSOs(enableFog, m_FillMode); }
-	void SetFillMode(D3D12_FILL_MODE fillMode) { BuildPSOs(m_EnableFog, fillMode); }
+	void SetEnableFog(bool enableFog) { m_EnableFog = enableFog; BuildPSOs(); }
+	void SetFillMode(D3D12_FILL_MODE fillMode) { m_FillMode = fillMode; BuildPSOs(); }
+	void SetEnableStencil(bool enableStencil) { m_EnableStencil = enableStencil; BuildPSOs(); }
 
 public:
 	void OnMouseDown(UINT8 keyCode, int x, int y) override;
@@ -82,9 +83,7 @@ private:
 	/// <summary>
 	/// 创建渲染管线状态对象
 	/// </summary>
-	/// <param name="enableFog"></param>
-	/// <param name="fillMode"></param>
-	void BuildPSOs(bool enableFog, D3D12_FILL_MODE fillMode);
+	void BuildPSOs();
 
 	/// <summary>
 	/// 更新相机观察矩阵
@@ -109,7 +108,13 @@ private:
 	/// </summary>
 	/// <param name="deltaTime"></param>
 	/// <param name="totalTime"></param>
-	void UpdatePassCB(float deltaTime, float totalTime);
+	void UpdateMainPassCB(float deltaTime, float totalTime);
+	/// <summary>
+	/// 更新镜像渲染过程常量缓冲区
+	/// </summary>
+	/// <param name="deltaTime"></param>
+	/// <param name="totalTime"></param>
+	void UpdateReflectPassCB(float deltaTime, float totalTime);
 
 	/// <summary>
 	/// 记录渲染指令
@@ -156,6 +161,15 @@ private:
 	/// 当前激活的帧资源索引
 	/// </summary>
 	int m_ActiveFrameResourceIndex{ 0 };
+
+	/// <summary>
+	/// 主渲染过程常量缓冲区
+	/// </summary>
+	PerPassConstancts m_MainPerPassConstancts{};
+	/// <summary>
+	/// 镜像渲染过程常量缓冲区
+	/// </summary>
+	PerPassConstancts m_ReflectPerPassConstancts{};
 
 	/// <summary>
 	/// 地面宽度
@@ -273,4 +287,5 @@ private:
 private:
 	bool m_EnableFog{ false };
 	D3D12_FILL_MODE m_FillMode{ D3D12_FILL_MODE_SOLID };
+	bool m_EnableStencil{ true };
 };

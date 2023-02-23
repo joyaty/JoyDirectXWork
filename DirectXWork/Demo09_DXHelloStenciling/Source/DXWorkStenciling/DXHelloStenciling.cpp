@@ -82,7 +82,10 @@ bool DXHelloStenciling::OnInit()
 	BuildInputLayout();
 	CompileShaderFiles();
 	BuildRootSignature();
-	BuildPSOs(IMGuiHelloStenciling::GetInstance()->GetEnableFog(), IMGuiHelloStenciling::GetInstance()->GetFillMode());
+	m_EnableFog = IMGuiHelloStenciling::GetInstance()->GetEnableFog();
+	m_FillMode = IMGuiHelloStenciling::GetInstance()->GetFillMode();
+	m_EnableStencil = IMGuiHelloStenciling::GetInstance()->GetEnableStencil();
+	BuildPSOs();
 	// 执行HelloStenciling相关的初始化指令
 	ThrowIfFailed(m_CommandList->Close());
 	ID3D12CommandList* cmdList[] = { m_CommandList.Get() };
@@ -110,7 +113,8 @@ void DXHelloStenciling::OnUpdate(float deltaTime, float totalTime)
 	UpdateCamera(deltaTime, totalTime);
 	UpdateObjectCB(deltaTime, totalTime);
 	UpdateMaterialCB(deltaTime, totalTime);
-	UpdatePassCB(deltaTime, totalTime);
+	UpdateMainPassCB(deltaTime, totalTime);
+	UpdateReflectPassCB(deltaTime, totalTime);
 }
 
 void DXHelloStenciling::OnRender()
@@ -507,7 +511,7 @@ void DXHelloStenciling::BuildMaterial()
 	// 镜面材质
 	std::unique_ptr<HelloStencilingMaterial> pMirrorMaterial = std::make_unique<HelloStencilingMaterial>();
 	pMirrorMaterial->name = "MirrorMat";
-	pMirrorMaterial->diffuseAlbedo = DirectX::XMFLOAT4(1.f, 1.f, 1.f, 1.f);
+	pMirrorMaterial->diffuseAlbedo = DirectX::XMFLOAT4(1.f, 1.f, 1.f, 0.3f);
 	pMirrorMaterial->fresnelR0 = DirectX::XMFLOAT3(0.1f, 0.1f, 0.1f);
 	pMirrorMaterial->roughness = 0.5f;
 	pMirrorMaterial->diffuseMapIndex = 3;
@@ -553,7 +557,7 @@ void DXHelloStenciling::BuildRenderItem()
 	std::unique_ptr<HelloStencilingRenderItem> pSkullRenderItem = std::make_unique<HelloStencilingRenderItem>();
 	pSkullRenderItem->pGeometryMesh = m_SceneObjects["Skull"].get();
 	pSkullRenderItem->pMaterial = m_AllMaterials["SkullMat"].get();
-	worldPos = DirectX::XMFLOAT3(0.f, 3.f, 0.f);
+	worldPos = DirectX::XMFLOAT3(0.f, 3.f, 10.f);
 	// 混合位移与旋转的复合变换矩阵
 	DirectX::XMMATRIX transMatrix = DirectX::XMMatrixTranslation(worldPos.x, worldPos.y, worldPos.z);
 	DirectX::XMMATRIX rotaMatrix = DirectX::XMMatrixRotationY(DirectX::XM_PIDIV2);
@@ -567,7 +571,8 @@ void DXHelloStenciling::BuildRenderItem()
 	pSkullRenderItem->startIndexLoaction = pSkullRenderItem->pGeometryMesh->m_SubMeshGeometrys["Skull"].m_StartIndexLocation;
 	pSkullRenderItem->startVertexLocation = pSkullRenderItem->pGeometryMesh->m_SubMeshGeometrys["Skull"].m_BaseVertexLocation;
 	m_AllRenderItem.push_back(std::move(pSkullRenderItem));
-	m_RenderItemLayouts[static_cast<int>(EnumRenderLayer::LayerOpaque)].push_back(m_AllRenderItem.back().get());
+	HelloStencilingRenderItem* pNakedSkullRenderItem = m_AllRenderItem.back().get();
+	m_RenderItemLayouts[static_cast<int>(EnumRenderLayer::LayerOpaque)].push_back(pNakedSkullRenderItem);
 	// 创建镜面渲染项
 	std::unique_ptr<HelloStencilingRenderItem> pMirrorRenderItem = std::make_unique<HelloStencilingRenderItem>();
 	pMirrorRenderItem->pGeometryMesh = m_SceneObjects["Mirror"].get();
@@ -582,13 +587,21 @@ void DXHelloStenciling::BuildRenderItem()
 	pMirrorRenderItem->startVertexLocation = pMirrorRenderItem->pGeometryMesh->m_SubMeshGeometrys["Mirror"].m_BaseVertexLocation;
 	m_AllRenderItem.push_back(std::move(pMirrorRenderItem));
 	m_RenderItemLayouts[static_cast<int>(EnumRenderLayer::LayerStencilMask)].push_back(m_AllRenderItem.back().get());
+	// 创建镜像骷髅渲染项
+	std::unique_ptr<HelloStencilingRenderItem> pReflectSkullRenderItem = std::make_unique<HelloStencilingRenderItem>();
+	*pReflectSkullRenderItem = *pNakedSkullRenderItem; // 拷贝一个骷髅渲染项数据
+	pReflectSkullRenderItem->objectCBufferIndex = 4;
+	DirectX::XMVECTOR reflectPlaneXY = DirectX::XMVectorSet(0.f, 0.f, -1.f, m_FloorWidth * 0.5f); // 反射平面，xyz分量标识平面方向（法向量） w分量表示平面的位移
+	DirectX::XMStoreFloat4x4(&pReflectSkullRenderItem->worldMatrix, mixMatrix * DirectX::XMMatrixReflect(reflectPlaneXY));
+	m_AllRenderItem.push_back(std::move(pReflectSkullRenderItem));
+	m_RenderItemLayouts[static_cast<int>(EnumRenderLayer::LayerReflection)].push_back(m_AllRenderItem.back().get());
 }
 
 void DXHelloStenciling::BuildFrameResource()
 {
 	for (int i = 0; i < kNumFrameResource; ++i)
 	{
-		m_AllFrameResources.push_back(std::make_unique<HelloStencilingFrameResource>(m_Device.Get(), static_cast<int>(m_AllRenderItem.size()), static_cast<int>(m_AllMaterials.size()), 1));
+		m_AllFrameResources.push_back(std::make_unique<HelloStencilingFrameResource>(m_Device.Get(), static_cast<int>(m_AllRenderItem.size()), static_cast<int>(m_AllMaterials.size()), 2));
 	}
 	m_ActiveFrameResourceIndex = 0;
 	m_ActiveFrameResource = m_AllFrameResources[m_ActiveFrameResourceIndex].get();
@@ -643,10 +656,8 @@ void DXHelloStenciling::CompileShaderFiles()
 	m_EnableFogPSByteCode = CompileShader(m_AssetPath + L"HelloStenciling.hlsl", enableFogMacro, "PSMain", "ps_5_0");
 }
 
-void DXHelloStenciling::BuildPSOs(bool enableFog, D3D12_FILL_MODE fillMode)
+void DXHelloStenciling::BuildPSOs()
 {
-	m_EnableFog = enableFog;
-	m_FillMode = fillMode;
 	// 不透明物体PSO
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC opaqueDesc{};
 	opaqueDesc.NodeMask = 0U;
@@ -701,6 +712,45 @@ void DXHelloStenciling::BuildPSOs(bool enableFog, D3D12_FILL_MODE fillMode)
 	depthStencilDesc.BackFace.StencilDepthFailOp = D3D12_STENCIL_OP_KEEP;
 	stencilMaskPSODesc.DepthStencilState = depthStencilDesc;
 	ThrowIfFailed(m_Device->CreateGraphicsPipelineState(&stencilMaskPSODesc, IID_PPV_ARGS(m_PSOs[static_cast<int>(EnumRenderLayer::LayerStencilMask)].GetAddressOf())));
+
+	// 绘制镜像物件的PSO，镜像物件需要经绘制在平面镜标记区域内，因此需要开启模板测试，与上面的标记模板缓冲区比较，决定是否绘制到后台缓冲区
+	D3D12_GRAPHICS_PIPELINE_STATE_DESC reflectPSODesc{ opaqueDesc };
+	D3D12_DEPTH_STENCIL_DESC reflectDepthStencilDesc{};
+	reflectDepthStencilDesc.DepthEnable = true;
+	reflectDepthStencilDesc.DepthFunc = D3D12_COMPARISON_FUNC_LESS;
+	reflectDepthStencilDesc.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
+	reflectDepthStencilDesc.StencilEnable = m_EnableStencil;
+	reflectDepthStencilDesc.StencilReadMask = 0xff;
+	reflectDepthStencilDesc.StencilWriteMask = 0xff;
+	reflectDepthStencilDesc.FrontFace.StencilFunc = D3D12_COMPARISON_FUNC_EQUAL; // 指定的参考值与模板缓冲区的数值相同，通过模板测试，允许绘制到后台缓冲区
+	reflectDepthStencilDesc.FrontFace.StencilDepthFailOp = D3D12_STENCIL_OP_KEEP; // 目的是进行模板测试，不需要改变模板缓冲区
+	reflectDepthStencilDesc.FrontFace.StencilFailOp = D3D12_STENCIL_OP_KEEP;
+	reflectDepthStencilDesc.FrontFace.StencilPassOp = D3D12_STENCIL_OP_KEEP;
+	reflectDepthStencilDesc.BackFace.StencilFunc = D3D12_COMPARISON_FUNC_EQUAL; // 背面被裁剪，不需要关心模板测试设置
+	reflectDepthStencilDesc.BackFace.StencilDepthFailOp = D3D12_STENCIL_OP_KEEP; 
+	reflectDepthStencilDesc.BackFace.StencilFailOp = D3D12_STENCIL_OP_KEEP;
+	reflectDepthStencilDesc.BackFace.StencilPassOp = D3D12_STENCIL_OP_KEEP;
+	reflectPSODesc.DepthStencilState = reflectDepthStencilDesc;
+	reflectPSODesc.RasterizerState.FrontCounterClockwise = true; // 镜像物件，绕序不会发生改变，此时原物件的外向法线变为内向法线，因此需要变更下绕序，使变为外向法线
+	ThrowIfFailed(m_Device->CreateGraphicsPipelineState(&reflectPSODesc, IID_PPV_ARGS(m_PSOs[static_cast<int>(EnumRenderLayer::LayerReflection)].GetAddressOf())));
+
+	// 绘制半透明物件PSO
+	D3D12_GRAPHICS_PIPELINE_STATE_DESC transparentPSODesc{ opaqueDesc };
+	CD3DX12_BLEND_DESC blendDesc(D3D12_DEFAULT);
+	blendDesc.AlphaToCoverageEnable = false;
+	blendDesc.IndependentBlendEnable = true;
+	blendDesc.RenderTarget[0].BlendEnable = true;
+	blendDesc.RenderTarget[0].SrcBlend = D3D12_BLEND_SRC_ALPHA;
+	blendDesc.RenderTarget[0].DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
+	blendDesc.RenderTarget[0].BlendOp = D3D12_BLEND_OP_ADD;
+	blendDesc.RenderTarget[0].SrcBlendAlpha = D3D12_BLEND_ONE;
+	blendDesc.RenderTarget[0].DestBlendAlpha = D3D12_BLEND_ZERO;
+	blendDesc.RenderTarget[0].BlendOpAlpha = D3D12_BLEND_OP_ADD;
+	blendDesc.RenderTarget[0].LogicOpEnable = false;
+	blendDesc.RenderTarget[0].LogicOp = D3D12_LOGIC_OP_NOOP;
+	blendDesc.RenderTarget[0].RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
+	transparentPSODesc.BlendState = blendDesc;
+	ThrowIfFailed(m_Device->CreateGraphicsPipelineState(&transparentPSODesc, IID_PPV_ARGS(m_PSOs[static_cast<int>(EnumRenderLayer::LayerTransparent)].GetAddressOf())));
 }
 
 void DXHelloStenciling::UpdateCamera(float deltaTime, float totalTime)
@@ -753,7 +803,7 @@ void DXHelloStenciling::UpdateMaterialCB(float delteTime, float totalTime)
 	}
 }
 
-void DXHelloStenciling::UpdatePassCB(float deltaTime, float totalTime)
+void DXHelloStenciling::UpdateMainPassCB(float deltaTime, float totalTime)
 {
 	DirectX::XMMATRIX viewMatrix = DirectX::XMLoadFloat4x4(&m_ViewMatrix);
 	DirectX::XMMATRIX invViewMatrix = DirectX::XMMatrixInverse(&DirectX::XMMatrixDeterminant(viewMatrix), viewMatrix);
@@ -761,36 +811,53 @@ void DXHelloStenciling::UpdatePassCB(float deltaTime, float totalTime)
 	DirectX::XMMATRIX invProjMatrix = DirectX::XMMatrixInverse(&DirectX::XMMatrixDeterminant(projMatrix), projMatrix);
 	DirectX::XMMATRIX viewProjMatrix = DirectX::XMMatrixMultiply(viewMatrix, projMatrix);
 	DirectX::XMMATRIX invViewProjMatrix = DirectX::XMMatrixInverse(&DirectX::XMMatrixDeterminant(viewProjMatrix), viewProjMatrix);
-	PerPassConstancts passCBData{};
-	DirectX::XMStoreFloat4x4(&passCBData.viewMatrix, DirectX::XMMatrixTranspose(viewMatrix));
-	DirectX::XMStoreFloat4x4(&passCBData.invViewMatrix, DirectX::XMMatrixTranspose(invViewMatrix));
-	DirectX::XMStoreFloat4x4(&passCBData.projMatrix, DirectX::XMMatrixTranspose(projMatrix));
-	DirectX::XMStoreFloat4x4(&passCBData.invProjMatrix, DirectX::XMMatrixTranspose(invProjMatrix));
-	DirectX::XMStoreFloat4x4(&passCBData.viewProjMatrix, DirectX::XMMatrixTranspose(viewProjMatrix));
-	DirectX::XMStoreFloat4x4(&passCBData.invViewProjMatrix, DirectX::XMMatrixTranspose(invViewProjMatrix));
-	passCBData.eyeWorldPos = m_CameraPos;
-	passCBData.renderTargetSize = DirectX::XMFLOAT2(static_cast<float>(GetWidth()), static_cast<float>(GetHeight()));
-	passCBData.invRenderTargetSize = DirectX::XMFLOAT2(1.0f / GetWidth(), 1.0f / GetHeight());
-	passCBData.nearZ = m_NearZ;
-	passCBData.farZ = m_FarZ;
-	passCBData.totalTime = totalTime;
-	passCBData.deltaTime = deltaTime;
-	passCBData.fogStart = 50.f;
-	passCBData.fogRange = 80.f;
-	passCBData.ambientLight = m_AmbientLight;
-	passCBData.lights[0].strength = m_DirectLight;
+	DirectX::XMStoreFloat4x4(&m_MainPerPassConstancts.viewMatrix, DirectX::XMMatrixTranspose(viewMatrix));
+	DirectX::XMStoreFloat4x4(&m_MainPerPassConstancts.invViewMatrix, DirectX::XMMatrixTranspose(invViewMatrix));
+	DirectX::XMStoreFloat4x4(&m_MainPerPassConstancts.projMatrix, DirectX::XMMatrixTranspose(projMatrix));
+	DirectX::XMStoreFloat4x4(&m_MainPerPassConstancts.invProjMatrix, DirectX::XMMatrixTranspose(invProjMatrix));
+	DirectX::XMStoreFloat4x4(&m_MainPerPassConstancts.viewProjMatrix, DirectX::XMMatrixTranspose(viewProjMatrix));
+	DirectX::XMStoreFloat4x4(&m_MainPerPassConstancts.invViewProjMatrix, DirectX::XMMatrixTranspose(invViewProjMatrix));
+	m_MainPerPassConstancts.eyeWorldPos = m_CameraPos;
+	m_MainPerPassConstancts.renderTargetSize = DirectX::XMFLOAT2(static_cast<float>(GetWidth()), static_cast<float>(GetHeight()));
+	m_MainPerPassConstancts.invRenderTargetSize = DirectX::XMFLOAT2(1.0f / GetWidth(), 1.0f / GetHeight());
+	m_MainPerPassConstancts.nearZ = m_NearZ;
+	m_MainPerPassConstancts.farZ = m_FarZ;
+	m_MainPerPassConstancts.totalTime = totalTime;
+	m_MainPerPassConstancts.deltaTime = deltaTime;
+	m_MainPerPassConstancts.fogStart = 50.f;
+	m_MainPerPassConstancts.fogRange = 80.f;
+	m_MainPerPassConstancts.ambientLight = m_AmbientLight;
+	m_MainPerPassConstancts.lights[0].strength = m_DirectLight;
 	// 按模长为1计算，因此已经是单位向量
 	float lightPosX = 1.f * sinf(m_LightTheta) * sinf(m_LightPhi);
 	float lightPosY = 1.f * cosf(m_LightTheta);
 	float lightPosZ = 1.f * sinf(m_LightTheta) * cosf(m_LightPhi);
 	DirectX::XMVECTOR lightDir = DirectX::XMVectorSet(-lightPosX, -lightPosY, -lightPosZ, 1.0f);
-	DirectX::XMStoreFloat3(&passCBData.lights[0].direction, lightDir);
+	DirectX::XMStoreFloat3(&m_MainPerPassConstancts.lights[0].direction, lightDir);
 	// 第二个光源
-	passCBData.lights[1].strength = DirectX::XMFLOAT3(0.5f, 0.5f, 0.4f);
-	passCBData.lights[1].direction = DirectX::XMFLOAT3(0.f, -0.866f, 0.5f);
+	m_MainPerPassConstancts.lights[1].strength = DirectX::XMFLOAT3(0.5f, 0.5f, 0.4f);
+	m_MainPerPassConstancts.lights[1].direction = DirectX::XMFLOAT3(0.f, -0.866f, 0.5f);
 
 	// 拷贝数据到渲染过程常量缓冲区
-	m_ActiveFrameResource->pPassCBuffer->CopyData(0, passCBData);
+	m_ActiveFrameResource->pPassCBuffer->CopyData(0, m_MainPerPassConstancts);
+}
+
+void DXHelloStenciling::UpdateReflectPassCB(float deltaTime, float totalTime)
+{
+	// 拷贝主渲染过程常量缓冲区
+	m_ReflectPerPassConstancts = m_MainPerPassConstancts;
+	// 镜像平面
+	DirectX::XMVECTOR reflectPlaneXY = DirectX::XMVectorSet(0.f, 0.f, -1.f, m_FloorWidth * 0.5f);
+	DirectX::XMMATRIX reflectMatrix = DirectX::XMMatrixReflect(reflectPlaneXY);
+	// 镜像物件，光照方向也是镜像的，需要更新用于渲染镜像物件的光照信息
+	for (int i = 0; i < 2; ++i)
+	{
+		DirectX::XMVECTOR lightDir = DirectX::XMLoadFloat3(&m_ReflectPerPassConstancts.lights[i].direction);
+		DirectX::XMVECTOR reflectLightDir = DirectX::XMVector3TransformNormal(lightDir, reflectMatrix);
+		DirectX::XMStoreFloat3(&m_ReflectPerPassConstancts.lights[i].direction, reflectLightDir);
+	}
+	// 更新到镜像渲染过程常量缓冲区
+	m_ActiveFrameResource->pPassCBuffer->CopyData(1, m_ReflectPerPassConstancts);
 }
 
 void DXHelloStenciling::PopulateCommandList()
@@ -828,6 +895,19 @@ void DXHelloStenciling::PopulateCommandList()
 	m_CommandList->OMSetStencilRef(1U);
 	// 清理模板缓冲区
 	m_CommandList->ClearDepthStencilView(m_DepthStencilDescriptorHandle, D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0U, 0, nullptr);
+	DrawRenderItem(m_RenderItemLayouts[static_cast<int>(EnumRenderLayer::LayerStencilMask)]);
+	// 切换到渲染镜像物件的渲染管线状态
+	m_CommandList->SetPipelineState(m_PSOs[static_cast<int>(EnumRenderLayer::LayerReflection)].Get());
+	UINT passCBSize = m_ActiveFrameResource->pPassCBuffer->GetElementSize();
+	D3D12_GPU_VIRTUAL_ADDRESS reflectPassCBAddress = m_ActiveFrameResource->pPassCBuffer->GetResource()->GetGPUVirtualAddress() + passCBSize;
+	// 更新根参数3绑定的常量缓冲区描述符为镜像渲染过程常量缓冲区
+	m_CommandList->SetGraphicsRootConstantBufferView(3U, reflectPassCBAddress);
+	DrawRenderItem(m_RenderItemLayouts[static_cast<int>(EnumRenderLayer::LayerReflection)]);
+	// 恢复绑定主渲染过程常量缓冲区
+	m_CommandList->SetGraphicsRootConstantBufferView(3U, m_ActiveFrameResource->pPassCBuffer->GetResource()->GetGPUVirtualAddress());
+	// 切换到渲染透明物件渲染管线，渲染反射镜面
+	m_CommandList->SetPipelineState(m_PSOs[static_cast<int>(EnumRenderLayer::LayerTransparent)].Get());
+	m_CommandList->OMSetStencilRef(0U);
 	DrawRenderItem(m_RenderItemLayouts[static_cast<int>(EnumRenderLayer::LayerStencilMask)]);
 
 	// 提交IMGUI渲染指令

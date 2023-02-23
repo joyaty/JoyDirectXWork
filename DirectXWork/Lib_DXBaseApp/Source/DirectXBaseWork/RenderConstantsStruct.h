@@ -21,6 +21,8 @@ enum class EnumRenderLayer : unsigned char
 	LayerOpaque = 0,
 	// 模板缓冲区标记
 	LayerStencilMask,
+	// 镜面反射层
+	LayerReflection,
 	// 透明层
 	LayerTransparent,
 	// 透明度测试，透明片段直接丢弃
