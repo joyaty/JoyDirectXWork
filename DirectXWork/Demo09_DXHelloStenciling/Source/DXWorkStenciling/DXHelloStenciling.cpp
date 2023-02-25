@@ -567,7 +567,7 @@ void DXHelloStenciling::BuildRenderItem()
 	std::unique_ptr<HelloStencilingRenderItem> pSkullRenderItem = std::make_unique<HelloStencilingRenderItem>();
 	pSkullRenderItem->pGeometryMesh = m_SceneObjects["Skull"].get();
 	pSkullRenderItem->pMaterial = m_AllMaterials["SkullMat"].get();
-	worldPos = DirectX::XMFLOAT3(0.f, 1.f, 5.f);
+	worldPos = DirectX::XMFLOAT3(0.f, 1.f, 7.f);
 	// 混合位移与旋转的复合变换矩阵
 	DirectX::XMMATRIX transMatrix = DirectX::XMMatrixTranslation(worldPos.x, worldPos.y, worldPos.z);
 	DirectX::XMMATRIX rotaMatrix = DirectX::XMMatrixRotationY(DirectX::XM_PIDIV2);
@@ -939,9 +939,12 @@ void DXHelloStenciling::PopulateCommandList()
 	m_CommandList->SetGraphicsRootConstantBufferView(3U, m_ActiveFrameResource->pPassCBuffer->GetResource()->GetGPUVirtualAddress());
 	// 绘制不透明渲染项
 	DrawRenderItem(m_RenderItemLayouts[static_cast<int>(EnumRenderLayer::LayerOpaque)]);
-	m_CommandList->OMSetStencilRef(0U);
 	// 切换到绘制阴影的渲染管线状态
 	m_CommandList->SetPipelineState(m_PSOs[static_cast<int>(EnumRenderLayer::LayerShadow)].Get());
+	// 清理模板缓冲区
+	m_CommandList->ClearDepthStencilView(m_DepthStencilDescriptorHandle, D3D12_CLEAR_FLAG_STENCIL, 1.f, 0U, 0, nullptr);
+	// 设置阴影模板测试的参考值，模板测试通过，递增模板缓冲区的值
+	m_CommandList->OMSetStencilRef(0U);
 	// 绘制阴影
 	DrawRenderItem(m_RenderItemLayouts[static_cast<int>(EnumRenderLayer::LayerShadow)]);
 	// 切换到标记模板缓冲区的渲染管线状态
