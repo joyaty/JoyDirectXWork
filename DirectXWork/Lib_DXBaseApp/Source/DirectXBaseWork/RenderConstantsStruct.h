@@ -19,6 +19,8 @@ enum class EnumRenderLayer : unsigned char
 {
 	// 不透明层
 	LayerOpaque = 0,
+	// 阴影层
+	LayerShadow,
 	// 模板缓冲区标记
 	LayerStencilMask,
 	// 镜面反射层

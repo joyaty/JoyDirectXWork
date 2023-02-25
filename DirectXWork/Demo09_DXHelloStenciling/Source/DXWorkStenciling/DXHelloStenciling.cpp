@@ -85,6 +85,7 @@ bool DXHelloStenciling::OnInit()
 	m_EnableFog = IMGuiHelloStenciling::GetInstance()->GetEnableFog();
 	m_FillMode = IMGuiHelloStenciling::GetInstance()->GetFillMode();
 	m_EnableStencil = IMGuiHelloStenciling::GetInstance()->GetEnableStencil();
+	m_PreventDoubleBending = IMGuiHelloStenciling::GetInstance()->GetDoubleBlending();
 	BuildPSOs();
 	// 执行HelloStenciling相关的初始化指令
 	ThrowIfFailed(m_CommandList->Close());
@@ -516,11 +517,20 @@ void DXHelloStenciling::BuildMaterial()
 	pMirrorMaterial->roughness = 0.5f;
 	pMirrorMaterial->diffuseMapIndex = 3;
 	pMirrorMaterial->matCBufferIndex = 3;
+	// 骷髅阴影材质
+	std::unique_ptr<HelloStencilingMaterial> pShadowSkullMaterial = std::make_unique<HelloStencilingMaterial>();
+	pShadowSkullMaterial->name = "ShadowSkullMat";
+	pShadowSkullMaterial->diffuseAlbedo = DirectX::XMFLOAT4(0.f, 0.f, 0.f, 0.5f);
+	pShadowSkullMaterial->fresnelR0 = DirectX::XMFLOAT3(0.001f, 0.001f, 0.001f);
+	pShadowSkullMaterial->roughness = 0.f;
+	pShadowSkullMaterial->diffuseMapIndex = 2;
+	pShadowSkullMaterial->matCBufferIndex = 4;
 
 	m_AllMaterials[pFloorMaterial->name] = std::move(pFloorMaterial);
 	m_AllMaterials[pWallMaterial->name] = std::move(pWallMaterial);
 	m_AllMaterials[pSkullMaterial->name] = std::move(pSkullMaterial);
 	m_AllMaterials[pMirrorMaterial->name] = std::move(pMirrorMaterial);
+	m_AllMaterials[pShadowSkullMaterial->name] = std::move(pShadowSkullMaterial);
 }
 
 void DXHelloStenciling::BuildRenderItem()
@@ -557,7 +567,7 @@ void DXHelloStenciling::BuildRenderItem()
 	std::unique_ptr<HelloStencilingRenderItem> pSkullRenderItem = std::make_unique<HelloStencilingRenderItem>();
 	pSkullRenderItem->pGeometryMesh = m_SceneObjects["Skull"].get();
 	pSkullRenderItem->pMaterial = m_AllMaterials["SkullMat"].get();
-	worldPos = DirectX::XMFLOAT3(0.f, 3.f, 10.f);
+	worldPos = DirectX::XMFLOAT3(0.f, 1.f, 5.f);
 	// 混合位移与旋转的复合变换矩阵
 	DirectX::XMMATRIX transMatrix = DirectX::XMMatrixTranslation(worldPos.x, worldPos.y, worldPos.z);
 	DirectX::XMMATRIX rotaMatrix = DirectX::XMMatrixRotationY(DirectX::XM_PIDIV2);
@@ -595,6 +605,21 @@ void DXHelloStenciling::BuildRenderItem()
 	DirectX::XMStoreFloat4x4(&pReflectSkullRenderItem->worldMatrix, mixMatrix * DirectX::XMMatrixReflect(reflectPlaneXY));
 	m_AllRenderItem.push_back(std::move(pReflectSkullRenderItem));
 	m_RenderItemLayouts[static_cast<int>(EnumRenderLayer::LayerReflection)].push_back(m_AllRenderItem.back().get());
+	// 创建骷髅阴影渲染项
+	std::unique_ptr<HelloStencilingRenderItem> pShadowSkullRenderItem = std::make_unique<HelloStencilingRenderItem>();
+	*pShadowSkullRenderItem = *pNakedSkullRenderItem; // 拷贝一个骷髅渲染项数据
+	pShadowSkullRenderItem->pMaterial = m_AllMaterials["ShadowSkullMat"].get();
+	DirectX::XMVECTOR shadowPlaneXZ = DirectX::XMVectorSet(0.f, 1.f, 0.f, 0.f); // 阴影平面为XZ平面
+	float lightPosX = 1.f * sinf(m_LightTheta) * sinf(m_LightPhi);
+	float lightPosY = 1.f * cosf(m_LightTheta);
+	float lightPosZ = 1.f * sinf(m_LightTheta) * cosf(m_LightPhi);
+	DirectX::XMVECTOR toMainLight = DirectX::XMVectorSet(lightPosX, lightPosY, lightPosZ, 0.f);
+	DirectX::XMMATRIX shadowMatrix = DirectX::XMMatrixShadow(shadowPlaneXZ, toMainLight);
+	DirectX::XMMATRIX offsetYMatrix = DirectX::XMMatrixTranslation(0.f, 0.001f, 0.f);// 阴影稍微Y轴向上偏移一些，避免与地面深度Z冲突
+	DirectX::XMStoreFloat4x4(&pShadowSkullRenderItem->worldMatrix, mixMatrix * shadowMatrix * offsetYMatrix);
+	pShadowSkullRenderItem->objectCBufferIndex = 5;
+	m_AllRenderItem.push_back(std::move(pShadowSkullRenderItem));
+	m_RenderItemLayouts[static_cast<int>(EnumRenderLayer::LayerShadow)].push_back(m_AllRenderItem.back().get());
 }
 
 void DXHelloStenciling::BuildFrameResource()
@@ -751,6 +776,31 @@ void DXHelloStenciling::BuildPSOs()
 	blendDesc.RenderTarget[0].RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
 	transparentPSODesc.BlendState = blendDesc;
 	ThrowIfFailed(m_Device->CreateGraphicsPipelineState(&transparentPSODesc, IID_PPV_ARGS(m_PSOs[static_cast<int>(EnumRenderLayer::LayerTransparent)].GetAddressOf())));
+
+	// 绘制阴影PSO
+	D3D12_GRAPHICS_PIPELINE_STATE_DESC shadowPSODesc{ transparentPSODesc };
+	// 物体经阴影矩阵投影成阴影时，经常会出现多个三角平面相互重叠的情况，此时透明-混合来渲染阴影，就会有部分阴影被渲染多次，导致颜色更深，出现双重混合的问题。
+	// 通过模板测试，标记已经渲染过的阴影区域，下次改区域的模板测试就会失败，可以防止被双重混合的问题
+	CD3DX12_DEPTH_STENCIL_DESC shadowDepthStencilDesc(D3D12_DEFAULT);
+	shadowDepthStencilDesc.DepthEnable = true;
+	shadowDepthStencilDesc.DepthFunc = D3D12_COMPARISON_FUNC_LESS;
+	shadowDepthStencilDesc.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
+	shadowDepthStencilDesc.StencilEnable = true;
+	shadowDepthStencilDesc.StencilReadMask = 0xff;
+	shadowDepthStencilDesc.StencilWriteMask = 0xff;
+	shadowDepthStencilDesc.FrontFace.StencilFunc = D3D12_COMPARISON_FUNC_EQUAL;
+	shadowDepthStencilDesc.FrontFace.StencilDepthFailOp = D3D12_STENCIL_OP_KEEP;
+	shadowDepthStencilDesc.FrontFace.StencilFailOp = D3D12_STENCIL_OP_KEEP;
+	shadowDepthStencilDesc.FrontFace.StencilPassOp = D3D12_STENCIL_OP_INCR;
+	shadowDepthStencilDesc.BackFace.StencilFunc = D3D12_COMPARISON_FUNC_EQUAL;
+	shadowDepthStencilDesc.BackFace.StencilDepthFailOp = D3D12_STENCIL_OP_KEEP;
+	shadowDepthStencilDesc.BackFace.StencilFailOp = D3D12_STENCIL_OP_KEEP;
+	shadowDepthStencilDesc.BackFace.StencilPassOp = D3D12_STENCIL_OP_INCR;
+	if (m_PreventDoubleBending)
+	{
+		shadowPSODesc.DepthStencilState = shadowDepthStencilDesc;
+	}
+	ThrowIfFailed(m_Device->CreateGraphicsPipelineState(&shadowPSODesc, IID_PPV_ARGS(m_PSOs[static_cast<int>(EnumRenderLayer::LayerShadow)].GetAddressOf())));
 }
 
 void DXHelloStenciling::UpdateCamera(float deltaTime, float totalTime)
@@ -889,6 +939,11 @@ void DXHelloStenciling::PopulateCommandList()
 	m_CommandList->SetGraphicsRootConstantBufferView(3U, m_ActiveFrameResource->pPassCBuffer->GetResource()->GetGPUVirtualAddress());
 	// 绘制不透明渲染项
 	DrawRenderItem(m_RenderItemLayouts[static_cast<int>(EnumRenderLayer::LayerOpaque)]);
+	m_CommandList->OMSetStencilRef(0U);
+	// 切换到绘制阴影的渲染管线状态
+	m_CommandList->SetPipelineState(m_PSOs[static_cast<int>(EnumRenderLayer::LayerShadow)].Get());
+	// 绘制阴影
+	DrawRenderItem(m_RenderItemLayouts[static_cast<int>(EnumRenderLayer::LayerShadow)]);
 	// 切换到标记模板缓冲区的渲染管线状态
 	m_CommandList->SetPipelineState(m_PSOs[static_cast<int>(EnumRenderLayer::LayerStencilMask)].Get());
 	// 设置模板参考值为1

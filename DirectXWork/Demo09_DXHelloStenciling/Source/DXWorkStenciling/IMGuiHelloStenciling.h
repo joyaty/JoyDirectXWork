@@ -27,6 +27,7 @@ public:
 	bool GetEnableFog() const { return m_EnableFog; }
 	D3D12_FILL_MODE GetFillMode() const { return m_FillMode; }
 	bool GetEnableStencil() const { return m_EnableStencil; }
+	bool GetDoubleBlending() const { return m_PreventDoubleBlending; }
 
 protected:
 	void OnDrawWindow() override;
@@ -36,4 +37,5 @@ private:
 	bool m_EnableFog{ true };
 	D3D12_FILL_MODE m_FillMode{ D3D12_FILL_MODE_SOLID };
 	bool m_EnableStencil{ true };
+	bool m_PreventDoubleBlending{ true };
 };

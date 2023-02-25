@@ -22,6 +22,7 @@ public:
 	void SetEnableFog(bool enableFog) { m_EnableFog = enableFog; BuildPSOs(); }
 	void SetFillMode(D3D12_FILL_MODE fillMode) { m_FillMode = fillMode; BuildPSOs(); }
 	void SetEnableStencil(bool enableStencil) { m_EnableStencil = enableStencil; BuildPSOs(); }
+	void SetDoubleBending(bool doubleBlending) { m_PreventDoubleBending = doubleBlending; BuildPSOs(); }
 
 public:
 	void OnMouseDown(UINT8 keyCode, int x, int y) override;
@@ -282,10 +283,11 @@ private:
 	/// <summary>
 	/// 直接光在XZ平面投影与Z轴的夹角
 	/// </summary>
-	float m_LightPhi{ 0.75f * DirectX::XM_PI };
+	float m_LightPhi{ -0.75f * DirectX::XM_PI };
 
 private:
 	bool m_EnableFog{ false };
 	D3D12_FILL_MODE m_FillMode{ D3D12_FILL_MODE_SOLID };
 	bool m_EnableStencil{ true };
+	bool m_PreventDoubleBending{ true };
 };

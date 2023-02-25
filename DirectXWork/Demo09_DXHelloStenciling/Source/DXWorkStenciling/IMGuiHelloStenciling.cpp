@@ -31,6 +31,12 @@ void IMGuiHelloStenciling::OnDrawWindow()
 	{
 		m_HelloStencilingDemo->SetEnableStencil(m_EnableStencil);
 	}
+	// 双重混合测试开关
+	isChange = ImGui::Checkbox("Fix Double Blending", &m_PreventDoubleBlending);
+	if (isChange)
+	{
+		m_HelloStencilingDemo->SetDoubleBending(m_PreventDoubleBlending);
+	}
 	// 裁剪模式开关
 	static int fillMode = 0;
 	if (ImGui::Combo("Fill Mode: ", &fillMode, "D3D12_FILL_MODE_SOLID\0D3D12_FILL_MODE_WIREFRAME\0"))
