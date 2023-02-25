@@ -711,7 +711,7 @@ void DXHelloStenciling::BuildPSOs()
 	opaqueDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
 	ThrowIfFailed(m_Device->CreateGraphicsPipelineState(&opaqueDesc, IID_PPV_ARGS(m_PSOs[static_cast<int>(EnumRenderLayer::LayerOpaque)].GetAddressOf())));
 
-	// 标记模板缓冲区PSO，目的指向向模板缓冲区写入标志数据，已备后面渲染其他物体生死用，而不是渲染当前物体到后台缓冲区
+	// 标记模板缓冲区PSO，目的是向模板缓冲区写入标志数据，已备后面渲染其他物体时使用，而不是渲染当前物体到后台缓冲区
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC stencilMaskPSODesc{ opaqueDesc };
 	// 设置混合状态，禁止后台缓冲写入
 	stencilMaskPSODesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
