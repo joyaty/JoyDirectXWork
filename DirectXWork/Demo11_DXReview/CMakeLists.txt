@@ -14,13 +14,30 @@ set(SUB_PROJECT_NAME Demo11_DXReview)
 
 # 所有的代码文件
 set(ALL_FILES
+Source/d3dx12.h
+Source/DDSTextureLoader.cpp
+Source/DDSTextureLoader.h
+Source/DXSampleForReview.cpp
+Source/DXSampleForReview.h
+Source/IMGuiCtrlForReview.cpp
+Source/IMGuiCtrlForReview.h
+Source/Timer.cpp
+Source/Timer.h
 Source/WinApplication.cpp
 Source/WinApplication.h
-Source/Lighting.hlsl
-Source/DXReviewEntry.hlsl
+Source/GeometryGenerator.cpp
+Source/GeometryGenerator.h
+Source/DemoRenderItem.cpp
+Source/DemoRenderItem.h
+Source/UploadBuffer.h
+Source/Utils.cpp
+Source/Utils.h
 Source/stdafx.cpp
 Source/stdafx.h
 Source/Main.cpp
+
+Source/Lighting.hlsl
+Source/DXReviewEntry.hlsl
 )
 # 所有的Shader文件
 set(SHADER_FILES
@@ -28,10 +45,14 @@ Source/Lighting.hlsl
 Source/DXReviewEntry.hlsl
 )
 # Shader文件排除编译
-set_source_files_properties($(SAHDER_FILES) PROPERTIES VS_TOOL_OVERRIDE "None")
+set_source_files_properties(${SHADER_FILES} PROPERTIES VS_TOOL_OVERRIDE "None")
 ## 设置链接的依赖库
 set(COMMON_LIB 
 DearIMGui
+d3d12
+dxgi
+d3dcompiler
+dxguid
 )
 ## 调用CMakeMacro中的宏，代码文件按文件夹目录分组
 source_group_by_dir("${ALL_FILES}")

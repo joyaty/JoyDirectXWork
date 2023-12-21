@@ -57,7 +57,7 @@ GeometryGenerator::MeshData GeometryGenerator::CreateCylinder(float bottomRadius
 	//           |   / |
 	//           | /   |
 	// 第i层    A*-----*D
-	for (uint32 i = 0; i < ringCount; ++i)
+	for (uint32 i = 0; i < stackCount; ++i)
 	{
 		for (uint32 j = 0; j < sliceCount; ++j)
 		{
@@ -119,8 +119,8 @@ void GeometryGenerator::BuildCylinderBottomCap(float bottomRadius, float topRadi
 	// 顶层圆环与顶截面的顶点位置重合，但顶点的纹理坐标和法线不同
 	for (uint32 i = 0; i <= sliceCount; ++i)
 	{
-		float posX = topRadius * cosf(i * dSliceTheta);
-		float posZ = topRadius * sinf(i * dSliceTheta);
+		float posX = bottomRadius * cosf(i * dSliceTheta);
+		float posZ = bottomRadius * sinf(i * dSliceTheta);
 		// 纹理坐标，按截面半径和柱体高度比例缩放
 		float u = posX / height + 0.5f;
 		float v = posZ / height + 0.5f;
@@ -180,7 +180,7 @@ GeometryGenerator::MeshData GeometryGenerator::CreateCube(float width, float hei
 	// 填充到网格顶点数据集合
 	meshData.Vertices.assign(&vertices[0], &vertices[24]);
 	// 创建索引
-	uint32 indices[36];
+	uint32 indices[36] = {};
 	// 前面
 	indices[0]  = 0;  indices[1]  = 1;  indices[2]  = 2;
 	indices[3]  = 0;  indices[4]  = 2;  indices[5]  = 3;
@@ -292,48 +292,49 @@ GeometryGenerator::MeshData GeometryGenerator::CreateGrid(float width, float dep
 {
 	MeshData meshData{};
 	// 顶点总数
-	uint32 vertexCount = row * col;
+	uint32 vertexCount = (row + 1) * (col + 1);
 	// 三角面总数
-	uint32 trisCount = (row - 1) * (col - 1) * 2;
+	uint32 trisCount = row * col * 2;
 
 	float halfWidth = 0.5f * width;
 	float halfDepth = 0.5f * depth;
 	// 列间隔X
-	float dx = width / (col - 1);
+	float dx = width / col;
 	// 行间隔Z
-	float dz = depth / (row - 1);
+	float dz = depth / row;
 	// 列纹理间隔U
-	float du = 1.f / (col - 1);
+	float du = 1.f / col;
 	// 行纹理间隔V
-	float dv = 1.f / (row - 1);
+	float dv = 1.f / row;
 	// 填充网格顶点数据集合
 	meshData.Vertices.resize(vertexCount);
-	for (uint32 i = 0; i < row; ++i)
+	for (uint32 i = 0; i < row + 1; ++i)
 	{
 		float z = halfDepth - i * dz;
-		for (uint32 j = 0; j < col; ++j)
+		for (uint32 j = 0; j < col + 1; ++j)
 		{
 			float x = -halfWidth + j * dx;
-			meshData.Vertices[i * row + j].Position = XMFLOAT3(x, 0.f, z);
-			meshData.Vertices[i * row + j].Normal = XMFLOAT3(0.f, 1.f, 0.f);
-			meshData.Vertices[i * row + j].TangentU = XMFLOAT3(1.f, 0.f, 0.f);
-			meshData.Vertices[i * row + j].TexCoord = XMFLOAT2(j * du, i * dv);
+			uint32_t index = i * (row + 1) + j;
+			meshData.Vertices[index].Position = XMFLOAT3(x, 0.f, z);
+			meshData.Vertices[index].Normal = XMFLOAT3(0.f, 1.f, 0.f);
+			meshData.Vertices[index].TangentU = XMFLOAT3(1.f, 0.f, 0.f);
+			meshData.Vertices[index].TexCoord = XMFLOAT2(j * du, i * dv);
 		}
 	}
 	// 填充网格索引数据集合
 	meshData.Indices32.resize(trisCount * 3);
 	uint32 k = 0;
-	for (uint32 i = 0; i < row - 1; ++i)
+	for (uint32 i = 0; i < row; ++i)
 	{
-		for (uint32 j = 0; j < col - 1; ++j)
+		for (uint32 j = 0; j < col; ++j)
 		{
-			meshData.Indices32[k] = i * col + j;
-			meshData.Indices32[k + 1] = i * col + j + 1;
-			meshData.Indices32[k + 2] = (i + 1) * col + j;
+			meshData.Indices32[k] = i * (col + 1) + j;
+			meshData.Indices32[k + 1] = i * (col + 1) + j + 1;
+			meshData.Indices32[k + 2] = (i + 1) * (col + 1) + j;
 
-			meshData.Indices32[k + 3] = (i + 1) * col + j;
-			meshData.Indices32[k + 4] = i * col + j + 1;
-			meshData.Indices32[k + 5] = (i + 1) * col + j + 1;
+			meshData.Indices32[k + 3] = (i + 1) * (col + 1) + j;
+			meshData.Indices32[k + 4] = i * (col + 1) + j + 1;
+			meshData.Indices32[k + 5] = (i + 1) * (col + 1) + j + 1;
 			// 下一个网格子块
 			k += 6;
 		}
@@ -381,13 +382,13 @@ GeometryGenerator::MeshData GeometryGenerator::CreateQuad(float width, float hei
 		for (uint32 j = 0; j < col; ++j)
 		{
 			// 第一个三角形
-			meshData.Indices32[k] = i * (row + 1) + j;
-			meshData.Indices32[k + 1] = (i + 1) * (row + 1) + j + 1;
-			meshData.Indices32[k + 2] = i * (row + 1) + j + 1;
+			meshData.Indices32[k] = i * (col + 1) + j;
+			meshData.Indices32[k + 1] = (i + 1) * (col + 1) + j + 1;
+			meshData.Indices32[k + 2] = i * (col + 1) + j + 1;
 			// 第二个三角形
-			meshData.Indices32[k + 3] = i * (row + 1) + j;
-			meshData.Indices32[k + 4] = (i + 1) * (row + 1) + j;
-			meshData.Indices32[k + 5] = (i + 1) * (row + 1) + j + 1;
+			meshData.Indices32[k + 3] = i * (col + 1) + j;
+			meshData.Indices32[k + 4] = (i + 1) * (col + 1) + j;
+			meshData.Indices32[k + 5] = (i + 1) * (col + 1) + j + 1;
 			// 每个四边形有6个索引组成2个三角形
 			k += 6;
 		}

@@ -17,7 +17,7 @@ public:
 	/// 在默认堆上创建缓冲区资源
 	/// </summary>
 	/// <param name="pDevice">D3D12逻辑设备</param>
-	/// <param name="pCommandList">指令队列</param>
+	/// <param name="pCommandList">指令列表</param>
 	/// <param name="pInitData">缓冲区要复制数据</param>
 	/// <param name="bufferSize">缓冲区数据大小，缓冲区大小必须可以容纳下数据</param>
 	/// <param name="pUploadBuffer">上传堆上的中介缓冲区</param>
