@@ -184,6 +184,10 @@ private:
 	/// 资源路径
 	/// </summary>
 	std::wstring m_AssetPath;
+	/// <summary>
+	/// 项目根目录
+	/// </summary>
+	std::wstring m_RootAssetPath;
 
 	/// <summary>
 	/// 窗口句柄
@@ -377,7 +381,7 @@ private:
 	DirectX::XMFLOAT4X4 m_ProjMatrix{ MathUtil::Identity4x4() };
 
 	// 观察者球坐标的一些参数，用于计算观察者位置
-	float m_Radius{ 10.f };
+	float m_Radius{ 30.f };
 	float m_Theta{ DirectX::XM_PIDIV4 };
 	float m_Phi{ 1.5f * DirectX::XM_PI };
 	/// <summary>

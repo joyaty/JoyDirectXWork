@@ -143,7 +143,8 @@ void GeometryGenerator::CreateCube(float width, float height, float depth, uint3
 
 void GeometryGenerator::CreateSphere(float radius, uint32_t nSubDivisions, Mesh& outSphereMesh)
 {
-	nSubDivisions = std::min<uint32_t>(nSubDivisions, 6u);
+	// 最多5个
+	nSubDivisions = std::min<uint32_t>(nSubDivisions, 5u);
 	// 正二十面体
 	const float X = 0.525731f;
 	const float Z = 0.850651f;

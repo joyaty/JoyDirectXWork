@@ -289,7 +289,7 @@ void DXHelloStenciling::BuildSkullGeoMesh()
 	// 读取三角面索引
 	std::vector<std::uint16_t> indices{};
 	indices.resize(triangleCount * 3);
-	for (std::uint32_t i = 0; i < triangleCount; i = ++i)
+	for (std::uint32_t i = 0; i < triangleCount; ++i)
 	{
 		fin >> indices[i * 3] >> indices[i * 3 + 1] >> indices[i * 3 + 2];
 	}

@@ -1,6 +1,9 @@
 
 #include "stdafx.h"
 #include "DXSampleForReview.h"
+#include <fstream>
+
+const uint32_t kNumPillar = 4u;
 
 DXSampleForReview::DXSampleForReview(const std::wstring& strTitle, uint32_t nWidth/* = 1280U*/, uint32_t nHeight/* = 720U*/)
 	: m_Title(strTitle)
@@ -10,10 +13,10 @@ DXSampleForReview::DXSampleForReview(const std::wstring& strTitle, uint32_t nWid
 {
 	WCHAR assetPath[512];
 	GetAssetsPath(assetPath, _countof(assetPath));
-	m_AssetPath = assetPath;
-	size_t rootFolderIndex = m_AssetPath.find(L"\\Build", 0);
-	m_AssetPath = m_AssetPath.substr(0, rootFolderIndex);
-	m_AssetPath += _T("\\DirectXWork\\Demo11_DXReview\\");
+	std::wstring strAssetPath = assetPath;
+	size_t rootFolderIndex = strAssetPath.find(L"\\Build", 0);
+	m_RootAssetPath = strAssetPath.substr(0, rootFolderIndex);
+	m_AssetPath = m_RootAssetPath + _T("\\DirectXWork\\Demo11_DXReview\\");
 	m_AspectRatio = static_cast<float>(m_Width) / static_cast<float>(m_Height);
 }
 
@@ -156,7 +159,7 @@ void DXSampleForReview::OnMouseMove(UINT8 keyCode, int x, int y)
 		float dx = 0.005f * static_cast<float>(x - m_LastMousePos.x);
 		float dy = 0.005f * static_cast<float>(y - m_LastMousePos.y);
 		m_Radius += dx - dy;
-		m_Radius = MathUtil::Clamp(m_Radius, 3.f, 15.f);
+		m_Radius = MathUtil::Clamp(m_Radius, 3.f, 100.f);
 	}
 	m_LastMousePos.x = x;
 	m_LastMousePos.y = y;
@@ -336,7 +339,7 @@ void DXSampleForReview::CreateDescriptorHeaps()
 	// 创建常量缓冲区描述符
 	D3D12_DESCRIPTOR_HEAP_DESC cbvDesc{};
 	cbvDesc.NodeMask = 0U;
-	cbvDesc.NumDescriptors = 2;
+	cbvDesc.NumDescriptors = 2 * kNumPillar + 1 + 1 + 1 + 1; // (球 + 圆柱) * 柱子数 + 平面 + 平台 + 骷髅头 + 渲染过程常量
 	cbvDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 	cbvDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 	ThrowIfFailed(m_RenderDevice->CreateDescriptorHeap(&cbvDesc, IID_PPV_ARGS(m_CBVHeap.GetAddressOf())));
@@ -405,13 +408,70 @@ void DXSampleForReview::BuildDSV()
 /// </summary>
 void DXSampleForReview::CreateSceneObjects()
 {
+	// 创建地平面
+	Mesh planeMesh{};
+	GeometryGenerator::CreateGrid(20, 20, planeMesh, 20, 20);
+	uint32_t planeVertexBufferSize = sizeof(Vertex) * static_cast<uint32_t>(planeMesh.Vertices.size());
+	uint32_t planeIndexBufferSize = sizeof(std::uint16_t) * static_cast<uint32_t>(planeMesh.GetIndices16().size());
+	std::unique_ptr<MeshGeometry> pPlaneGeometry = std::make_unique<MeshGeometry>();
+	pPlaneGeometry->m_Name = "Plane";
+	pPlaneGeometry->m_VertexBufferGPU = D3DHelper::CreateBufferInDefaultHeap(m_RenderDevice.Get(), m_CommandList.Get(), planeMesh.Vertices.data(), planeVertexBufferSize, pPlaneGeometry->m_VertexBufferUploader);
+	pPlaneGeometry->m_VertexSize = planeVertexBufferSize;
+	pPlaneGeometry->m_VertexStride = sizeof(Vertex);
+	pPlaneGeometry->m_IndexBufferGPU = D3DHelper::CreateBufferInDefaultHeap(m_RenderDevice.Get(), m_CommandList.Get(), planeMesh.GetIndices16().data(), planeIndexBufferSize, pPlaneGeometry->m_IndexBufferUploader);
+	pPlaneGeometry->m_IndexSize = planeIndexBufferSize;
+	pPlaneGeometry->m_IndexFormat = DXGI_FORMAT_R16_UINT;
+	MeshGeometry::SubMeshGeometry subGridMesh{};
+	subGridMesh.m_IndexCount = static_cast<uint32_t>(planeMesh.GetIndices16().size());
+	subGridMesh.m_StartIndexLocation = 0;
+	subGridMesh.m_BaseVertexLocation = 0;
+	pPlaneGeometry->m_SubMeshGeometrys["Grid"] = subGridMesh;
+	m_SceneObjectes[pPlaneGeometry->m_Name] = std::move(pPlaneGeometry);
+	// 4个柱子
+	for (int i = 0; i < kNumPillar; ++i)
+	{
+		std::unique_ptr<MeshGeometry> pPillarGeometry = std::make_unique<MeshGeometry>();
+		pPillarGeometry->m_Name = "Pillar" + std::to_string(i);
+		// 每个柱子包含一个圆柱几何体和一个球体，两个网格体的顶点数据汇聚到一个缓冲区，作为SubMesh存在
+		std::vector<Vertex> pillarsVertices{};
+		std::vector<uint16_t> pillarsIndices{};
+		Mesh cylinderMesh{};
+		Mesh sphereMesh{};
+		GeometryGenerator::CreateCylinder(1.f, 1.f, 5, 16, 1, cylinderMesh);
+		GeometryGenerator::CreateSphere(1.5f, 2, sphereMesh);
+		pillarsVertices.insert(pillarsVertices.end(), cylinderMesh.Vertices.begin(), cylinderMesh.Vertices.end());
+		pillarsVertices.insert(pillarsVertices.end(), sphereMesh.Vertices.begin(), sphereMesh.Vertices.end());
+		pillarsIndices.insert(pillarsIndices.end(), cylinderMesh.GetIndices16().begin(), cylinderMesh.GetIndices16().end());
+		pillarsIndices.insert(pillarsIndices.end(), sphereMesh.GetIndices16().begin(), sphereMesh.GetIndices16().end());
+
+		uint32_t pillarVertexBufferSize = sizeof(Vertex) * static_cast<uint32_t>(pillarsVertices.size());
+		uint32_t pillarIndiceBufferSize = sizeof(uint16_t) * static_cast<uint32_t>(pillarsIndices.size());
+		pPillarGeometry->m_VertexBufferGPU = D3DHelper::CreateBufferInDefaultHeap(m_RenderDevice.Get(), m_CommandList.Get(), pillarsVertices.data(), pillarVertexBufferSize, pPillarGeometry->m_VertexBufferUploader);
+		pPillarGeometry->m_VertexSize = pillarVertexBufferSize;
+		pPillarGeometry->m_VertexStride = sizeof(Vertex);
+		pPillarGeometry->m_IndexBufferGPU = D3DHelper::CreateBufferInDefaultHeap(m_RenderDevice.Get(), m_CommandList.Get(), pillarsIndices.data(), pillarIndiceBufferSize, pPillarGeometry->m_IndexBufferUploader);
+		pPillarGeometry->m_IndexSize = pillarIndiceBufferSize;
+		pPillarGeometry->m_IndexFormat = DXGI_FORMAT_R16_UINT;
+		MeshGeometry::SubMeshGeometry subCylinderMesh{};
+		subCylinderMesh.m_IndexCount = static_cast<uint32_t>(cylinderMesh.GetIndices16().size());
+		subCylinderMesh.m_StartIndexLocation = 0;
+		subCylinderMesh.m_BaseVertexLocation = 0;
+		pPillarGeometry->m_SubMeshGeometrys["Cylinder"] = subCylinderMesh;
+		MeshGeometry::SubMeshGeometry subSphereMesh{};
+		subSphereMesh.m_IndexCount = static_cast<uint32_t>(sphereMesh.GetIndices16().size());
+		subSphereMesh.m_StartIndexLocation = subCylinderMesh.m_IndexCount;
+		subSphereMesh.m_BaseVertexLocation = static_cast<uint32_t>(cylinderMesh.Vertices.size());
+		pPillarGeometry->m_SubMeshGeometrys["Sphere"] = subSphereMesh;
+
+		m_SceneObjectes[pPillarGeometry->m_Name] = std::move(pPillarGeometry);
+	}
 	// 创建一个立方体
 	Mesh cubeMesh{};
-	GeometryGenerator::CreateCylinder(1.f, 3.f, 5.f, 16, 5, cubeMesh);
-	// GeometryGenerator::CreateCube(2.f, 2.f, 2.f, 0, cubeMesh);
+	// GeometryGenerator::CreateCylinder(1.f, 3.f, 5.f, 32, 5, cubeMesh);
+	GeometryGenerator::CreateCube(8.f, 2.f, 8.f, 0, cubeMesh);
 	// GeometryGenerator::CreateQuad(10, 10, cubeMesh, 5, 5);
 	// GeometryGenerator::CreateGrid(10, 10, cubeMesh, 10, 10);
-	// GeometryGenerator::CreateSphere(1, 1, cubeMesh);
+	// GeometryGenerator::CreateSphere(1, 3, cubeMesh);
 	// 顶点缓冲区和索引缓冲区的大小
 	uint32_t vertexBufferSize = sizeof(Vertex) * static_cast<uint32_t>(cubeMesh.Vertices.size());
 	uint32_t indexBufferSize = sizeof(std::uint16_t) * static_cast<uint32_t>(cubeMesh.GetIndices16().size());
@@ -428,22 +488,116 @@ void DXSampleForReview::CreateSceneObjects()
 	subCubeMesh.m_StartIndexLocation = 0;
 	subCubeMesh.m_BaseVertexLocation = 0;
 	pMeshGeometry->m_SubMeshGeometrys["Cube"] = subCubeMesh;
-
 	m_SceneObjectes[pMeshGeometry->m_Name] = std::move(pMeshGeometry);
+	// 骷髅模型，从文件读取
+	Mesh skullMesh{};
+	std::ifstream fin(m_RootAssetPath + _T("\\Assets\\Models\\skull.txt"));
+	uint32_t skullVertexCount{};
+	uint32_t skullTriangleCount{};
+	std::string strIgnore{};
+	fin >> strIgnore >> skullVertexCount;
+	fin >> strIgnore >> skullTriangleCount;
+	fin >> strIgnore >> strIgnore >> strIgnore;
+	fin >> strIgnore;
+	std::vector<Vertex> skullVertices{};
+	skullVertices.resize(skullVertexCount);
+	for (uint32_t i = 0; i < skullVertexCount; ++i)
+	{
+		fin >> skullVertices[i].Position.x >> skullVertices[i].Position.y >> skullVertices[i].Position.z
+			>> skullVertices[i].Normal.x >> skullVertices[i].Normal.y >> skullVertices[i].Normal.z;
+		// 没有纹理，纹理坐标直接设置为0
+		skullVertices[i].TexCoord = DirectX::XMFLOAT2(0.f, 0.f);
+		skullVertices[i].TangentU = DirectX::XMFLOAT3(0.f, 0.f, 0.f);
+		skullVertices[i].Color = DirectX::XMFLOAT4(1.f, 1.f, 1.f, 1.f);
+	}
+	fin >> strIgnore >> strIgnore >> strIgnore;
+	std::vector<uint16_t> skullIndices{};
+	skullIndices.resize(skullTriangleCount * 3);
+	for (uint32_t i = 0; i < skullTriangleCount; ++i)
+	{
+		fin >> skullIndices[i * 3] >> skullIndices[i * 3 + 1] >> skullIndices[i * 3 + 2];
+	}
+	fin.close();
+
+	uint32_t skullVertexBufferSize = sizeof(Vertex) * skullVertexCount;
+	uint32_t skullIndexBufferSize = sizeof(std::uint16_t) * skullTriangleCount * 3;
+	std::unique_ptr<MeshGeometry> pSkullGeometry = std::make_unique<MeshGeometry>();
+	pSkullGeometry->m_Name = "Skull";
+	pSkullGeometry->m_VertexBufferGPU = D3DHelper::CreateBufferInDefaultHeap(m_RenderDevice.Get(), m_CommandList.Get(), skullVertices.data(), skullVertexBufferSize, pSkullGeometry->m_VertexBufferUploader);
+	pSkullGeometry->m_VertexSize = skullVertexBufferSize;
+	pSkullGeometry->m_VertexStride = sizeof(Vertex);
+	pSkullGeometry->m_IndexBufferGPU = D3DHelper::CreateBufferInDefaultHeap(m_RenderDevice.Get(), m_CommandList.Get(), skullIndices.data(), skullIndexBufferSize, pSkullGeometry->m_IndexBufferUploader);
+	pSkullGeometry->m_IndexSize = skullIndexBufferSize;
+	pSkullGeometry->m_IndexFormat = DXGI_FORMAT_R16_UINT;
+	MeshGeometry::SubMeshGeometry skullSubMesh{};
+	skullSubMesh.m_IndexCount = skullTriangleCount * 3;
+	skullSubMesh.m_StartIndexLocation = 0;
+	skullSubMesh.m_BaseVertexLocation = 0;
+	pSkullGeometry->m_SubMeshGeometrys["Skull"] = skullSubMesh;
+	m_SceneObjectes[pSkullGeometry->m_Name] = std::move(pSkullGeometry);
 }
 
 void DXSampleForReview::BuildRenderItems()
 {
+	// 地表
+	std::unique_ptr<DemoRenderItem> planeRenderItem = std::make_unique<DemoRenderItem>();
+	planeRenderItem->m_MeshGeo = m_SceneObjectes["Plane"].get();
+	DirectX::XMStoreFloat4x4(&planeRenderItem->m_LoclToWorldMatrix, DirectX::XMMatrixTranslation(0.f, 0.f, 0.f));
+	planeRenderItem->m_ObjectCBIndex = 0;
+	planeRenderItem->m_NumFrameDirty = 1;
+	planeRenderItem->m_IndexCount = planeRenderItem->m_MeshGeo->m_SubMeshGeometrys["Grid"].m_IndexCount;
+	planeRenderItem->m_StartIndexLocation = planeRenderItem->m_MeshGeo->m_SubMeshGeometrys["Grid"].m_StartIndexLocation;
+	planeRenderItem->m_StartVertexLocation = planeRenderItem->m_MeshGeo->m_SubMeshGeometrys["Grid"].m_BaseVertexLocation;
+	m_AllRenderItems.emplace_back(std::move(planeRenderItem));
+	// 4个柱子
+	int weights[kNumPillar * 2] = { -1, -1, -1, 1, 1, 1, 1, -1 };
+	float offsetBaseValue = 7.f;
+	for (int i = 0; i < kNumPillar; ++i)
+	{
+		std::string geometryName = "Pillar" + std::to_string(i);
+		std::unique_ptr<DemoRenderItem> cylinderRenderItem = std::make_unique<DemoRenderItem>();
+		cylinderRenderItem->m_MeshGeo = m_SceneObjectes[geometryName].get();
+		DirectX::XMStoreFloat4x4(&cylinderRenderItem->m_LoclToWorldMatrix, DirectX::XMMatrixTranslation(offsetBaseValue * weights[2 * i], 5.f * 0.5f, offsetBaseValue * weights[2 * i + 1]));
+		cylinderRenderItem->m_ObjectCBIndex = 2 * i + 1;
+		cylinderRenderItem->m_NumFrameDirty = 1;
+		cylinderRenderItem->m_IndexCount = cylinderRenderItem->m_MeshGeo->m_SubMeshGeometrys["Cylinder"].m_IndexCount;
+		cylinderRenderItem->m_StartIndexLocation = cylinderRenderItem->m_MeshGeo->m_SubMeshGeometrys["Cylinder"].m_StartIndexLocation;
+		cylinderRenderItem->m_StartVertexLocation = cylinderRenderItem->m_MeshGeo->m_SubMeshGeometrys["Cylinder"].m_BaseVertexLocation;
+		m_AllRenderItems.emplace_back(std::move(cylinderRenderItem));
+
+		std::unique_ptr<DemoRenderItem> sphereRenderItem = std::make_unique<DemoRenderItem>();
+		sphereRenderItem->m_MeshGeo = m_SceneObjectes[geometryName].get();
+		DirectX::XMStoreFloat4x4(&sphereRenderItem->m_LoclToWorldMatrix, DirectX::XMMatrixTranslation(offsetBaseValue * weights[2 * i], 5.f + 1.5f, offsetBaseValue * weights[2 * i + 1]));
+		sphereRenderItem->m_ObjectCBIndex = 2 * i + 2;
+		sphereRenderItem->m_NumFrameDirty = 1;
+		sphereRenderItem->m_IndexCount = sphereRenderItem->m_MeshGeo->m_SubMeshGeometrys["Sphere"].m_IndexCount;
+		sphereRenderItem->m_StartIndexLocation = sphereRenderItem->m_MeshGeo->m_SubMeshGeometrys["Sphere"].m_StartIndexLocation;
+		sphereRenderItem->m_StartVertexLocation = sphereRenderItem->m_MeshGeo->m_SubMeshGeometrys["Sphere"].m_BaseVertexLocation;
+		m_AllRenderItems.emplace_back(std::move(sphereRenderItem));
+	}
+	// 平台
 	std::unique_ptr<DemoRenderItem> platformRenderItem = std::make_unique<DemoRenderItem>();
 	platformRenderItem->m_MeshGeo = m_SceneObjectes["Platform"].get();
-	// 立方体放置在世界空间原点
-	DirectX::XMStoreFloat4x4(&platformRenderItem->m_LoclToWorldMatrix, DirectX::XMMatrixTranslation(0.f, 0.f, 0.f));
-	platformRenderItem->m_ObjectCBIndex = 0;
+	DirectX::XMStoreFloat4x4(&platformRenderItem->m_LoclToWorldMatrix, DirectX::XMMatrixTranslation(0.f, 1.f, 0.f));
+	platformRenderItem->m_ObjectCBIndex = 2 * kNumPillar + 1;
 	platformRenderItem->m_NumFrameDirty = 1;
 	platformRenderItem->m_IndexCount = platformRenderItem->m_MeshGeo->m_SubMeshGeometrys["Cube"].m_IndexCount;
 	platformRenderItem->m_StartIndexLocation = platformRenderItem->m_MeshGeo->m_SubMeshGeometrys["Cube"].m_StartIndexLocation;
 	platformRenderItem->m_StartVertexLocation = platformRenderItem->m_MeshGeo->m_SubMeshGeometrys["Cube"].m_BaseVertexLocation;
 	m_AllRenderItems.emplace_back(std::move(platformRenderItem));
+	// 骷髅模型
+	std::unique_ptr<DemoRenderItem> skullRenderItem = std::make_unique<DemoRenderItem>();
+	skullRenderItem->m_MeshGeo = m_SceneObjectes["Skull"].get();
+	DirectX::XMMATRIX transMatrix = DirectX::XMMatrixTranslation(0.f, 2.2f, 0.f);
+	DirectX::XMMATRIX rotaMatrix = DirectX::XMMatrixRotationY(DirectX::XM_PIDIV4);
+	DirectX::XMMATRIX scaleMatrix = DirectX::XMMatrixScaling(0.7f, 0.7f, 0.7f);
+	DirectX::XMStoreFloat4x4(&skullRenderItem->m_LoclToWorldMatrix, scaleMatrix * rotaMatrix * transMatrix);
+	skullRenderItem->m_ObjectCBIndex = 2 * kNumPillar + 2;
+	skullRenderItem->m_NumFrameDirty = 1;
+	skullRenderItem->m_IndexCount = skullRenderItem->m_MeshGeo->m_SubMeshGeometrys["Skull"].m_IndexCount;
+	skullRenderItem->m_StartIndexLocation = skullRenderItem->m_MeshGeo->m_SubMeshGeometrys["Skull"].m_StartIndexLocation;
+	skullRenderItem->m_StartVertexLocation = skullRenderItem->m_MeshGeo->m_SubMeshGeometrys["Skull"].m_BaseVertexLocation;
+	m_AllRenderItems.emplace_back(std::move(skullRenderItem));
 }
 
 /// <summary>
@@ -455,10 +609,10 @@ void DXSampleForReview::BuildConstantBufferView()
 	// 创建物体层级常量缓冲区
 	m_PerOjectConstantBuffer = std::make_unique<UploadBuffer<PerObjectConstants>>(m_RenderDevice.Get(), objectCount, true);
 	// 获取物体常量缓冲区资源的起始地址
-	D3D12_GPU_VIRTUAL_ADDRESS objCbAddr = m_PerOjectConstantBuffer->GetResource()->GetGPUVirtualAddress();
 	for (uint32_t i = 0; i < objectCount; ++i)
 	{
 		// 大的缓冲区资源有多个物体级的常量缓冲区组成，计算每个物体常量缓冲区的偏移，从而确定准确地址
+		D3D12_GPU_VIRTUAL_ADDRESS objCbAddr = m_PerOjectConstantBuffer->GetResource()->GetGPUVirtualAddress();
 		objCbAddr += i * m_PerOjectConstantBuffer->GetElementSize();
 		// 获取CBV描述符的handle，
 		CD3DX12_CPU_DESCRIPTOR_HANDLE handle = CD3DX12_CPU_DESCRIPTOR_HANDLE(m_CBVHeap->GetCPUDescriptorHandleForHeapStart());
@@ -474,7 +628,7 @@ void DXSampleForReview::BuildConstantBufferView()
 	D3D12_GPU_VIRTUAL_ADDRESS passCBAddr = m_PerPassConstantBuffer->GetResource()->GetGPUVirtualAddress();
 	// 获取空闲的handle，注意偏移，前objectCount个已经被ObjectConstantBuffer占用
 	CD3DX12_CPU_DESCRIPTOR_HANDLE handle = CD3DX12_CPU_DESCRIPTOR_HANDLE(m_CBVHeap->GetCPUDescriptorHandleForHeapStart());
-	handle.Offset(objectCount * m_CBVUAVDescriptorSize);
+	handle.Offset(objectCount, m_CBVUAVDescriptorSize);
 	// 绑定常量缓冲区资源和描述符堆，创建常量缓冲区描述符
 	D3D12_CONSTANT_BUFFER_VIEW_DESC desc{};
 	desc.BufferLocation = passCBAddr;
@@ -659,7 +813,7 @@ void DXSampleForReview::PopulateCommandList()
 	uint32_t passCBVIndex = static_cast<uint32_t>(m_AllRenderItems.size());
 	CD3DX12_GPU_DESCRIPTOR_HANDLE passCBVHandle(m_CBVHeap->GetGPUDescriptorHandleForHeapStart());
 	passCBVHandle.Offset(passCBVIndex, m_CBVUAVDescriptorSize);
-	m_CommandList->SetGraphicsRootDescriptorTable(passCBVIndex, passCBVHandle);
+	m_CommandList->SetGraphicsRootDescriptorTable(1, passCBVHandle);
 
 	DrawRenderItem();
 
