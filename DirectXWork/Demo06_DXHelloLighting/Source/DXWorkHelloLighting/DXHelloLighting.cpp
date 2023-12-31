@@ -266,7 +266,7 @@ void DXHelloLighting::BuildMaterial()
 	pMaterial->name = "HelloLightingTest";
 	pMaterial->diffuseAlbedo = DirectX::XMFLOAT4(1.f, 1.0f, 1.0f, 1.0f);
 	pMaterial->fresnelR0 = DirectX::XMFLOAT3(0.05f, 0.05f, 0.05f);
-	pMaterial->roughness = 0.25f;
+	pMaterial->roughness = 0.9f;
 	pMaterial->materialCBIndex = 0;
 	// 保存到材质集合中
 	m_Materials[pMaterial->name] = std::move(pMaterial);

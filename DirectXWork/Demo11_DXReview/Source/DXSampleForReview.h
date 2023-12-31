@@ -85,6 +85,11 @@ private:
 	void CreateDescriptorHeaps();
 
 	/// <summary>
+	/// 创建常量缓冲区描述符堆
+	/// </summary>
+	void CreateCBDescriptorHeaps();
+
+	/// <summary>
 	/// 构建交换链
 	/// </summary>
 	void CreateSwapchain();
@@ -103,6 +108,11 @@ private:
 	/// 创建场景几何体物件
 	/// </summary>
 	void CreateSceneObjects();
+
+	/// <summary>
+	/// 创建场景渲染使用的材质
+	/// </summary>
+	void BuildMaterials();
 
 	/// <summary>
 	/// 根据场景几何体物件，构建渲染项
@@ -145,6 +155,13 @@ private:
 	/// <param name="fDeltaTime"></param>
 	/// <param name="fTotalTime"></param>
 	void UpdateObjCBs(float fDeltaTime, float fTotalTime);
+
+	/// <summary>
+	/// 更新材质常量缓冲区的数据
+	/// </summary>
+	/// <param name="fDeltaTime"></param>
+	/// <param name="fTotalTime"></param>
+	void UpdateMatCBs(float fDeltaTime, float fTotalTime);
 
 	/// <summary>
 	/// 每帧更新渲染Pass常量缓冲区的数据
@@ -234,6 +251,24 @@ private:
 	/// 深度模板缓冲区格式
 	/// </summary>
 	DXGI_FORMAT m_DepthStencilFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
+
+
+	/// <summary>
+	/// 方向光位矢与Y轴的夹角
+	/// </summary>
+	float m_SunTheta{ DirectX::XM_PIDIV4 };
+	/// <summary>
+	/// 方向光位矢在XZ平面的投影和X轴的夹角
+	/// </summary>
+	float m_SunPhi{ 1.25f * DirectX::XM_PI };
+	/// <summary>
+	/// 环境光
+	/// </summary>
+	DirectX::XMFLOAT4 m_AmbientLight{ 0.25f, 0.25f, 0.35f, 1.0f };
+	/// <summary>
+	/// 直接光
+	/// </summary>
+	DirectX::XMFLOAT3 m_DirectLight{ 0.8f, 0.7f, 0.7f };
 
 private:
 	/// <summary>
@@ -358,6 +393,10 @@ private:
 	/// </summary>
 	std::unordered_map<std::string, std::unique_ptr<MeshGeometry>> m_SceneObjectes;
 	/// <summary>
+	/// 场景中所有的材质
+	/// </summary>
+	std::unordered_map<std::string, std::unique_ptr<Material>> m_AllMaterials;
+	/// <summary>
 	/// 渲染项集合
 	/// </summary>
 	std::vector<std::unique_ptr<DemoRenderItem>> m_AllRenderItems;
@@ -366,6 +405,10 @@ private:
 	/// 用于单个物体的常量缓冲区
 	/// </summary>
 	std::unique_ptr<UploadBuffer<PerObjectConstants>> m_PerOjectConstantBuffer{ nullptr };
+	/// <summary>
+	/// 用于单个材质的常量缓冲区
+	/// </summary>
+	std::unique_ptr<UploadBuffer<PerMaterialConstants>> m_PerMaterialConstantBuffer{ nullptr };
 	/// <summary>
 	/// 用于一个渲染Pass的常量缓冲区
 	/// </summary>

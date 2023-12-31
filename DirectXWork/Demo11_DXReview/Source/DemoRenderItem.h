@@ -4,7 +4,46 @@
 #include "GeometryGenerator.h"
 #include "Utils.h"
 
-const int kFrameResourceCount = 2;
+/// <summary>
+/// 帧资源数量
+/// </summary>
+constexpr int kFrameResourceCount = 2;
+
+/// <summary>
+/// 最大光源数
+/// </summary>
+constexpr int kMaxLights = 16;
+
+/// <summary>
+/// 光源数据结构体
+/// </summary>
+struct Light
+{
+	/// <summary>
+	/// 光强
+	/// </summary>
+	DirectX::XMFLOAT3 m_Strength;
+	/// <summary>
+	/// 光强衰减开始距离，点光源和聚光源类型有用
+	/// </summary>
+	float m_FalloffStart;
+	/// <summary>
+	/// 光照方向，方向光源和聚光源类型有用
+	/// </summary>
+	DirectX::XMFLOAT3 m_Direction;
+	/// <summary>
+	/// 光强衰减到0距离，点光源和聚光源类型有用
+	/// </summary>
+	float m_FalloffEnd;
+	/// <summary>
+	/// 光源位置，点光源和聚光源类型有用
+	/// </summary>
+	DirectX::XMFLOAT3 m_Position;
+	/// <summary>
+	/// 聚光源的夹角指数幂
+	/// </summary>
+	float m_SpotPower;
+};
 
 /// <summary>
 /// 网格几何体
@@ -82,7 +121,39 @@ public:
 	/// <summary>
 	/// 子Mesh相关的数据，一个复杂的几何体可能由几个简单的子Mesh组合而成
 	/// </summary>
-	std::unordered_map<std::string, SubMeshGeometry> m_SubMeshGeometrys;
+	std::unordered_map<std::string, SubMeshGeometry> m_SubMeshGeometrys{};
+};
+
+/// <summary>
+/// 材质属性结构
+/// </summary>
+struct Material
+{
+	/// <summary>
+	/// 材质名称
+	/// </summary>
+	std::string m_Name;
+	/// <summary>
+	/// 材质漫反射照率
+	/// </summary>
+	DirectX::XMFLOAT4 m_DiffuseAlbedo;
+	/// <summary>
+	/// 菲涅尔效应R0属性
+	/// </summary>
+	DirectX::XMFLOAT3 m_FresnelR0;
+	/// <summary>
+	/// 粗糙度[0, 1]，0-光滑，1-粗糙
+	/// </summary>
+	float m_Roughness;
+	/// <summary>
+	/// 关联的材质常量缓冲区索引
+	/// </summary>
+	uint32_t m_CbvIndex;
+
+	/// <summary>
+	/// 脏标记
+	/// </summary>
+	int m_NumFrameDirty = kFrameResourceCount;
 };
 
 /// <summary>
@@ -94,6 +165,25 @@ struct PerObjectConstants
 	/// 本地空间变换到世界空间的变换矩阵
 	/// </summary>
 	DirectX::XMFLOAT4X4 m_LocalToWorldMatrix;
+};
+
+/// <summary>
+/// 材质层级的常量缓冲区数据结构
+/// </summary>
+struct PerMaterialConstants
+{
+	/// <summary>
+	/// 漫反射照率
+	/// </summary>
+	DirectX::XMFLOAT4 m_DiffuseAlbedo;
+	/// <summary>
+	/// Fresnel效应R0属性
+	/// </summary>
+	DirectX::XMFLOAT3 m_FresnelR0;
+	/// <summary>
+	/// 粗糙度
+	/// </summary>
+	float m_Roughness;
 };
 
 /// <summary>
@@ -157,6 +247,14 @@ struct PerPassConstants
 	/// 总时间
 	/// </summary>
 	float m_TotalTime;
+	/// <summary>
+	/// 环境光
+	/// </summary>
+	DirectX::XMFLOAT4 m_AmbientLight;
+	/// <summary>
+	/// 所有的直接光
+	/// </summary>
+	Light m_AllLights[kMaxLights];
 };
 
 /// <summary>
@@ -176,6 +274,11 @@ struct DemoRenderItem
 	/// 渲染项关联的物体常量缓冲区索引
 	/// </summary>
 	uint32_t m_ObjectCBIndex;
+
+	/// <summary>
+	/// 关联的材质
+	/// </summary>
+	Material* m_Material;
 
 	/// <summary>
 	/// 图元拓扑
