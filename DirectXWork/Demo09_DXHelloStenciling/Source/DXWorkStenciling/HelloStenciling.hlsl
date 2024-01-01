@@ -127,9 +127,9 @@ VertexOut VSMain(VertexIn vIn)
     // 法线变换到世界空间下，这里假设进行等比缩放，非等比缩放需要乘世界变换矩阵的逆转置矩阵
     vOut.NormalW = mul(vIn.NormalL, (float3x3) gWorldMatrix);
     // 纹理坐标经过texMatrix变换和matMatrix变换
-    float4 texCoord = mul(float4(vIn.TexCoord, 1.0f, 1.0f), gTexMatrix);
-    texCoord = mul(texCoord, gMatMatrix);
-    vOut.TexCoord = texCoord.xy;
+    // float4 texCoord = mul(float4(vIn.TexCoord, 1.0f, 1.0f), gTexMatrix);
+    // texCoord = mul(texCoord, gMatMatrix);
+    vOut.TexCoord = vIn.TexCoord; // texCoord.xy;
     return vOut;
 }
 

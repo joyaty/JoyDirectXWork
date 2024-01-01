@@ -17,6 +17,8 @@ cbuffer PerObjectConstants : register(b0)
 {
 	// 本地到世界变换矩阵
 	float4x4 gWorldMatrix;
+	// 纹理UV变换矩阵
+    float4x4 gTexMatrix;
 };
 
 // 材质层级常量缓冲区
@@ -28,6 +30,8 @@ cbuffer PerMaterialConstants : register(b1)
     float3 gFresnelR0;
 	// 粗糙度
     float gRoughness;
+	// 材质UV动画
+    float4x4 gUVMatrix;
 }
 
 // 渲染过程常量缓冲区
@@ -67,12 +71,32 @@ cbuffer PerPassConstants : register(b2)
     Light gLights[MAX_LIGHTS];
 };
 
+// 纹理资源 - 漫反射照率贴图
+Texture2D gDiffuseMap : register(t0);
+
+// 采样器动分配的采样器，三线性过滤 + 循环寻址
+SamplerState gLinearWrapSampler : register(s0);
+
+// 静态采样器 - 点过滤 + 循环寻址
+SamplerState gPointWrapStaticSampler : register(s1);
+// 静态采样器 - 点过滤 + CLAMP寻址
+SamplerState gPointClampStaticSampler : register(s2);
+// 静态采样器 - 三线性过滤 + 循环寻址
+SamplerState gLinearWrapStaticSampler : register(s3);
+// 静态采样器 - 三线性过滤 + CLAMP寻址
+SamplerState gLinearClampStaticSampler : register(s4);
+// 静态采样器 - 各向异性过滤 + 循环寻址
+SamplerState gAnisotropicWrapStaticSampler : register(s5);
+// 静态采样器 - 各向异性过滤 + CLAMP寻址
+SamplerState gAnisotropicClampStaticSampler : register(s6);
+
 // 顶点缓冲区输入
 struct VertexIn
 {
-	float3 PosL : POSITION;
-	float4 Color : COLOR;
-	float3 Normal : NORMAL;
+    float3 PosL : POSITION;
+    float4 Color : COLOR;
+    float3 Normal : NORMAL;
+    float3 TangentU : TANGENT;
 	float2 TexCoord : TEXCOORD;
 };
 
@@ -97,7 +121,10 @@ VertexOut VSMain(VertexIn vIn)
     vOut.NormalW = mul(vIn.Normal, (float3x3)gWorldMatrix);
 	// 原样传递顶点色和纹理坐标
 	vOut.Color = vIn.Color;
-    vOut.TexCoord = vIn.TexCoord;
+	// UV动画变换，包含物体UV变换和材质UV变换
+    float4 uv = mul(float4(vIn.TexCoord, 1.0f, 1.0f), gTexMatrix);
+    uv = mul(uv, gUVMatrix);
+    vOut.TexCoord = uv.xy;
 	return vOut;
 }
 
@@ -110,7 +137,7 @@ float4 PSMain(VertexOut pIn) : SV_Target
     float3 toEye = normalize(gEyePos - pos);
 	// 从材质常量缓冲区构建当前渲染的材质数据
     Material mat;
-    mat.diffuseAlbedo = gDiffuseAlbedo;
+    mat.diffuseAlbedo = gDiffuseMap.Sample(gLinearWrapSampler, pIn.TexCoord) * gDiffuseAlbedo;
     mat.fresnelR0 = gFresnelR0;
     mat.roughness = gRoughness;
 	// 直接光

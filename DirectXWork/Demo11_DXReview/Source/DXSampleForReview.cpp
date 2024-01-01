@@ -2,6 +2,7 @@
 #include "stdafx.h"
 #include "DXSampleForReview.h"
 #include <fstream>
+#include "DDSTextureLoader.h"
 
 using namespace DirectX;
 
@@ -34,10 +35,13 @@ bool DXSampleForReview::Initialize(HWND hWndInstance)
 	FlushCommandQueue();
 	ThrowIfFailed(m_CommandList->Reset(m_CommandAllocator.Get(), nullptr));
 
+	BuildStaticSamplers();
+	BuildSampler();
 	CreateSceneObjects();
 	BuildMaterials();
 	BuildRenderItems();
 	CreateCBDescriptorHeaps();
+	BuildShaderResource();
 	BuildConstantBufferView();
 	CreateRootSignature();
 	CompileShaderFile();
@@ -353,7 +357,7 @@ void DXSampleForReview::CreateCBDescriptorHeaps()
 	// 创建常量缓冲区描述符
 	D3D12_DESCRIPTOR_HEAP_DESC cbvDesc{};
 	cbvDesc.NodeMask = 0U;
-	cbvDesc.NumDescriptors = objCount + matCount + 1; // 渲染网格数量 + 材质数量 + 渲染过程缓冲区数量
+	cbvDesc.NumDescriptors = objCount + matCount + 1 + 1; // 渲染网格数量 + 材质数量 + 渲染过程缓冲区数量 + 1纹理贴图
 	cbvDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 	cbvDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 	ThrowIfFailed(m_RenderDevice->CreateDescriptorHeap(&cbvDesc, IID_PPV_ARGS(m_CBVHeap.GetAddressOf())));
@@ -551,15 +555,108 @@ void DXSampleForReview::CreateSceneObjects()
 	m_SceneObjectes[pSkullGeometry->m_Name] = std::move(pSkullGeometry);
 }
 
+void DXSampleForReview::BuildShaderResource()
+{
+	// 创建着色器资源描述符堆
+	/*D3D12_DESCRIPTOR_HEAP_DESC srvHeapDesc{};
+	srvHeapDesc.NodeMask = 0U;
+	srvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+	srvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+	srvHeapDesc.NumDescriptors = 1U;
+	m_RenderDevice->CreateDescriptorHeap(&srvHeapDesc, IID_PPV_ARGS(m_SRVHeap.GetAddressOf()));*/
+	// 加载纹理，绑定着色器资源描述符
+	std::unique_ptr<Texture> pPlaneTexture = std::make_unique<Texture>();
+	pPlaneTexture->m_Name = "Ground";
+	pPlaneTexture->m_FilePath = m_RootAssetPath + _T("\\Assets\\Textures\\checkboard.dds");
+	ThrowIfFailed(CreateDDSTextureFromFile12(m_RenderDevice.Get(), m_CommandList.Get(), pPlaneTexture->m_FilePath.c_str(), pPlaneTexture->m_TextureGPU, pPlaneTexture->m_TextureUploader));
+	D3D12_SHADER_RESOURCE_VIEW_DESC desc{};
+	desc.Format = pPlaneTexture->m_TextureGPU->GetDesc().Format;
+	desc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+	desc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	desc.Texture2D.MostDetailedMip = 0U;
+	desc.Texture2D.MipLevels = pPlaneTexture->m_TextureGPU->GetDesc().MipLevels;
+	desc.Texture2D.PlaneSlice = 0U;
+	desc.Texture2D.ResourceMinLODClamp = 0.f;
+	CD3DX12_CPU_DESCRIPTOR_HANDLE handle(m_CBVHeap->GetCPUDescriptorHandleForHeapStart());
+	int srvOffset = static_cast<int>(m_AllRenderItems.size() + m_AllMaterials.size() + 1);
+	handle.Offset(srvOffset, m_CBVUAVDescriptorSize);
+	m_RenderDevice->CreateShaderResourceView(pPlaneTexture->m_TextureGPU.Get(), &desc, handle);
+
+	m_AllTextures[pPlaneTexture->m_Name] = std::move(pPlaneTexture);
+}
+
+/// <summary>
+/// 构建采样器
+/// </summary>
+void DXSampleForReview::BuildSampler()
+{
+	D3D12_DESCRIPTOR_HEAP_DESC samplerDescriptordesc{};
+	samplerDescriptordesc.NodeMask = 0U;
+	samplerDescriptordesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER;
+	samplerDescriptordesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+	samplerDescriptordesc.NumDescriptors = 1U;
+	m_RenderDevice->CreateDescriptorHeap(&samplerDescriptordesc, IID_PPV_ARGS(m_SamplerDescriptorHeap.GetAddressOf()));
+
+	D3D12_SAMPLER_DESC samplerDesc{};
+	samplerDesc.AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+	samplerDesc.AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+	samplerDesc.AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+	samplerDesc.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR; // 三线性过滤，纹理使用双线性过滤，mipmap使用线性过滤
+	samplerDesc.MinLOD = 0.f; // 可供选择的最小mipmap层级
+	samplerDesc.MaxLOD = D3D12_FLOAT32_MAX; // 可供选择的最大mipmap层级
+	samplerDesc.MipLODBias = 0.f;		// mipmap偏移，可以对于采样的mipmap层级进行偏移。
+	samplerDesc.MaxAnisotropy = 1U;		// 最大各向异性值，对于Filter = D3D12_FILTER_ANISOTROPIC或D3D12_FILTER_COMPARISON_ANISOTROPIC生效，值域[1,16]，值越大，消耗越大，效果越好
+	samplerDesc.ComparisonFunc = D3D12_COMPARISON_FUNC_ALWAYS;
+	m_RenderDevice->CreateSampler(&samplerDesc, m_SamplerDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
+}
+
+/// <summary>
+/// 构建静态采样器，实际程序中使用的采样器种类不是很多，DX12提供了静态采样器，避免创建采样器堆、绑定采样器等一系列复杂的操作
+/// </summary>
+void DXSampleForReview::BuildStaticSamplers()
+{
+	// 点过滤 + 循环寻址
+	m_StaticSamplers[0].Init(1, D3D12_FILTER_MIN_MAG_MIP_POINT,
+		D3D12_TEXTURE_ADDRESS_MODE_WRAP,
+		D3D12_TEXTURE_ADDRESS_MODE_WRAP,
+		D3D12_TEXTURE_ADDRESS_MODE_WRAP);
+	// 点过滤 + CLAMP寻址
+	m_StaticSamplers[1].Init(2, D3D12_FILTER_MIN_MAG_MIP_POINT,
+		D3D12_TEXTURE_ADDRESS_MODE_CLAMP,
+		D3D12_TEXTURE_ADDRESS_MODE_CLAMP,
+		D3D12_TEXTURE_ADDRESS_MODE_CLAMP);
+	// 线性过滤 + 循环寻址
+	m_StaticSamplers[2].Init(3, D3D12_FILTER_MIN_MAG_MIP_LINEAR,
+		D3D12_TEXTURE_ADDRESS_MODE_WRAP,
+		D3D12_TEXTURE_ADDRESS_MODE_WRAP,
+		D3D12_TEXTURE_ADDRESS_MODE_WRAP);
+	// 线性过滤 + CLAMP寻址
+	m_StaticSamplers[3].Init(4, D3D12_FILTER_MIN_MAG_MIP_LINEAR,
+		D3D12_TEXTURE_ADDRESS_MODE_CLAMP,
+		D3D12_TEXTURE_ADDRESS_MODE_CLAMP,
+		D3D12_TEXTURE_ADDRESS_MODE_CLAMP);
+	// 各向异性过滤 + 循环寻址
+	m_StaticSamplers[4].Init(5, D3D12_FILTER_ANISOTROPIC,
+		D3D12_TEXTURE_ADDRESS_MODE_WRAP,
+		D3D12_TEXTURE_ADDRESS_MODE_WRAP,
+		D3D12_TEXTURE_ADDRESS_MODE_WRAP, 0.f, 8U);
+	// 各向异性过滤 + CLAMP寻址
+	m_StaticSamplers[5].Init(6, D3D12_FILTER_ANISOTROPIC,
+		D3D12_TEXTURE_ADDRESS_MODE_CLAMP,
+		D3D12_TEXTURE_ADDRESS_MODE_CLAMP,
+		D3D12_TEXTURE_ADDRESS_MODE_CLAMP, 0.f, 8U);
+}
+
 void DXSampleForReview::BuildMaterials()
 {
-	// TODO 构建渲染场景使用的材质
+	// 构建渲染场景使用的材质
 	std::unique_ptr<Material> pTestMat = std::make_unique<Material>();
-	pTestMat->m_Name = "Test";
+	pTestMat->m_Name = "Default";
 	pTestMat->m_DiffuseAlbedo = DirectX::XMFLOAT4(1.f, 1.0f, 1.0f, 1.0f);
 	pTestMat->m_FresnelR0 = DirectX::XMFLOAT3(0.05f, 0.05f, 0.05f);
 	pTestMat->m_Roughness = 0.25f;
 	pTestMat->m_CbvIndex = 0;
+	pTestMat->m_DiffuseMapIndex = 0;
 	// 保存到材质集合中
 	m_AllMaterials[pTestMat->m_Name] = std::move(pTestMat);
 }
@@ -570,8 +667,9 @@ void DXSampleForReview::BuildRenderItems()
 	std::unique_ptr<DemoRenderItem> planeRenderItem = std::make_unique<DemoRenderItem>();
 	planeRenderItem->m_MeshGeo = m_SceneObjectes["Plane"].get();
 	DirectX::XMStoreFloat4x4(&planeRenderItem->m_LoclToWorldMatrix, DirectX::XMMatrixTranslation(0.f, 0.f, 0.f));
+	DirectX::XMStoreFloat4x4(&planeRenderItem->m_TexMatrix, DirectX::XMMatrixScaling(5.f, 5.f, 1.f));
 	planeRenderItem->m_ObjectCBIndex = 0;
-	planeRenderItem->m_Material = m_AllMaterials["Test"].get();
+	planeRenderItem->m_Material = m_AllMaterials["Default"].get();
 	planeRenderItem->m_NumFrameDirty = 1;
 	planeRenderItem->m_IndexCount = planeRenderItem->m_MeshGeo->m_SubMeshGeometrys["Grid"].m_IndexCount;
 	planeRenderItem->m_StartIndexLocation = planeRenderItem->m_MeshGeo->m_SubMeshGeometrys["Grid"].m_StartIndexLocation;
@@ -587,7 +685,7 @@ void DXSampleForReview::BuildRenderItems()
 		cylinderRenderItem->m_MeshGeo = m_SceneObjectes[geometryName].get();
 		DirectX::XMStoreFloat4x4(&cylinderRenderItem->m_LoclToWorldMatrix, DirectX::XMMatrixTranslation(offsetBaseValue * weights[2 * i], 5.f * 0.5f, offsetBaseValue * weights[2 * i + 1]));
 		cylinderRenderItem->m_ObjectCBIndex = 2 * i + 1;
-		cylinderRenderItem->m_Material = m_AllMaterials["Test"].get();
+		cylinderRenderItem->m_Material = m_AllMaterials["Default"].get();
 		cylinderRenderItem->m_NumFrameDirty = 1;
 		cylinderRenderItem->m_IndexCount = cylinderRenderItem->m_MeshGeo->m_SubMeshGeometrys["Cylinder"].m_IndexCount;
 		cylinderRenderItem->m_StartIndexLocation = cylinderRenderItem->m_MeshGeo->m_SubMeshGeometrys["Cylinder"].m_StartIndexLocation;
@@ -598,7 +696,7 @@ void DXSampleForReview::BuildRenderItems()
 		sphereRenderItem->m_MeshGeo = m_SceneObjectes[geometryName].get();
 		DirectX::XMStoreFloat4x4(&sphereRenderItem->m_LoclToWorldMatrix, DirectX::XMMatrixTranslation(offsetBaseValue * weights[2 * i], 5.f + 1.5f, offsetBaseValue * weights[2 * i + 1]));
 		sphereRenderItem->m_ObjectCBIndex = 2 * i + 2;
-		sphereRenderItem->m_Material = m_AllMaterials["Test"].get();
+		sphereRenderItem->m_Material = m_AllMaterials["Default"].get();
 		sphereRenderItem->m_NumFrameDirty = 1;
 		sphereRenderItem->m_IndexCount = sphereRenderItem->m_MeshGeo->m_SubMeshGeometrys["Sphere"].m_IndexCount;
 		sphereRenderItem->m_StartIndexLocation = sphereRenderItem->m_MeshGeo->m_SubMeshGeometrys["Sphere"].m_StartIndexLocation;
@@ -610,7 +708,7 @@ void DXSampleForReview::BuildRenderItems()
 	platformRenderItem->m_MeshGeo = m_SceneObjectes["Platform"].get();
 	DirectX::XMStoreFloat4x4(&platformRenderItem->m_LoclToWorldMatrix, DirectX::XMMatrixTranslation(0.f, 1.f, 0.f));
 	platformRenderItem->m_ObjectCBIndex = 2 * kNumPillar + 1;
-	platformRenderItem->m_Material = m_AllMaterials["Test"].get();
+	platformRenderItem->m_Material = m_AllMaterials["Default"].get();
 	platformRenderItem->m_NumFrameDirty = 1;
 	platformRenderItem->m_IndexCount = platformRenderItem->m_MeshGeo->m_SubMeshGeometrys["Cube"].m_IndexCount;
 	platformRenderItem->m_StartIndexLocation = platformRenderItem->m_MeshGeo->m_SubMeshGeometrys["Cube"].m_StartIndexLocation;
@@ -624,7 +722,7 @@ void DXSampleForReview::BuildRenderItems()
 	DirectX::XMMATRIX scaleMatrix = DirectX::XMMatrixScaling(0.7f, 0.7f, 0.7f);
 	DirectX::XMStoreFloat4x4(&skullRenderItem->m_LoclToWorldMatrix, scaleMatrix * rotaMatrix * transMatrix);
 	skullRenderItem->m_ObjectCBIndex = 2 * kNumPillar + 2;
-	skullRenderItem->m_Material = m_AllMaterials["Test"].get();
+	skullRenderItem->m_Material = m_AllMaterials["Default"].get();
 	skullRenderItem->m_NumFrameDirty = 1;
 	skullRenderItem->m_IndexCount = skullRenderItem->m_MeshGeo->m_SubMeshGeometrys["Skull"].m_IndexCount;
 	skullRenderItem->m_StartIndexLocation = skullRenderItem->m_MeshGeo->m_SubMeshGeometrys["Skull"].m_StartIndexLocation;
@@ -701,19 +799,25 @@ void DXSampleForReview::CompileShaderFile()
 void DXSampleForReview::CreateRootSignature()
 {
 	// 使用了2个常量缓冲区，
-	CD3DX12_ROOT_PARAMETER slotRootParameter[3]{};
+	CD3DX12_ROOT_PARAMETER slotRootParameter[5]{};
 	// 通过描述符表的方式场景根参数
-	CD3DX12_DESCRIPTOR_RANGE objCbvTable{};				// 作为物体常量缓冲区
+	CD3DX12_DESCRIPTOR_RANGE objCbvTable{};				// 3个常量缓冲区，分别作为物体常量缓冲区、材质常量缓冲区和pass常量缓冲区
 	objCbvTable.Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0);
-	CD3DX12_DESCRIPTOR_RANGE matCbvTable{};				// 作为材质常量缓冲区
+	CD3DX12_DESCRIPTOR_RANGE matCbvTable{};				// 3个常量缓冲区，分别作为物体常量缓冲区、材质常量缓冲区和pass常量缓冲区
 	matCbvTable.Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 1);
-	CD3DX12_DESCRIPTOR_RANGE passCbvTable{};			// 作为渲染过程常量缓冲区
+	CD3DX12_DESCRIPTOR_RANGE passCbvTable{};				// 3个常量缓冲区，分别作为物体常量缓冲区、材质常量缓冲区和pass常量缓冲区
 	passCbvTable.Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 2);
+	CD3DX12_DESCRIPTOR_RANGE srvTable{};				// 纹理
+	srvTable.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0);
+	CD3DX12_DESCRIPTOR_RANGE samplerTable{};			// 采样器
+	samplerTable.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, 1, 0);
 	slotRootParameter[0].InitAsDescriptorTable(1, &objCbvTable);
 	slotRootParameter[1].InitAsDescriptorTable(1, &matCbvTable);
 	slotRootParameter[2].InitAsDescriptorTable(1, &passCbvTable);
+	slotRootParameter[3].InitAsDescriptorTable(1, &srvTable);
+	slotRootParameter[4].InitAsDescriptorTable(1, &samplerTable);
 	// 根参数序列化
-	CD3DX12_ROOT_SIGNATURE_DESC rootSigDesc(3, slotRootParameter, 0, nullptr, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+	CD3DX12_ROOT_SIGNATURE_DESC rootSigDesc(5, slotRootParameter, static_cast<uint32_t>(m_StaticSamplers.size()), m_StaticSamplers.data(), D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 	Microsoft::WRL::ComPtr<ID3DBlob> pSerializedRootSig{ nullptr };
 	Microsoft::WRL::ComPtr<ID3DBlob> pErrorBlob{ nullptr };
 	HRESULT hr = D3D12SerializeRootSignature(&rootSigDesc, D3D_ROOT_SIGNATURE_VERSION_1, pSerializedRootSig.GetAddressOf(), pErrorBlob.GetAddressOf());
@@ -736,7 +840,8 @@ void DXSampleForReview::BuildPSO()
 		{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
 		{ "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 3 * sizeof(float), D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
 		{ "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, (3 + 4) * sizeof(float), D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-		{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, (3 + 4 + 3) * sizeof(float), D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
+		{ "TANGENT", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, (3 + 4 + 3) * sizeof(float), D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+		{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, (3 + 4 + 3 + 3) * sizeof(float), D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
 	};
 	// int value =  sizeof(m_InputLayoutDescs);
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC pipelineStateDesc{};
@@ -769,9 +874,11 @@ void DXSampleForReview::UpdateObjCBs(float fDeltaTime, float fTotalTime)
 		{
 			// 获取最新的世界变换矩阵
 			DirectX::XMMATRIX worldMatrix = DirectX::XMLoadFloat4x4(&pRenderItem->m_LoclToWorldMatrix);
+			DirectX::XMMATRIX texMatrix = DirectX::XMLoadFloat4x4(&pRenderItem->m_TexMatrix);
 			// 变换矩阵写入到常量缓冲区内存中。注意这里进行了一次矩阵转置
 			PerObjectConstants objCB{};
 			DirectX::XMStoreFloat4x4(&objCB.m_LocalToWorldMatrix, DirectX::XMMatrixTranspose(worldMatrix));
+			DirectX::XMStoreFloat4x4(&objCB.m_TexMatrix, DirectX::XMMatrixTranspose(texMatrix));
 			m_PerOjectConstantBuffer->CopyData(pRenderItem->m_ObjectCBIndex, objCB);
 			// 数据更新成功，脏标记-1
 			--pRenderItem->m_NumFrameDirty;
@@ -789,6 +896,8 @@ void DXSampleForReview::UpdateMatCBs(float fDeltaTime, float fTotalTime)
 			matCB.m_DiffuseAlbedo = pMaterial.second->m_DiffuseAlbedo;
 			matCB.m_FresnelR0 = pMaterial.second->m_FresnelR0;
 			matCB.m_Roughness = pMaterial.second->m_Roughness;
+			DirectX::XMMATRIX matMatrix = DirectX::XMLoadFloat4x4(&pMaterial.second->m_MatMatrix);
+			DirectX::XMStoreFloat4x4(&matCB.m_UVMatrix, DirectX::XMMatrixTranspose(matMatrix));
 			m_PerMaterialConstantBuffer->CopyData(pMaterial.second->m_CbvIndex, matCB);
 			--pMaterial.second->m_NumFrameDirty;
 		}
@@ -886,13 +995,19 @@ void DXSampleForReview::PopulateCommandList()
 	m_CommandList->ClearDepthStencilView(m_DsvHandle, D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.f, 0, 0, nullptr);
 	// 设置当前的渲染目标
 	m_CommandList->OMSetRenderTargets(1, &rtvHandle, true, &m_DsvHandle);
-	ID3D12DescriptorHeap* descriptorHeaps = { m_CBVHeap.Get() };
-	m_CommandList->SetDescriptorHeaps(1, &descriptorHeaps);
+	// 设置根签名
 	m_CommandList->SetGraphicsRootSignature(m_RootSignature.Get());
+	// 设置关联的描述符堆
+	ID3D12DescriptorHeap* descriptorHeaps[] = { m_CBVHeap.Get(), m_SamplerDescriptorHeap.Get() };
+	m_CommandList->SetDescriptorHeaps(2, descriptorHeaps);
+	// 关联的渲染过程常量缓冲区描述符
 	uint32_t passCBVIndex = static_cast<uint32_t>(m_AllRenderItems.size()) + static_cast<uint32_t>(m_AllMaterials.size());
 	CD3DX12_GPU_DESCRIPTOR_HANDLE passCBVHandle(m_CBVHeap->GetGPUDescriptorHandleForHeapStart());
 	passCBVHandle.Offset(passCBVIndex, m_CBVUAVDescriptorSize);
 	m_CommandList->SetGraphicsRootDescriptorTable(2, passCBVHandle);
+	// 关联的采样器描述符表
+	CD3DX12_GPU_DESCRIPTOR_HANDLE samplerHandle(m_SamplerDescriptorHeap->GetGPUDescriptorHandleForHeapStart());
+	m_CommandList->SetGraphicsRootDescriptorTable(4, samplerHandle);
 
 	DrawRenderItem();
 
@@ -917,6 +1032,11 @@ void DXSampleForReview::DrawRenderItem()
 		m_CommandList->IASetVertexBuffers(0, 1, &pRenderItem->m_MeshGeo->GetVertexBufferView());
 		m_CommandList->IASetIndexBuffer(&pRenderItem->m_MeshGeo->GetIndexBufferView());
 		m_CommandList->IASetPrimitiveTopology(pRenderItem->m_PrimitiveType);
+		// 绑定关联的纹理资源描述符
+		CD3DX12_GPU_DESCRIPTOR_HANDLE srvHandle(m_CBVHeap->GetGPUDescriptorHandleForHeapStart());
+		uint32_t srvOffset = objCount + static_cast<int>(m_AllMaterials.size()) + 1;
+		srvHandle.Offset(srvOffset + pRenderItem->m_Material->m_DiffuseMapIndex, m_CBVUAVDescriptorSize);
+		m_CommandList->SetGraphicsRootDescriptorTable(3, srvHandle);
 		// 绑定渲染项关联的常量缓冲区
 		CD3DX12_GPU_DESCRIPTOR_HANDLE objCBHandle(m_CBVHeap->GetGPUDescriptorHandleForHeapStart());
 		objCBHandle.Offset(pRenderItem->m_ObjectCBIndex * m_CBVUAVDescriptorSize);

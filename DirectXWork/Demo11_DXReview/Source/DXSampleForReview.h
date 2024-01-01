@@ -110,6 +110,21 @@ private:
 	void CreateSceneObjects();
 
 	/// <summary>
+	/// 加载纹理，构建着色器资源
+	/// </summary>
+	void BuildShaderResource();
+
+	/// <summary>
+	/// 构建采样器
+	/// </summary>
+	void BuildSampler();
+
+	/// <summary>
+	/// 构建静态采样器，实际程序中使用的采样器种类不是很多，DX12提供了静态采样器，避免创建采样器堆、绑定采样器等一系列复杂的操作
+	/// </summary>
+	void BuildStaticSamplers();
+
+	/// <summary>
 	/// 创建场景渲染使用的材质
 	/// </summary>
 	void BuildMaterials();
@@ -338,6 +353,14 @@ private:
 	/// 常量缓冲区描述符堆
 	/// </summary>
 	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> m_CBVHeap{ nullptr };
+	/// <summary>
+	/// 着色器资源描述符堆
+	/// </summary>
+	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> m_SRVHeap{ nullptr };
+	/// <summary>
+	/// 采样器资源描述符堆
+	/// </summary>
+	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> m_SamplerDescriptorHeap{ nullptr };
 
 	/// <summary>
 	/// 渲染目标资源
@@ -391,15 +414,19 @@ private:
 	/// <summary>
 	/// 场景中所有的几何体物件
 	/// </summary>
-	std::unordered_map<std::string, std::unique_ptr<MeshGeometry>> m_SceneObjectes;
+	std::unordered_map<std::string, std::unique_ptr<MeshGeometry>> m_SceneObjectes{};
 	/// <summary>
 	/// 场景中所有的材质
 	/// </summary>
-	std::unordered_map<std::string, std::unique_ptr<Material>> m_AllMaterials;
+	std::unordered_map<std::string, std::unique_ptr<Material>> m_AllMaterials{};
+	/// <summary>
+	/// 场景中所有的纹理
+	/// </summary>
+	std::unordered_map<std::string, std::unique_ptr<Texture>> m_AllTextures{};
 	/// <summary>
 	/// 渲染项集合
 	/// </summary>
-	std::vector<std::unique_ptr<DemoRenderItem>> m_AllRenderItems;
+	std::vector<std::unique_ptr<DemoRenderItem>> m_AllRenderItems{};
 
 	/// <summary>
 	/// 用于单个物体的常量缓冲区
@@ -413,6 +440,10 @@ private:
 	/// 用于一个渲染Pass的常量缓冲区
 	/// </summary>
 	std::unique_ptr<UploadBuffer<PerPassConstants>> m_PerPassConstantBuffer{ nullptr };
+	/// <summary>
+	/// 静态采样器描述
+	/// </summary>
+	std::array<CD3DX12_STATIC_SAMPLER_DESC, 6> m_StaticSamplers{};
 
 	/// <summary>
 	/// 观察变换矩阵

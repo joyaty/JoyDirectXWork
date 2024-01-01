@@ -149,11 +149,32 @@ struct Material
 	/// 关联的材质常量缓冲区索引
 	/// </summary>
 	uint32_t m_CbvIndex;
+	/// <summary>
+	/// 关联的漫反射反照率贴图索引
+	/// </summary>
+	uint32_t m_DiffuseMapIndex;
+
+	/// <summary>
+	/// 材质动画变换矩阵
+	/// </summary>
+	DirectX::XMFLOAT4X4 m_MatMatrix{ MathUtil::Identity4x4() };
 
 	/// <summary>
 	/// 脏标记
 	/// </summary>
 	int m_NumFrameDirty = kFrameResourceCount;
+};
+
+/// <summary>
+/// 纹理数据结构
+/// </summary>
+struct Texture
+{
+	std::string m_Name;
+	std::wstring m_FilePath;
+
+	Microsoft::WRL::ComPtr<ID3D12Resource> m_TextureGPU{ nullptr };
+	Microsoft::WRL::ComPtr<ID3D12Resource> m_TextureUploader{ nullptr };
 };
 
 /// <summary>
@@ -164,7 +185,12 @@ struct PerObjectConstants
 	/// <summary>
 	/// 本地空间变换到世界空间的变换矩阵
 	/// </summary>
-	DirectX::XMFLOAT4X4 m_LocalToWorldMatrix;
+	DirectX::XMFLOAT4X4 m_LocalToWorldMatrix{ MathUtil::Identity4x4() };
+
+	/// <summary>
+	/// 纹理坐标变换矩阵
+	/// </summary>
+	DirectX::XMFLOAT4X4 m_TexMatrix{ MathUtil::Identity4x4() };
 };
 
 /// <summary>
@@ -184,6 +210,10 @@ struct PerMaterialConstants
 	/// 粗糙度
 	/// </summary>
 	float m_Roughness;
+	/// <summary>
+	/// UV变换矩阵
+	/// </summary>
+	DirectX::XMFLOAT4X4 m_UVMatrix{ MathUtil::Identity4x4() };
 };
 
 /// <summary>
@@ -266,6 +296,12 @@ struct DemoRenderItem
 	/// 本地空间到世界空间的变换矩阵
 	/// </summary>
 	DirectX::XMFLOAT4X4 m_LoclToWorldMatrix = MathUtil::Identity4x4();
+
+	/// <summary>
+	/// 纹理坐标变换矩阵
+	/// </summary>
+	DirectX::XMFLOAT4X4 m_TexMatrix{ MathUtil::Identity4x4() };
+
 	/// <summary>
 	/// 渲染项绑定的网格集合体
 	/// </summary>
