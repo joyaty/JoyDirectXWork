@@ -352,15 +352,15 @@ void DXSampleForReview::CreateDescriptorHeaps()
 /// </summary>
 void DXSampleForReview::CreateCBDescriptorHeaps()
 {
-	uint32_t objCount = static_cast<uint32_t>(m_AllRenderItems.size());
-	uint32_t matCount = static_cast<uint32_t>(m_AllMaterials.size());
-	// 创建常量缓冲区描述符
-	D3D12_DESCRIPTOR_HEAP_DESC cbvDesc{};
-	cbvDesc.NodeMask = 0U;
-	cbvDesc.NumDescriptors = objCount + matCount + 1 + 1; // 渲染网格数量 + 材质数量 + 渲染过程缓冲区数量 + 1纹理贴图
-	cbvDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-	cbvDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
-	ThrowIfFailed(m_RenderDevice->CreateDescriptorHeap(&cbvDesc, IID_PPV_ARGS(m_CBVHeap.GetAddressOf())));
+	//uint32_t objCount = static_cast<uint32_t>(m_AllRenderItems.size());
+	//uint32_t matCount = static_cast<uint32_t>(m_AllMaterials.size());
+	//// 创建常量缓冲区描述符
+	//D3D12_DESCRIPTOR_HEAP_DESC cbvDesc{};
+	//cbvDesc.NodeMask = 0U;
+	//cbvDesc.NumDescriptors = 1; // 渲染网格数量 + 材质数量 + 渲染过程缓冲区数量 + 1纹理贴图
+	//cbvDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+	//cbvDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+	//ThrowIfFailed(m_RenderDevice->CreateDescriptorHeap(&cbvDesc, IID_PPV_ARGS(m_CBVHeap.GetAddressOf())));
 }
 
 /// <summary>
@@ -558,31 +558,94 @@ void DXSampleForReview::CreateSceneObjects()
 void DXSampleForReview::BuildShaderResource()
 {
 	// 创建着色器资源描述符堆
-	/*D3D12_DESCRIPTOR_HEAP_DESC srvHeapDesc{};
+	D3D12_DESCRIPTOR_HEAP_DESC srvHeapDesc{};
 	srvHeapDesc.NodeMask = 0U;
 	srvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 	srvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-	srvHeapDesc.NumDescriptors = 1U;
-	m_RenderDevice->CreateDescriptorHeap(&srvHeapDesc, IID_PPV_ARGS(m_SRVHeap.GetAddressOf()));*/
+	srvHeapDesc.NumDescriptors = 5U;
+	m_RenderDevice->CreateDescriptorHeap(&srvHeapDesc, IID_PPV_ARGS(m_SRVHeap.GetAddressOf()));
+
 	// 加载纹理，绑定着色器资源描述符
 	std::unique_ptr<Texture> pPlaneTexture = std::make_unique<Texture>();
 	pPlaneTexture->m_Name = "Ground";
-	pPlaneTexture->m_FilePath = m_RootAssetPath + _T("\\Assets\\Textures\\checkboard.dds");
+	pPlaneTexture->m_FilePath = m_RootAssetPath + _T("\\Assets\\Textures\\grass.dds");
 	ThrowIfFailed(CreateDDSTextureFromFile12(m_RenderDevice.Get(), m_CommandList.Get(), pPlaneTexture->m_FilePath.c_str(), pPlaneTexture->m_TextureGPU, pPlaneTexture->m_TextureUploader));
-	D3D12_SHADER_RESOURCE_VIEW_DESC desc{};
-	desc.Format = pPlaneTexture->m_TextureGPU->GetDesc().Format;
-	desc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-	desc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-	desc.Texture2D.MostDetailedMip = 0U;
-	desc.Texture2D.MipLevels = pPlaneTexture->m_TextureGPU->GetDesc().MipLevels;
-	desc.Texture2D.PlaneSlice = 0U;
-	desc.Texture2D.ResourceMinLODClamp = 0.f;
-	CD3DX12_CPU_DESCRIPTOR_HANDLE handle(m_CBVHeap->GetCPUDescriptorHandleForHeapStart());
-	int srvOffset = static_cast<int>(m_AllRenderItems.size() + m_AllMaterials.size() + 1);
-	handle.Offset(srvOffset, m_CBVUAVDescriptorSize);
-	m_RenderDevice->CreateShaderResourceView(pPlaneTexture->m_TextureGPU.Get(), &desc, handle);
+	D3D12_SHADER_RESOURCE_VIEW_DESC planeTexdesc{};
+	planeTexdesc.Format = pPlaneTexture->m_TextureGPU->GetDesc().Format;
+	planeTexdesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+	planeTexdesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	planeTexdesc.Texture2D.MostDetailedMip = 0U;
+	planeTexdesc.Texture2D.MipLevels = pPlaneTexture->m_TextureGPU->GetDesc().MipLevels;
+	planeTexdesc.Texture2D.PlaneSlice = 0U;
+	planeTexdesc.Texture2D.ResourceMinLODClamp = 0.f;
+	CD3DX12_CPU_DESCRIPTOR_HANDLE handle(m_SRVHeap->GetCPUDescriptorHandleForHeapStart());
+	m_RenderDevice->CreateShaderResourceView(pPlaneTexture->m_TextureGPU.Get(), &planeTexdesc, handle);
+
+	std::unique_ptr<Texture> pPillarTexture = std::make_unique<Texture>();
+	pPillarTexture->m_Name = "Pillar";
+	pPillarTexture->m_FilePath = m_RootAssetPath + _T("\\Assets\\Textures\\bricks2.dds");
+	ThrowIfFailed(CreateDDSTextureFromFile12(m_RenderDevice.Get(), m_CommandList.Get(), pPillarTexture->m_FilePath.c_str(), pPillarTexture->m_TextureGPU, pPillarTexture->m_TextureUploader));
+	D3D12_SHADER_RESOURCE_VIEW_DESC pillarTexDesc{};
+	pillarTexDesc.Format = pPillarTexture->m_TextureGPU->GetDesc().Format;
+	pillarTexDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+	pillarTexDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	pillarTexDesc.Texture2D.MostDetailedMip = 0U;
+	pillarTexDesc.Texture2D.MipLevels = pPillarTexture->m_TextureGPU->GetDesc().MipLevels;
+	pillarTexDesc.Texture2D.PlaneSlice = 0U;
+	pillarTexDesc.Texture2D.ResourceMinLODClamp = 0.f;
+	handle.Offset(m_CBVUAVDescriptorSize);
+	m_RenderDevice->CreateShaderResourceView(pPillarTexture->m_TextureGPU.Get(), &pillarTexDesc, handle);
+
+	std::unique_ptr<Texture> pBallTexture = std::make_unique<Texture>();
+	pBallTexture->m_Name = "Ball";
+	pBallTexture->m_FilePath = m_RootAssetPath + _T("\\Assets\\Textures\\ice.dds");
+	ThrowIfFailed(CreateDDSTextureFromFile12(m_RenderDevice.Get(), m_CommandList.Get(), pBallTexture->m_FilePath.c_str(), pBallTexture->m_TextureGPU, pBallTexture->m_TextureUploader));
+	D3D12_SHADER_RESOURCE_VIEW_DESC ballTexDesc{};
+	ballTexDesc.Format = pBallTexture->m_TextureGPU->GetDesc().Format;
+	ballTexDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+	ballTexDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	ballTexDesc.Texture2D.MostDetailedMip = 0U;
+	ballTexDesc.Texture2D.MipLevels = pBallTexture->m_TextureGPU->GetDesc().MipLevels;
+	ballTexDesc.Texture2D.PlaneSlice = 0U;
+	ballTexDesc.Texture2D.ResourceMinLODClamp = 0.f;
+	handle.Offset(m_CBVUAVDescriptorSize);
+	m_RenderDevice->CreateShaderResourceView(pBallTexture->m_TextureGPU.Get(), &ballTexDesc, handle);
+
+	std::unique_ptr<Texture> pPlatformTexture = std::make_unique<Texture>();
+	pPlatformTexture->m_Name = "Platform";
+	pPlatformTexture->m_FilePath = m_RootAssetPath + _T("\\Assets\\Textures\\stone.dds");
+	ThrowIfFailed(CreateDDSTextureFromFile12(m_RenderDevice.Get(), m_CommandList.Get(), pPlatformTexture->m_FilePath.c_str(), pPlatformTexture->m_TextureGPU, pPlatformTexture->m_TextureUploader));
+	D3D12_SHADER_RESOURCE_VIEW_DESC platformTexDesc{};
+	platformTexDesc.Format = pPlatformTexture->m_TextureGPU->GetDesc().Format;
+	platformTexDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+	platformTexDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	platformTexDesc.Texture2D.MostDetailedMip = 0U;
+	platformTexDesc.Texture2D.MipLevels = pPlatformTexture->m_TextureGPU->GetDesc().MipLevels;
+	platformTexDesc.Texture2D.PlaneSlice = 0U;
+	platformTexDesc.Texture2D.ResourceMinLODClamp = 0.f;
+	handle.Offset(m_CBVUAVDescriptorSize);
+	m_RenderDevice->CreateShaderResourceView(pPlatformTexture->m_TextureGPU.Get(), &platformTexDesc, handle);
+
+	std::unique_ptr<Texture> pSkullTexture = std::make_unique<Texture>();
+	pSkullTexture->m_Name = "Skull";
+	pSkullTexture->m_FilePath = m_RootAssetPath + _T("\\Assets\\Textures\\white1x1.dds");
+	ThrowIfFailed(CreateDDSTextureFromFile12(m_RenderDevice.Get(), m_CommandList.Get(), pSkullTexture->m_FilePath.c_str(), pSkullTexture->m_TextureGPU, pSkullTexture->m_TextureUploader));
+	D3D12_SHADER_RESOURCE_VIEW_DESC skullTexDesc{};
+	skullTexDesc.Format = pSkullTexture->m_TextureGPU->GetDesc().Format;
+	skullTexDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+	skullTexDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	skullTexDesc.Texture2D.MostDetailedMip = 0U;
+	skullTexDesc.Texture2D.MipLevels = pSkullTexture->m_TextureGPU->GetDesc().MipLevels;
+	skullTexDesc.Texture2D.PlaneSlice = 0U;
+	skullTexDesc.Texture2D.ResourceMinLODClamp = 0.f;
+	handle.Offset(m_CBVUAVDescriptorSize);
+	m_RenderDevice->CreateShaderResourceView(pSkullTexture->m_TextureGPU.Get(), &skullTexDesc, handle);
 
 	m_AllTextures[pPlaneTexture->m_Name] = std::move(pPlaneTexture);
+	m_AllTextures[pPillarTexture->m_Name] = std::move(pPillarTexture);
+	m_AllTextures[pBallTexture->m_Name] = std::move(pBallTexture);
+	m_AllTextures[pPlatformTexture->m_Name] = std::move(pPlatformTexture);
+	m_AllTextures[pSkullTexture->m_Name] = std::move(pSkullTexture);
 }
 
 /// <summary>
@@ -650,15 +713,55 @@ void DXSampleForReview::BuildStaticSamplers()
 void DXSampleForReview::BuildMaterials()
 {
 	// 构建渲染场景使用的材质
-	std::unique_ptr<Material> pTestMat = std::make_unique<Material>();
-	pTestMat->m_Name = "Default";
-	pTestMat->m_DiffuseAlbedo = DirectX::XMFLOAT4(1.f, 1.0f, 1.0f, 1.0f);
-	pTestMat->m_FresnelR0 = DirectX::XMFLOAT3(0.05f, 0.05f, 0.05f);
-	pTestMat->m_Roughness = 0.25f;
-	pTestMat->m_CbvIndex = 0;
-	pTestMat->m_DiffuseMapIndex = 0;
+	std::unique_ptr<Material> pGroundMat = std::make_unique<Material>();
+	pGroundMat->m_Name = "Ground";
+	pGroundMat->m_DiffuseAlbedo = DirectX::XMFLOAT4(1.f, 1.f, 1.f, 1.f);
+	pGroundMat->m_FresnelR0 = DirectX::XMFLOAT3(0.05f, 0.05f, 0.05f);
+	pGroundMat->m_Roughness = 0.25f;
+	pGroundMat->m_CbvIndex = 0;
+	pGroundMat->m_DiffuseMapIndex = 0;
 	// 保存到材质集合中
-	m_AllMaterials[pTestMat->m_Name] = std::move(pTestMat);
+	m_AllMaterials[pGroundMat->m_Name] = std::move(pGroundMat);
+
+	std::unique_ptr<Material> pPillarMat = std::make_unique<Material>();
+	pPillarMat->m_Name = "Pillar";
+	pPillarMat->m_DiffuseAlbedo = DirectX::XMFLOAT4(1.f, 1.f, 1.f, 1.f);
+	pPillarMat->m_FresnelR0 = DirectX::XMFLOAT3(1.0f, 0.71f, 0.29f);
+	pPillarMat->m_Roughness = 0.25f;
+	pPillarMat->m_CbvIndex = 1;
+	pPillarMat->m_DiffuseMapIndex = 1;
+	// 保存到材质集合中
+	m_AllMaterials[pPillarMat->m_Name] = std::move(pPillarMat);
+
+	std::unique_ptr<Material> pBallMat = std::make_unique<Material>();
+	pBallMat->m_Name = "Ball";
+	pBallMat->m_DiffuseAlbedo = DirectX::XMFLOAT4(1.f, 1.f, 1.f, 0.5f);
+	pBallMat->m_FresnelR0 = DirectX::XMFLOAT3(0.08f, 0.08f, 0.08f);
+	pBallMat->m_Roughness = 0.25f;
+	pBallMat->m_CbvIndex = 2;
+	pBallMat->m_DiffuseMapIndex = 2;
+	// 保存到材质集合中
+	m_AllMaterials[pBallMat->m_Name] = std::move(pBallMat);
+
+	std::unique_ptr<Material> pTableMat = std::make_unique<Material>();
+	pTableMat->m_Name = "Platform";
+	pTableMat->m_DiffuseAlbedo = DirectX::XMFLOAT4(1.f, 1.f, 1.f, 1.f);
+	pTableMat->m_FresnelR0 = DirectX::XMFLOAT3(0.95f, 0.64f, 0.54f);
+	pTableMat->m_Roughness = 0.25f;
+	pTableMat->m_CbvIndex = 3;
+	pTableMat->m_DiffuseMapIndex = 3;
+	// 保存到材质集合中
+	m_AllMaterials[pTableMat->m_Name] = std::move(pTableMat);
+
+	std::unique_ptr<Material> pSkullMat = std::make_unique<Material>();
+	pSkullMat->m_Name = "Skull";
+	pSkullMat->m_DiffuseAlbedo = DirectX::XMFLOAT4(1.f, 1.f, 1.f, 1.f);
+	pSkullMat->m_FresnelR0 = DirectX::XMFLOAT3(0.95f, 0.93f, 0.88f);
+	pSkullMat->m_Roughness = 0.75f;
+	pSkullMat->m_CbvIndex = 4;
+	pSkullMat->m_DiffuseMapIndex = 4;
+	// 保存到材质集合中
+	m_AllMaterials[pSkullMat->m_Name] = std::move(pSkullMat);
 }
 
 void DXSampleForReview::BuildRenderItems()
@@ -669,12 +772,13 @@ void DXSampleForReview::BuildRenderItems()
 	DirectX::XMStoreFloat4x4(&planeRenderItem->m_LoclToWorldMatrix, DirectX::XMMatrixTranslation(0.f, 0.f, 0.f));
 	DirectX::XMStoreFloat4x4(&planeRenderItem->m_TexMatrix, DirectX::XMMatrixScaling(5.f, 5.f, 1.f));
 	planeRenderItem->m_ObjectCBIndex = 0;
-	planeRenderItem->m_Material = m_AllMaterials["Default"].get();
+	planeRenderItem->m_Material = m_AllMaterials["Ground"].get();
 	planeRenderItem->m_NumFrameDirty = 1;
 	planeRenderItem->m_IndexCount = planeRenderItem->m_MeshGeo->m_SubMeshGeometrys["Grid"].m_IndexCount;
 	planeRenderItem->m_StartIndexLocation = planeRenderItem->m_MeshGeo->m_SubMeshGeometrys["Grid"].m_StartIndexLocation;
 	planeRenderItem->m_StartVertexLocation = planeRenderItem->m_MeshGeo->m_SubMeshGeometrys["Grid"].m_BaseVertexLocation;
 	m_AllRenderItems.emplace_back(std::move(planeRenderItem));
+	m_RenderItemsByRenderLayer[static_cast<int>(EnumRenderLayer::kLayerOpaque)].emplace_back(m_AllRenderItems.back().get());
 	// 4个柱子
 	int weights[kNumPillar * 2] = { -1, -1, -1, 1, 1, 1, 1, -1 };
 	float offsetBaseValue = 7.f;
@@ -685,35 +789,38 @@ void DXSampleForReview::BuildRenderItems()
 		cylinderRenderItem->m_MeshGeo = m_SceneObjectes[geometryName].get();
 		DirectX::XMStoreFloat4x4(&cylinderRenderItem->m_LoclToWorldMatrix, DirectX::XMMatrixTranslation(offsetBaseValue * weights[2 * i], 5.f * 0.5f, offsetBaseValue * weights[2 * i + 1]));
 		cylinderRenderItem->m_ObjectCBIndex = 2 * i + 1;
-		cylinderRenderItem->m_Material = m_AllMaterials["Default"].get();
+		cylinderRenderItem->m_Material = m_AllMaterials["Pillar"].get();
 		cylinderRenderItem->m_NumFrameDirty = 1;
 		cylinderRenderItem->m_IndexCount = cylinderRenderItem->m_MeshGeo->m_SubMeshGeometrys["Cylinder"].m_IndexCount;
 		cylinderRenderItem->m_StartIndexLocation = cylinderRenderItem->m_MeshGeo->m_SubMeshGeometrys["Cylinder"].m_StartIndexLocation;
 		cylinderRenderItem->m_StartVertexLocation = cylinderRenderItem->m_MeshGeo->m_SubMeshGeometrys["Cylinder"].m_BaseVertexLocation;
 		m_AllRenderItems.emplace_back(std::move(cylinderRenderItem));
+		m_RenderItemsByRenderLayer[static_cast<int>(EnumRenderLayer::kLayerOpaque)].emplace_back(m_AllRenderItems.back().get());
 
 		std::unique_ptr<DemoRenderItem> sphereRenderItem = std::make_unique<DemoRenderItem>();
 		sphereRenderItem->m_MeshGeo = m_SceneObjectes[geometryName].get();
 		DirectX::XMStoreFloat4x4(&sphereRenderItem->m_LoclToWorldMatrix, DirectX::XMMatrixTranslation(offsetBaseValue * weights[2 * i], 5.f + 1.5f, offsetBaseValue * weights[2 * i + 1]));
 		sphereRenderItem->m_ObjectCBIndex = 2 * i + 2;
-		sphereRenderItem->m_Material = m_AllMaterials["Default"].get();
+		sphereRenderItem->m_Material = m_AllMaterials["Ball"].get();
 		sphereRenderItem->m_NumFrameDirty = 1;
 		sphereRenderItem->m_IndexCount = sphereRenderItem->m_MeshGeo->m_SubMeshGeometrys["Sphere"].m_IndexCount;
 		sphereRenderItem->m_StartIndexLocation = sphereRenderItem->m_MeshGeo->m_SubMeshGeometrys["Sphere"].m_StartIndexLocation;
 		sphereRenderItem->m_StartVertexLocation = sphereRenderItem->m_MeshGeo->m_SubMeshGeometrys["Sphere"].m_BaseVertexLocation;
 		m_AllRenderItems.emplace_back(std::move(sphereRenderItem));
+		m_RenderItemsByRenderLayer[static_cast<int>(EnumRenderLayer::kLayerTransparent)].emplace_back(m_AllRenderItems.back().get());
 	}
 	// 平台
 	std::unique_ptr<DemoRenderItem> platformRenderItem = std::make_unique<DemoRenderItem>();
 	platformRenderItem->m_MeshGeo = m_SceneObjectes["Platform"].get();
 	DirectX::XMStoreFloat4x4(&platformRenderItem->m_LoclToWorldMatrix, DirectX::XMMatrixTranslation(0.f, 1.f, 0.f));
 	platformRenderItem->m_ObjectCBIndex = 2 * kNumPillar + 1;
-	platformRenderItem->m_Material = m_AllMaterials["Default"].get();
+	platformRenderItem->m_Material = m_AllMaterials["Platform"].get();
 	platformRenderItem->m_NumFrameDirty = 1;
 	platformRenderItem->m_IndexCount = platformRenderItem->m_MeshGeo->m_SubMeshGeometrys["Cube"].m_IndexCount;
 	platformRenderItem->m_StartIndexLocation = platformRenderItem->m_MeshGeo->m_SubMeshGeometrys["Cube"].m_StartIndexLocation;
 	platformRenderItem->m_StartVertexLocation = platformRenderItem->m_MeshGeo->m_SubMeshGeometrys["Cube"].m_BaseVertexLocation;
 	m_AllRenderItems.emplace_back(std::move(platformRenderItem));
+	m_RenderItemsByRenderLayer[static_cast<int>(EnumRenderLayer::kLayerOpaque)].emplace_back(m_AllRenderItems.back().get());
 	// 骷髅模型
 	std::unique_ptr<DemoRenderItem> skullRenderItem = std::make_unique<DemoRenderItem>();
 	skullRenderItem->m_MeshGeo = m_SceneObjectes["Skull"].get();
@@ -722,12 +829,13 @@ void DXSampleForReview::BuildRenderItems()
 	DirectX::XMMATRIX scaleMatrix = DirectX::XMMatrixScaling(0.7f, 0.7f, 0.7f);
 	DirectX::XMStoreFloat4x4(&skullRenderItem->m_LoclToWorldMatrix, scaleMatrix * rotaMatrix * transMatrix);
 	skullRenderItem->m_ObjectCBIndex = 2 * kNumPillar + 2;
-	skullRenderItem->m_Material = m_AllMaterials["Default"].get();
+	skullRenderItem->m_Material = m_AllMaterials["Skull"].get();
 	skullRenderItem->m_NumFrameDirty = 1;
 	skullRenderItem->m_IndexCount = skullRenderItem->m_MeshGeo->m_SubMeshGeometrys["Skull"].m_IndexCount;
 	skullRenderItem->m_StartIndexLocation = skullRenderItem->m_MeshGeo->m_SubMeshGeometrys["Skull"].m_StartIndexLocation;
 	skullRenderItem->m_StartVertexLocation = skullRenderItem->m_MeshGeo->m_SubMeshGeometrys["Skull"].m_BaseVertexLocation;
 	m_AllRenderItems.emplace_back(std::move(skullRenderItem));
+	m_RenderItemsByRenderLayer[static_cast<int>(EnumRenderLayer::kLayerOpaque)].emplace_back(m_AllRenderItems.back().get());
 }
 
 /// <summary>
@@ -736,52 +844,52 @@ void DXSampleForReview::BuildRenderItems()
 void DXSampleForReview::BuildConstantBufferView()
 {
 	uint32_t objectCount = static_cast<uint32_t>(m_AllRenderItems.size());
-	// 创建物体层级常量缓冲区
+	//// 创建物体层级常量缓冲区
 	m_PerOjectConstantBuffer = std::make_unique<UploadBuffer<PerObjectConstants>>(m_RenderDevice.Get(), objectCount, true);
-	// 获取物体常量缓冲区资源的起始地址
-	for (uint32_t i = 0; i < objectCount; ++i)
-	{
-		// 大的缓冲区资源有多个物体级的常量缓冲区组成，计算每个物体常量缓冲区的偏移，从而确定准确地址
-		D3D12_GPU_VIRTUAL_ADDRESS objCbAddr = m_PerOjectConstantBuffer->GetResource()->GetGPUVirtualAddress();
-		objCbAddr += i * m_PerOjectConstantBuffer->GetElementSize();
-		// 获取CBV描述符的handle，
-		CD3DX12_CPU_DESCRIPTOR_HANDLE handle = CD3DX12_CPU_DESCRIPTOR_HANDLE(m_CBVHeap->GetCPUDescriptorHandleForHeapStart());
-		handle.Offset(i, m_CBVUAVDescriptorSize);
-		// 绑定常量缓冲区资源和描述符堆，创建常量缓冲区描述符
-		D3D12_CONSTANT_BUFFER_VIEW_DESC desc{};
-		desc.BufferLocation = objCbAddr;
-		desc.SizeInBytes = m_PerOjectConstantBuffer->GetElementSize();
-		m_RenderDevice->CreateConstantBufferView(&desc, handle);
-	}
+	//// 获取物体常量缓冲区资源的起始地址
+	//for (uint32_t i = 0; i < objectCount; ++i)
+	//{
+	//	// 大的缓冲区资源有多个物体级的常量缓冲区组成，计算每个物体常量缓冲区的偏移，从而确定准确地址
+	//	D3D12_GPU_VIRTUAL_ADDRESS objCbAddr = m_PerOjectConstantBuffer->GetResource()->GetGPUVirtualAddress();
+	//	objCbAddr += i * m_PerOjectConstantBuffer->GetElementSize();
+	//	// 获取CBV描述符的handle，
+	//	CD3DX12_CPU_DESCRIPTOR_HANDLE handle = CD3DX12_CPU_DESCRIPTOR_HANDLE(m_CBVHeap->GetCPUDescriptorHandleForHeapStart());
+	//	handle.Offset(i, m_CBVUAVDescriptorSize);
+	//	// 绑定常量缓冲区资源和描述符堆，创建常量缓冲区描述符
+	//	D3D12_CONSTANT_BUFFER_VIEW_DESC desc{};
+	//	desc.BufferLocation = objCbAddr;
+	//	desc.SizeInBytes = m_PerOjectConstantBuffer->GetElementSize();
+	//	m_RenderDevice->CreateConstantBufferView(&desc, handle);
+	//}
 
 	uint32_t materialCount = static_cast<uint32_t>(m_AllMaterials.size());
 	m_PerMaterialConstantBuffer = std::make_unique<UploadBuffer<PerMaterialConstants>>(m_RenderDevice.Get(), materialCount, true);
-	// 为每个材质常量缓冲区绑定描述符
-	for (uint32_t i = 0; i < materialCount; ++i)
-	{
-		// 获取各个常量缓冲区资源的GPU地址
-		D3D12_GPU_VIRTUAL_ADDRESS matCbAddr = m_PerMaterialConstantBuffer->GetResource()->GetGPUVirtualAddress();
-		matCbAddr += i * m_PerMaterialConstantBuffer->GetElementSize();
-		// 获取描述符的handle
-		CD3DX12_CPU_DESCRIPTOR_HANDLE handle = CD3DX12_CPU_DESCRIPTOR_HANDLE(m_CBVHeap->GetCPUDescriptorHandleForHeapStart());
-		handle.Offset(i + objectCount, m_CBVUAVDescriptorSize);
-		D3D12_CONSTANT_BUFFER_VIEW_DESC desc{};
-		desc.BufferLocation = matCbAddr;
-		desc.SizeInBytes = m_PerMaterialConstantBuffer->GetElementSize();
-		m_RenderDevice->CreateConstantBufferView(&desc, handle);
-	}
+	//// 为每个材质常量缓冲区绑定描述符
+	//for (uint32_t i = 0; i < materialCount; ++i)
+	//{
+	//	// 获取各个常量缓冲区资源的GPU地址
+	//	D3D12_GPU_VIRTUAL_ADDRESS matCbAddr = m_PerMaterialConstantBuffer->GetResource()->GetGPUVirtualAddress();
+	//	matCbAddr += i * m_PerMaterialConstantBuffer->GetElementSize();
+	//	// 获取描述符的handle
+	//	CD3DX12_CPU_DESCRIPTOR_HANDLE handle = CD3DX12_CPU_DESCRIPTOR_HANDLE(m_CBVHeap->GetCPUDescriptorHandleForHeapStart());
+	//	handle.Offset(i + objectCount, m_CBVUAVDescriptorSize);
+	//	D3D12_CONSTANT_BUFFER_VIEW_DESC desc{};
+	//	desc.BufferLocation = matCbAddr;
+	//	desc.SizeInBytes = m_PerMaterialConstantBuffer->GetElementSize();
+	//	m_RenderDevice->CreateConstantBufferView(&desc, handle);
+	//}
 
-	// 创建渲染Pass层级常量缓冲区资源
+	//// 创建渲染Pass层级常量缓冲区资源
 	m_PerPassConstantBuffer = std::make_unique<UploadBuffer<PerPassConstants>>(m_RenderDevice.Get(), 1u, true);
-	D3D12_GPU_VIRTUAL_ADDRESS passCBAddr = m_PerPassConstantBuffer->GetResource()->GetGPUVirtualAddress();
-	// 获取空闲的handle，注意偏移，前objectCount个已经被ObjectConstantBuffer占用
-	CD3DX12_CPU_DESCRIPTOR_HANDLE handle = CD3DX12_CPU_DESCRIPTOR_HANDLE(m_CBVHeap->GetCPUDescriptorHandleForHeapStart());
-	handle.Offset(objectCount + materialCount, m_CBVUAVDescriptorSize);
-	// 绑定常量缓冲区资源和描述符堆，创建常量缓冲区描述符
-	D3D12_CONSTANT_BUFFER_VIEW_DESC desc{};
-	desc.BufferLocation = passCBAddr;
-	desc.SizeInBytes = m_PerPassConstantBuffer->GetElementSize();
-	m_RenderDevice->CreateConstantBufferView(&desc, handle);
+	//D3D12_GPU_VIRTUAL_ADDRESS passCBAddr = m_PerPassConstantBuffer->GetResource()->GetGPUVirtualAddress();
+	//// 获取空闲的handle，注意偏移，前objectCount个已经被ObjectConstantBuffer占用
+	//CD3DX12_CPU_DESCRIPTOR_HANDLE handle = CD3DX12_CPU_DESCRIPTOR_HANDLE(m_CBVHeap->GetCPUDescriptorHandleForHeapStart());
+	//handle.Offset(objectCount + materialCount, m_CBVUAVDescriptorSize);
+	//// 绑定常量缓冲区资源和描述符堆，创建常量缓冲区描述符
+	//D3D12_CONSTANT_BUFFER_VIEW_DESC desc{};
+	//desc.BufferLocation = passCBAddr;
+	//desc.SizeInBytes = m_PerPassConstantBuffer->GetElementSize();
+	//m_RenderDevice->CreateConstantBufferView(&desc, handle);
 }
 
 /// <summary>
@@ -790,7 +898,13 @@ void DXSampleForReview::BuildConstantBufferView()
 void DXSampleForReview::CompileShaderFile()
 {
 	m_VSByteCode = CompileShader(m_AssetPath + _T("Source\\DXReviewEntry.hlsl"), nullptr, "VSMain", "vs_5_0");
-	m_PSByteCode = CompileShader(m_AssetPath + _T("Source\\DXReviewEntry.hlsl"), nullptr, "PSMain", "ps_5_0");
+
+	D3D_SHADER_MACRO enableFogMacros[]{
+		{"ENABLE_FOG", "1"},
+		// 最后需要定义一个NULL，指定宏定义数组结束标识
+		{ NULL, NULL },
+	};
+	m_PSByteCode = CompileShader(m_AssetPath + _T("Source\\DXReviewEntry.hlsl"), enableFogMacros, "PSMain", "ps_5_0");
 }
 
 /// <summary>
@@ -801,19 +915,19 @@ void DXSampleForReview::CreateRootSignature()
 	// 使用了2个常量缓冲区，
 	CD3DX12_ROOT_PARAMETER slotRootParameter[5]{};
 	// 通过描述符表的方式场景根参数
-	CD3DX12_DESCRIPTOR_RANGE objCbvTable{};				// 3个常量缓冲区，分别作为物体常量缓冲区、材质常量缓冲区和pass常量缓冲区
-	objCbvTable.Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0);
-	CD3DX12_DESCRIPTOR_RANGE matCbvTable{};				// 3个常量缓冲区，分别作为物体常量缓冲区、材质常量缓冲区和pass常量缓冲区
-	matCbvTable.Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 1);
-	CD3DX12_DESCRIPTOR_RANGE passCbvTable{};				// 3个常量缓冲区，分别作为物体常量缓冲区、材质常量缓冲区和pass常量缓冲区
-	passCbvTable.Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 2);
+	//CD3DX12_DESCRIPTOR_RANGE objCbvTable{};				// 3个常量缓冲区，分别作为物体常量缓冲区、材质常量缓冲区和pass常量缓冲区
+	//objCbvTable.Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0);
+	//CD3DX12_DESCRIPTOR_RANGE matCbvTable{};				// 3个常量缓冲区，分别作为物体常量缓冲区、材质常量缓冲区和pass常量缓冲区
+	//matCbvTable.Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 1);
+	//CD3DX12_DESCRIPTOR_RANGE passCbvTable{};				// 3个常量缓冲区，分别作为物体常量缓冲区、材质常量缓冲区和pass常量缓冲区
+	//passCbvTable.Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 2);
 	CD3DX12_DESCRIPTOR_RANGE srvTable{};				// 纹理
 	srvTable.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0);
 	CD3DX12_DESCRIPTOR_RANGE samplerTable{};			// 采样器
 	samplerTable.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, 1, 0);
-	slotRootParameter[0].InitAsDescriptorTable(1, &objCbvTable);
-	slotRootParameter[1].InitAsDescriptorTable(1, &matCbvTable);
-	slotRootParameter[2].InitAsDescriptorTable(1, &passCbvTable);
+	slotRootParameter[0].InitAsConstantBufferView(0); // 物体层级常量缓冲区根描述符
+	slotRootParameter[1].InitAsConstantBufferView(1); // 材质层级常量缓冲区根描述符
+	slotRootParameter[2].InitAsConstantBufferView(2); // pass层级常量穿冲去根描述符
 	slotRootParameter[3].InitAsDescriptorTable(1, &srvTable);
 	slotRootParameter[4].InitAsDescriptorTable(1, &samplerTable);
 	// 根参数序列化
@@ -844,26 +958,45 @@ void DXSampleForReview::BuildPSO()
 		{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, (3 + 4 + 3 + 3) * sizeof(float), D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
 	};
 	// int value =  sizeof(m_InputLayoutDescs);
-	D3D12_GRAPHICS_PIPELINE_STATE_DESC pipelineStateDesc{};
-	ZeroMemory(&pipelineStateDesc, sizeof(pipelineStateDesc));
-	pipelineStateDesc.NodeMask = 0U;
-	pipelineStateDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
-	pipelineStateDesc.InputLayout = { m_InputLayoutDescs.data(), (UINT)m_InputLayoutDescs.size() };
-	pipelineStateDesc.pRootSignature = m_RootSignature.Get();
-	pipelineStateDesc.VS = { reinterpret_cast<BYTE*>(m_VSByteCode->GetBufferPointer()), m_VSByteCode->GetBufferSize() };
-	pipelineStateDesc.PS = { reinterpret_cast<BYTE*>(m_PSByteCode->GetBufferPointer()), m_PSByteCode->GetBufferSize() };
-	pipelineStateDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
-	pipelineStateDesc.RasterizerState.FillMode = D3D12_FILL_MODE_SOLID;
-	pipelineStateDesc.RasterizerState.CullMode = D3D12_CULL_MODE_BACK;
-	pipelineStateDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
-	pipelineStateDesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
-	pipelineStateDesc.NumRenderTargets = 1u;
-	pipelineStateDesc.RTVFormats[0] = m_BackBufferFormat;
-	pipelineStateDesc.DSVFormat = m_DepthStencilFormat;
-	pipelineStateDesc.SampleMask = UINT_MAX;
-	pipelineStateDesc.SampleDesc.Count = m_IsEnable4XMSAA ? 4 : 1;
-	pipelineStateDesc.SampleDesc.Quality = m_IsEnable4XMSAA ? m_4XMSAAQualityLevel - 1 : 0;
-	ThrowIfFailed(m_RenderDevice->CreateGraphicsPipelineState(&pipelineStateDesc, IID_PPV_ARGS(m_PSO.GetAddressOf())));
+	D3D12_GRAPHICS_PIPELINE_STATE_DESC opaqueDesc{};
+	ZeroMemory(&opaqueDesc, sizeof(opaqueDesc));
+	opaqueDesc.NodeMask = 0U;
+	opaqueDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+	opaqueDesc.InputLayout = { m_InputLayoutDescs.data(), (UINT)m_InputLayoutDescs.size() };
+	opaqueDesc.pRootSignature = m_RootSignature.Get();
+	opaqueDesc.VS = { reinterpret_cast<BYTE*>(m_VSByteCode->GetBufferPointer()), m_VSByteCode->GetBufferSize() };
+	opaqueDesc.PS = { reinterpret_cast<BYTE*>(m_PSByteCode->GetBufferPointer()), m_PSByteCode->GetBufferSize() };
+	opaqueDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
+	opaqueDesc.RasterizerState.FillMode = D3D12_FILL_MODE_SOLID;
+	opaqueDesc.RasterizerState.CullMode = D3D12_CULL_MODE_BACK;
+	opaqueDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
+	opaqueDesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
+	opaqueDesc.NumRenderTargets = 1u;
+	opaqueDesc.RTVFormats[0] = m_BackBufferFormat;
+	opaqueDesc.DSVFormat = m_DepthStencilFormat;
+	opaqueDesc.SampleMask = UINT_MAX;
+	opaqueDesc.SampleDesc.Count = m_IsEnable4XMSAA ? 4 : 1;
+	opaqueDesc.SampleDesc.Quality = m_IsEnable4XMSAA ? m_4XMSAAQualityLevel - 1 : 0;
+	ThrowIfFailed(m_RenderDevice->CreateGraphicsPipelineState(&opaqueDesc, IID_PPV_ARGS(m_PSOs[static_cast<int>(EnumRenderLayer::kLayerOpaque)].GetAddressOf())));
+
+
+	D3D12_GRAPHICS_PIPELINE_STATE_DESC transparentDesc{ opaqueDesc };
+	CD3DX12_BLEND_DESC transparentBlendDesc(D3D12_DEFAULT);
+	transparentBlendDesc.AlphaToCoverageEnable = false;
+	transparentBlendDesc.IndependentBlendEnable = false;
+	transparentBlendDesc.RenderTarget[0].LogicOpEnable = false;		// 不启动逻辑运算混合
+	transparentBlendDesc.RenderTarget[0].LogicOp = D3D12_LOGIC_OP_NOOP;
+	transparentBlendDesc.RenderTarget[0].BlendEnable = true;		// 启用传统混合
+	transparentBlendDesc.RenderTarget[0].RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL; // 全通道都可混合写入
+	transparentBlendDesc.RenderTarget[0].DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
+	transparentBlendDesc.RenderTarget[0].SrcBlend = D3D12_BLEND_SRC_ALPHA;
+	transparentBlendDesc.RenderTarget[0].BlendOp = D3D12_BLEND_OP_ADD;
+	transparentBlendDesc.RenderTarget[0].DestBlendAlpha = D3D12_BLEND_ZERO;
+	transparentBlendDesc.RenderTarget[0].SrcBlendAlpha = D3D12_BLEND_ONE;
+	transparentBlendDesc.RenderTarget[0].BlendOpAlpha = D3D12_BLEND_OP_ADD;
+	opaqueDesc.BlendState = transparentBlendDesc;
+
+	ThrowIfFailed(m_RenderDevice->CreateGraphicsPipelineState(&opaqueDesc, IID_PPV_ARGS(m_PSOs[static_cast<int>(EnumRenderLayer::kLayerTransparent)].GetAddressOf())));
 }
 
 void DXSampleForReview::UpdateObjCBs(float fDeltaTime, float fTotalTime)
@@ -926,7 +1059,9 @@ void DXSampleForReview::UpdatePassCB(float fDeltaTime, float fTotalTime)
 	passCBData.m_InvRenderTargetSize = DirectX::XMFLOAT2(1.f / static_cast<float>(m_Width), 1.f / static_cast<float>(m_Height));
 	passCBData.m_DeltaTime = fDeltaTime;
 	passCBData.m_TotalTime = fTotalTime;
-
+	passCBData.m_FogColor = m_FogColor;
+	passCBData.m_FogStart = m_FogStart;
+	passCBData.m_FogEnd = m_FogEnd;
 	passCBData.m_AmbientLight = m_AmbientLight;
 	passCBData.m_AllLights[0].m_Strength = m_DirectLight;
 	DirectX::XMFLOAT3 lightPos{};
@@ -978,7 +1113,7 @@ void DXSampleForReview::FlushCommandQueue()
 void DXSampleForReview::PopulateCommandList()
 {
 	ThrowIfFailed(m_CommandAllocator->Reset());
-	ThrowIfFailed(m_CommandList->Reset(m_CommandAllocator.Get(), m_PSO.Get()));
+	ThrowIfFailed(m_CommandList->Reset(m_CommandAllocator.Get(), m_PSOs[static_cast<int>(EnumRenderLayer::kLayerOpaque)].Get()));
 	// 当前的交换链缓冲区切换为渲染目标
 	m_CommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(
 		m_RenderTargetBuffers[m_CurrentFrameBufferIndex].Get()
@@ -998,18 +1133,21 @@ void DXSampleForReview::PopulateCommandList()
 	// 设置根签名
 	m_CommandList->SetGraphicsRootSignature(m_RootSignature.Get());
 	// 设置关联的描述符堆
-	ID3D12DescriptorHeap* descriptorHeaps[] = { m_CBVHeap.Get(), m_SamplerDescriptorHeap.Get() };
+	ID3D12DescriptorHeap* descriptorHeaps[] = { m_SRVHeap.Get(), m_SamplerDescriptorHeap.Get() };
 	m_CommandList->SetDescriptorHeaps(2, descriptorHeaps);
 	// 关联的渲染过程常量缓冲区描述符
-	uint32_t passCBVIndex = static_cast<uint32_t>(m_AllRenderItems.size()) + static_cast<uint32_t>(m_AllMaterials.size());
-	CD3DX12_GPU_DESCRIPTOR_HANDLE passCBVHandle(m_CBVHeap->GetGPUDescriptorHandleForHeapStart());
-	passCBVHandle.Offset(passCBVIndex, m_CBVUAVDescriptorSize);
-	m_CommandList->SetGraphicsRootDescriptorTable(2, passCBVHandle);
+	//uint32_t passCBVIndex = static_cast<uint32_t>(m_AllRenderItems.size()) + static_cast<uint32_t>(m_AllMaterials.size());
+	//CD3DX12_GPU_DESCRIPTOR_HANDLE passCBVHandle(m_SRVHeap->GetGPUDescriptorHandleForHeapStart());
+	//passCBVHandle.Offset(passCBVIndex, m_CBVUAVDescriptorSize);
+	m_CommandList->SetGraphicsRootConstantBufferView(2, m_PerPassConstantBuffer->GetResource()->GetGPUVirtualAddress()); // 直接绑定根描述符
 	// 关联的采样器描述符表
 	CD3DX12_GPU_DESCRIPTOR_HANDLE samplerHandle(m_SamplerDescriptorHeap->GetGPUDescriptorHandleForHeapStart());
 	m_CommandList->SetGraphicsRootDescriptorTable(4, samplerHandle);
+	DrawRenderItem(m_RenderItemsByRenderLayer[static_cast<int>(EnumRenderLayer::kLayerOpaque)]);
 
-	DrawRenderItem();
+	// 切换到透明物体渲染项
+	m_CommandList->SetPipelineState(m_PSOs[static_cast<int>(EnumRenderLayer::kLayerTransparent)].Get());
+	DrawRenderItem(m_RenderItemsByRenderLayer[static_cast<int>(EnumRenderLayer::kLayerTransparent)]);
 
 	// 当前的交换链缓冲区切换为显示状态
 	m_CommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(
@@ -1023,28 +1161,34 @@ void DXSampleForReview::PopulateCommandList()
 /// <summary>
 /// 绘制渲染项
 /// </summary>
-void DXSampleForReview::DrawRenderItem()
+void DXSampleForReview::DrawRenderItem(const std::vector<DemoRenderItem*>& vecCurrentRenderItems)
 {
-	int objCount = static_cast<int>(m_AllRenderItems.size());
-	for (size_t i = 0; i < m_AllRenderItems.size(); ++i)
+	for (size_t i = 0; i < vecCurrentRenderItems.size(); ++i)
 	{
-		DemoRenderItem* pRenderItem = m_AllRenderItems[i].get();
+		DemoRenderItem* pRenderItem = vecCurrentRenderItems[i];
 		m_CommandList->IASetVertexBuffers(0, 1, &pRenderItem->m_MeshGeo->GetVertexBufferView());
 		m_CommandList->IASetIndexBuffer(&pRenderItem->m_MeshGeo->GetIndexBufferView());
 		m_CommandList->IASetPrimitiveTopology(pRenderItem->m_PrimitiveType);
 		// 绑定关联的纹理资源描述符
-		CD3DX12_GPU_DESCRIPTOR_HANDLE srvHandle(m_CBVHeap->GetGPUDescriptorHandleForHeapStart());
-		uint32_t srvOffset = objCount + static_cast<int>(m_AllMaterials.size()) + 1;
+		CD3DX12_GPU_DESCRIPTOR_HANDLE srvHandle(m_SRVHeap->GetGPUDescriptorHandleForHeapStart());
+		uint32_t srvOffset = 0;// objCount + static_cast<int>(m_AllMaterials.size()) + 1;
 		srvHandle.Offset(srvOffset + pRenderItem->m_Material->m_DiffuseMapIndex, m_CBVUAVDescriptorSize);
 		m_CommandList->SetGraphicsRootDescriptorTable(3, srvHandle);
 		// 绑定渲染项关联的常量缓冲区
-		CD3DX12_GPU_DESCRIPTOR_HANDLE objCBHandle(m_CBVHeap->GetGPUDescriptorHandleForHeapStart());
-		objCBHandle.Offset(pRenderItem->m_ObjectCBIndex * m_CBVUAVDescriptorSize);
-		m_CommandList->SetGraphicsRootDescriptorTable(0, objCBHandle);
+		//CD3DX12_GPU_DESCRIPTOR_HANDLE objCBHandle(m_CBVHeap->GetGPUDescriptorHandleForHeapStart());
+		//objCBHandle.Offset(pRenderItem->m_ObjectCBIndex * m_CBVUAVDescriptorSize);
+		//m_CommandList->SetGraphicsRootDescriptorTable(0, objCBHandle);
+		D3D12_GPU_VIRTUAL_ADDRESS objCBAddr = m_PerOjectConstantBuffer->GetResource()->GetGPUVirtualAddress();
+		objCBAddr += pRenderItem->m_ObjectCBIndex * m_PerOjectConstantBuffer->GetElementSize();
+		m_CommandList->SetGraphicsRootConstantBufferView(0, objCBAddr);
 		// 绑定关联材质的常量缓冲区
-		CD3DX12_GPU_DESCRIPTOR_HANDLE matCBHandle(m_CBVHeap->GetGPUDescriptorHandleForHeapStart());
-		matCBHandle.Offset(objCount + pRenderItem->m_Material->m_CbvIndex, m_CBVUAVDescriptorSize);
-		m_CommandList->SetGraphicsRootDescriptorTable(1, matCBHandle);
+		//CD3DX12_GPU_DESCRIPTOR_HANDLE matCBHandle(m_CBVHeap->GetGPUDescriptorHandleForHeapStart());
+		//matCBHandle.Offset(objCount + pRenderItem->m_Material->m_CbvIndex, m_CBVUAVDescriptorSize);
+		//m_CommandList->SetGraphicsRootDescriptorTable(1, matCBHandle);
+		D3D12_GPU_VIRTUAL_ADDRESS matCBAddr = m_PerMaterialConstantBuffer->GetResource()->GetGPUVirtualAddress();
+		matCBAddr += pRenderItem->m_Material->m_CbvIndex * m_PerMaterialConstantBuffer->GetElementSize();
+		m_CommandList->SetGraphicsRootConstantBufferView(1, matCBAddr);
+		// 绘制
 		m_CommandList->DrawIndexedInstanced(pRenderItem->m_IndexCount, 1, pRenderItem->m_StartIndexLocation, pRenderItem->m_StartVertexLocation, 0);
 	}
 }

@@ -15,6 +15,17 @@ constexpr int kFrameResourceCount = 2;
 constexpr int kMaxLights = 16;
 
 /// <summary>
+/// 渲染层枚举定义
+/// </summary>
+enum class EnumRenderLayer
+{
+	kLayerOpaque = 0,			// 不透明物体
+	kLayerTransparent = 1,		// 透明物体
+
+	kLayerCount
+};
+
+/// <summary>
 /// 光源数据结构体
 /// </summary>
 struct Light
@@ -277,6 +288,24 @@ struct PerPassConstants
 	/// 总时间
 	/// </summary>
 	float m_TotalTime;
+	/// <summary>
+	/// 雾颜色
+	/// </summary>
+	DirectX::XMFLOAT4 m_FogColor;
+	/// <summary>
+	/// 雾开始位置
+	/// </summary>
+	float m_FogStart;
+	/// <summary>
+	/// 雾不可见位置
+	/// </summary>
+	float m_FogEnd;
+
+	/// <summary>
+	/// 占位，与m_FogStart、m_FogEnd组合成4D向量
+	/// </summary>
+	float __padding1[2];
+
 	/// <summary>
 	/// 环境光
 	/// </summary>

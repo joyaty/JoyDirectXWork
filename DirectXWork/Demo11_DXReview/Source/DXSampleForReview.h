@@ -193,7 +193,8 @@ private:
 	/// <summary>
 	/// 绘制渲染项
 	/// </summary>
-	void DrawRenderItem();
+	/// <param name="vecCurrentRenderItems"></param>
+	void DrawRenderItem(const std::vector<DemoRenderItem*>& vecCurrentRenderItems);
 
 private:
 	/// <summary>
@@ -284,6 +285,19 @@ private:
 	/// 直接光
 	/// </summary>
 	DirectX::XMFLOAT3 m_DirectLight{ 0.8f, 0.7f, 0.7f };
+
+	/// <summary>
+	/// 雾颜色
+	/// </summary>
+	DirectX::XMFLOAT4 m_FogColor{ 0.5f, 0.5f, 0.5f, 1.0f };
+	/// <summary>
+	/// 雾开始出现距离(参照相机位置)
+	/// </summary>
+	float m_FogStart{ 10.f };
+	/// <summary>
+	/// 雾不可见距离(参照相机位置)
+	/// </summary>
+	float m_FogEnd{ 50.f };
 
 private:
 	/// <summary>
@@ -397,7 +411,7 @@ private:
 	/// <summary>
 	/// 渲染管线状态对象
 	/// </summary>
-	Microsoft::WRL::ComPtr<ID3D12PipelineState> m_PSO{ nullptr };
+	Microsoft::WRL::ComPtr<ID3D12PipelineState> m_PSOs[static_cast<int>(EnumRenderLayer::kLayerCount)]{};
 
 	std::vector<D3D12_INPUT_ELEMENT_DESC> m_InputLayoutDescs{};
 
@@ -427,6 +441,10 @@ private:
 	/// 渲染项集合
 	/// </summary>
 	std::vector<std::unique_ptr<DemoRenderItem>> m_AllRenderItems{};
+	/// <summary>
+	/// 按渲染层级归类渲染项
+	/// </summary>
+	std::vector<DemoRenderItem*> m_RenderItemsByRenderLayer[static_cast<int>(EnumRenderLayer::kLayerCount)];
 
 	/// <summary>
 	/// 用于单个物体的常量缓冲区

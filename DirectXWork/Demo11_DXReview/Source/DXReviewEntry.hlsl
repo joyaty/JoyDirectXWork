@@ -65,6 +65,14 @@ cbuffer PerPassConstants : register(b2)
 	float gDeltaTime;
 	// 总时间
 	float gTotalTime;
+	// 雾颜色
+    float4 gFogColor;
+	// 雾开始位置
+    float gFogStart;
+	// 雾不可见位置
+    float gFogEnd;
+	// 占位1
+    float2 __padding1;
 	// 环境光
     float4 gAmbientLight;
 	// 全部的直接光信息
@@ -135,17 +143,22 @@ float4 PSMain(VertexOut pIn) : SV_Target
 	// 当前位置到观察者的方向向量，规范化
     float3 pos = (float3) pIn.PosW;
     float3 toEye = normalize(gEyePos - pos);
+    float distToEye = distance(gEyePos, pos);
 	// 从材质常量缓冲区构建当前渲染的材质数据
     Material mat;
-    mat.diffuseAlbedo = gDiffuseMap.Sample(gLinearWrapSampler, pIn.TexCoord) * gDiffuseAlbedo;
+    mat.diffuseAlbedo = gDiffuseMap.Sample(gPointWrapStaticSampler, pIn.TexCoord) * gDiffuseAlbedo;
     mat.fresnelR0 = gFresnelR0;
     mat.roughness = gRoughness;
 	// 直接光
     float4 directLight = ComputeLights(gLights, mat, pos, normal, toEye);
 	// 环境光
-    float4 ambient = gAmbientLight * gDiffuseAlbedo;
+    float4 ambient = gAmbientLight * mat.diffuseAlbedo;
 	// 最终光 = 直接光 + 间接光
     float4 litColor = directLight + ambient;
+#if (ENABLE_FOG == 1)
+	float fogFactor = saturate((distToEye - gFogStart) / (gFogEnd - gFogStart));
+	litColor = lerp(litColor, gFogColor, fogFactor);
+#endif	
 	// 取漫反射材质的alpha
     litColor.a = gDiffuseAlbedo.a;
     return litColor;
