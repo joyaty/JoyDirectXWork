@@ -553,6 +553,25 @@ void DXSampleForReview::CreateSceneObjects()
 	skullSubMesh.m_BaseVertexLocation = 0;
 	pSkullGeometry->m_SubMeshGeometrys["Skull"] = skullSubMesh;
 	m_SceneObjectes[pSkullGeometry->m_Name] = std::move(pSkullGeometry);
+
+	Mesh quadMesh{};
+	GeometryGenerator::CreateQuad(10.f, 10.f, quadMesh);
+	uint32_t quadVertexBufferSize = static_cast<uint32_t>(sizeof(Vertex) * quadMesh.Vertices.size());
+	uint32_t quadIndexBufferSize = static_cast<uint32_t>(sizeof(uint16_t) * quadMesh.GetIndices16().size());
+	std::unique_ptr<MeshGeometry> pMirrorGeometry = std::make_unique<MeshGeometry>();
+	pMirrorGeometry->m_Name = "Mirror";
+	pMirrorGeometry->m_VertexBufferGPU = D3DHelper::CreateBufferInDefaultHeap(m_RenderDevice.Get(), m_CommandList.Get(), quadMesh.Vertices.data(), quadVertexBufferSize, pMirrorGeometry->m_VertexBufferUploader);
+	pMirrorGeometry->m_VertexSize = quadVertexBufferSize;
+	pMirrorGeometry->m_VertexStride = sizeof(Vertex);
+	pMirrorGeometry->m_IndexBufferGPU = D3DHelper::CreateBufferInDefaultHeap(m_RenderDevice.Get(), m_CommandList.Get(), quadMesh.GetIndices16().data(), quadVertexBufferSize, pMirrorGeometry->m_IndexBufferUploader);
+	pMirrorGeometry->m_IndexSize = quadIndexBufferSize;
+	pMirrorGeometry->m_IndexFormat = DXGI_FORMAT_R16_UINT;
+	MeshGeometry::SubMeshGeometry quadSubMesh{};
+	quadSubMesh.m_IndexCount = static_cast<uint32_t>(quadMesh.GetIndices16().size());
+	quadSubMesh.m_StartIndexLocation = 0u;
+	quadSubMesh.m_BaseVertexLocation = 0u;
+	pMirrorGeometry->m_SubMeshGeometrys["Quad"] = quadSubMesh;
+	m_SceneObjectes[pMirrorGeometry->m_Name] = std::move(pMirrorGeometry);
 }
 
 void DXSampleForReview::BuildShaderResource()
@@ -762,6 +781,16 @@ void DXSampleForReview::BuildMaterials()
 	pSkullMat->m_DiffuseMapIndex = 4;
 	// 保存到材质集合中
 	m_AllMaterials[pSkullMat->m_Name] = std::move(pSkullMat);
+
+	std::unique_ptr<Material> pMirrorMat = std::make_unique<Material>();
+	pMirrorMat->m_Name = "Mirror";
+	pMirrorMat->m_DiffuseAlbedo = DirectX::XMFLOAT4(1.f, 1.f, 1.f, 0.5f);
+	pMirrorMat->m_FresnelR0 = DirectX::XMFLOAT3(0.1f, 0.1f, 0.1f);
+	pMirrorMat->m_Roughness = 0.75f;
+	pMirrorMat->m_CbvIndex = 5;
+	pMirrorMat->m_DiffuseMapIndex = 2;
+	// 保存到材质集合中
+	m_AllMaterials[pMirrorMat->m_Name] = std::move(pMirrorMat);
 }
 
 void DXSampleForReview::BuildRenderItems()
@@ -812,20 +841,22 @@ void DXSampleForReview::BuildRenderItems()
 	// 平台
 	std::unique_ptr<DemoRenderItem> platformRenderItem = std::make_unique<DemoRenderItem>();
 	platformRenderItem->m_MeshGeo = m_SceneObjectes["Platform"].get();
-	DirectX::XMStoreFloat4x4(&platformRenderItem->m_LoclToWorldMatrix, DirectX::XMMatrixTranslation(0.f, 1.f, 0.f));
+	DirectX::XMMATRIX platformWorldMatrix = DirectX::XMMatrixTranslation(0.f, 1.f, 0.f);
+	DirectX::XMStoreFloat4x4(&platformRenderItem->m_LoclToWorldMatrix, platformWorldMatrix);
 	platformRenderItem->m_ObjectCBIndex = 2 * kNumPillar + 1;
 	platformRenderItem->m_Material = m_AllMaterials["Platform"].get();
 	platformRenderItem->m_NumFrameDirty = 1;
 	platformRenderItem->m_IndexCount = platformRenderItem->m_MeshGeo->m_SubMeshGeometrys["Cube"].m_IndexCount;
 	platformRenderItem->m_StartIndexLocation = platformRenderItem->m_MeshGeo->m_SubMeshGeometrys["Cube"].m_StartIndexLocation;
 	platformRenderItem->m_StartVertexLocation = platformRenderItem->m_MeshGeo->m_SubMeshGeometrys["Cube"].m_BaseVertexLocation;
+	DemoRenderItem* pNakePlatformRenderItem = platformRenderItem.get();
 	m_AllRenderItems.emplace_back(std::move(platformRenderItem));
 	m_RenderItemsByRenderLayer[static_cast<int>(EnumRenderLayer::kLayerOpaque)].emplace_back(m_AllRenderItems.back().get());
 	// 骷髅模型
 	std::unique_ptr<DemoRenderItem> skullRenderItem = std::make_unique<DemoRenderItem>();
 	skullRenderItem->m_MeshGeo = m_SceneObjectes["Skull"].get();
 	DirectX::XMMATRIX transMatrix = DirectX::XMMatrixTranslation(0.f, 2.2f, 0.f);
-	DirectX::XMMATRIX rotaMatrix = DirectX::XMMatrixRotationY(DirectX::XM_PIDIV4);
+	DirectX::XMMATRIX rotaMatrix = DirectX::XMMatrixRotationY(DirectX::XM_PIDIV2);
 	DirectX::XMMATRIX scaleMatrix = DirectX::XMMatrixScaling(0.7f, 0.7f, 0.7f);
 	DirectX::XMStoreFloat4x4(&skullRenderItem->m_LoclToWorldMatrix, scaleMatrix * rotaMatrix * transMatrix);
 	skullRenderItem->m_ObjectCBIndex = 2 * kNumPillar + 2;
@@ -834,8 +865,38 @@ void DXSampleForReview::BuildRenderItems()
 	skullRenderItem->m_IndexCount = skullRenderItem->m_MeshGeo->m_SubMeshGeometrys["Skull"].m_IndexCount;
 	skullRenderItem->m_StartIndexLocation = skullRenderItem->m_MeshGeo->m_SubMeshGeometrys["Skull"].m_StartIndexLocation;
 	skullRenderItem->m_StartVertexLocation = skullRenderItem->m_MeshGeo->m_SubMeshGeometrys["Skull"].m_BaseVertexLocation;
+	DemoRenderItem* pNakedSkullRenderItem = skullRenderItem.get();
 	m_AllRenderItems.emplace_back(std::move(skullRenderItem));
 	m_RenderItemsByRenderLayer[static_cast<int>(EnumRenderLayer::kLayerOpaque)].emplace_back(m_AllRenderItems.back().get());
+	// 反射镜面
+	std::unique_ptr<DemoRenderItem> pMirrorRenderItem = std::make_unique<DemoRenderItem>();
+	pMirrorRenderItem->m_MeshGeo = m_SceneObjectes["Mirror"].get();
+	DirectX::XMMATRIX mirrorTransMatrix = DirectX::XMMatrixTranslation(0.f, 5.f, 10.f);
+	DirectX::XMStoreFloat4x4(&pMirrorRenderItem->m_LoclToWorldMatrix, mirrorTransMatrix);
+	pMirrorRenderItem->m_ObjectCBIndex = 2 * kNumPillar + 3;
+	pMirrorRenderItem->m_Material = m_AllMaterials["Mirror"].get();
+	pMirrorRenderItem->m_NumFrameDirty = 1;
+	pMirrorRenderItem->m_IndexCount = m_SceneObjectes["Mirror"]->m_SubMeshGeometrys["Quad"].m_IndexCount;
+	pMirrorRenderItem->m_StartIndexLocation = m_SceneObjectes["Mirror"]->m_SubMeshGeometrys["Quad"].m_StartIndexLocation;
+	pMirrorRenderItem->m_StartVertexLocation = m_SceneObjectes["Mirror"]->m_SubMeshGeometrys["Quad"].m_BaseVertexLocation;
+	m_AllRenderItems.emplace_back(std::move(pMirrorRenderItem));
+	m_RenderItemsByRenderLayer[static_cast<int>(EnumRenderLayer::kLayerTransparent)].emplace_back(m_AllRenderItems.back().get());
+	m_RenderItemsByRenderLayer[static_cast<int>(EnumRenderLayer::kLayerStencilMask)].emplace_back(m_AllRenderItems.back().get());
+	// 镜像骷髅
+	DirectX::XMMATRIX reflectionMatrix = DirectX::XMMatrixReflect(DirectX::XMVectorSet(0.f, 0.f, -1.f, 10.f)); // xyz标识反射平面的法向量，w标识平面的距离
+	std::unique_ptr<DemoRenderItem> pMirrorSkullRenderItem = std::make_unique<DemoRenderItem>();
+	*pMirrorSkullRenderItem = *pNakedSkullRenderItem;
+	pMirrorSkullRenderItem->m_ObjectCBIndex = 2 * kNumPillar + 4;
+	DirectX::XMStoreFloat4x4(&pMirrorSkullRenderItem->m_LoclToWorldMatrix, scaleMatrix * rotaMatrix * transMatrix * reflectionMatrix);
+	m_AllRenderItems.emplace_back(std::move(pMirrorSkullRenderItem));
+	m_RenderItemsByRenderLayer[static_cast<int>(EnumRenderLayer::kLayerReflection)].emplace_back(m_AllRenderItems.back().get());
+	// 镜像平台
+	std::unique_ptr<DemoRenderItem> pMirrorPlatformRenderItem = std::make_unique<DemoRenderItem>();
+	*pMirrorPlatformRenderItem = *pNakePlatformRenderItem;
+	pMirrorPlatformRenderItem->m_ObjectCBIndex = 2 * kNumPillar + 5;
+	DirectX::XMStoreFloat4x4(&pMirrorPlatformRenderItem->m_LoclToWorldMatrix, platformWorldMatrix * reflectionMatrix);
+	m_AllRenderItems.emplace_back(std::move(pMirrorPlatformRenderItem));
+	m_RenderItemsByRenderLayer[static_cast<int>(EnumRenderLayer::kLayerReflection)].emplace_back(m_AllRenderItems.back().get());
 }
 
 /// <summary>
@@ -843,8 +904,8 @@ void DXSampleForReview::BuildRenderItems()
 /// </summary>
 void DXSampleForReview::BuildConstantBufferView()
 {
-	uint32_t objectCount = static_cast<uint32_t>(m_AllRenderItems.size());
 	//// 创建物体层级常量缓冲区
+	uint32_t objectCount = static_cast<uint32_t>(m_AllRenderItems.size());
 	m_PerOjectConstantBuffer = std::make_unique<UploadBuffer<PerObjectConstants>>(m_RenderDevice.Get(), objectCount, true);
 	//// 获取物体常量缓冲区资源的起始地址
 	//for (uint32_t i = 0; i < objectCount; ++i)
@@ -861,7 +922,7 @@ void DXSampleForReview::BuildConstantBufferView()
 	//	desc.SizeInBytes = m_PerOjectConstantBuffer->GetElementSize();
 	//	m_RenderDevice->CreateConstantBufferView(&desc, handle);
 	//}
-
+	//// 创建材质层级常量缓冲区
 	uint32_t materialCount = static_cast<uint32_t>(m_AllMaterials.size());
 	m_PerMaterialConstantBuffer = std::make_unique<UploadBuffer<PerMaterialConstants>>(m_RenderDevice.Get(), materialCount, true);
 	//// 为每个材质常量缓冲区绑定描述符
@@ -879,8 +940,8 @@ void DXSampleForReview::BuildConstantBufferView()
 	//	m_RenderDevice->CreateConstantBufferView(&desc, handle);
 	//}
 
-	//// 创建渲染Pass层级常量缓冲区资源
-	m_PerPassConstantBuffer = std::make_unique<UploadBuffer<PerPassConstants>>(m_RenderDevice.Get(), 1u, true);
+	//// 创建渲染Pass层级常量缓冲区资源，这里镜面中的物体光照和正常是相反的，需要为镜像物体专门创建一个Pass层级的常量缓冲区
+	m_PerPassConstantBuffer = std::make_unique<UploadBuffer<PerPassConstants>>(m_RenderDevice.Get(), 2u, true);
 	//D3D12_GPU_VIRTUAL_ADDRESS passCBAddr = m_PerPassConstantBuffer->GetResource()->GetGPUVirtualAddress();
 	//// 获取空闲的handle，注意偏移，前objectCount个已经被ObjectConstantBuffer占用
 	//CD3DX12_CPU_DESCRIPTOR_HANDLE handle = CD3DX12_CPU_DESCRIPTOR_HANDLE(m_CBVHeap->GetCPUDescriptorHandleForHeapStart());
@@ -957,7 +1018,7 @@ void DXSampleForReview::BuildPSO()
 		{ "TANGENT", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, (3 + 4 + 3) * sizeof(float), D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
 		{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, (3 + 4 + 3 + 3) * sizeof(float), D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
 	};
-	// int value =  sizeof(m_InputLayoutDescs);
+	// 不透明物件
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC opaqueDesc{};
 	ZeroMemory(&opaqueDesc, sizeof(opaqueDesc));
 	opaqueDesc.NodeMask = 0U;
@@ -978,8 +1039,7 @@ void DXSampleForReview::BuildPSO()
 	opaqueDesc.SampleDesc.Count = m_IsEnable4XMSAA ? 4 : 1;
 	opaqueDesc.SampleDesc.Quality = m_IsEnable4XMSAA ? m_4XMSAAQualityLevel - 1 : 0;
 	ThrowIfFailed(m_RenderDevice->CreateGraphicsPipelineState(&opaqueDesc, IID_PPV_ARGS(m_PSOs[static_cast<int>(EnumRenderLayer::kLayerOpaque)].GetAddressOf())));
-
-
+	// 透明物件
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC transparentDesc{ opaqueDesc };
 	CD3DX12_BLEND_DESC transparentBlendDesc(D3D12_DEFAULT);
 	transparentBlendDesc.AlphaToCoverageEnable = false;
@@ -994,9 +1054,49 @@ void DXSampleForReview::BuildPSO()
 	transparentBlendDesc.RenderTarget[0].DestBlendAlpha = D3D12_BLEND_ZERO;
 	transparentBlendDesc.RenderTarget[0].SrcBlendAlpha = D3D12_BLEND_ONE;
 	transparentBlendDesc.RenderTarget[0].BlendOpAlpha = D3D12_BLEND_OP_ADD;
-	opaqueDesc.BlendState = transparentBlendDesc;
-
-	ThrowIfFailed(m_RenderDevice->CreateGraphicsPipelineState(&opaqueDesc, IID_PPV_ARGS(m_PSOs[static_cast<int>(EnumRenderLayer::kLayerTransparent)].GetAddressOf())));
+	transparentDesc.BlendState = transparentBlendDesc;
+	ThrowIfFailed(m_RenderDevice->CreateGraphicsPipelineState(&transparentDesc, IID_PPV_ARGS(m_PSOs[static_cast<int>(EnumRenderLayer::kLayerTransparent)].GetAddressOf())));
+	// 写入模板缓冲区
+	D3D12_GRAPHICS_PIPELINE_STATE_DESC stencilMaskDesc{ opaqueDesc };
+	stencilMaskDesc.BlendState.RenderTarget[0].RenderTargetWriteMask = 0U; // 禁止写入后台缓冲区
+	D3D12_DEPTH_STENCIL_DESC maskDepthStencilDesc{};
+	maskDepthStencilDesc.DepthEnable = true; // 深度测试开启
+	maskDepthStencilDesc.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO; // 禁止写入深度
+	maskDepthStencilDesc.DepthFunc = D3D12_COMPARISON_FUNC_LESS;
+	maskDepthStencilDesc.StencilEnable = true;
+	maskDepthStencilDesc.StencilReadMask = 0xff;
+	maskDepthStencilDesc.StencilWriteMask = 0xff;
+	maskDepthStencilDesc.FrontFace.StencilFunc = D3D12_COMPARISON_FUNC_ALWAYS;  // 模板测试总是通过
+	maskDepthStencilDesc.FrontFace.StencilPassOp = D3D12_STENCIL_OP_REPLACE;    // 测试通过，写入StencilRef的值
+	maskDepthStencilDesc.FrontFace.StencilFailOp = D3D12_STENCIL_OP_KEEP;		// 测试失败，保持原值
+	maskDepthStencilDesc.FrontFace.StencilDepthFailOp = D3D12_STENCIL_OP_KEEP;	// 深度测试失败，保持原值
+	// 不透明物体 背面会被剔除，模版测试不重要
+	maskDepthStencilDesc.BackFace.StencilFunc = D3D12_COMPARISON_FUNC_ALWAYS;  // 模板测试总是通过
+	maskDepthStencilDesc.BackFace.StencilPassOp = D3D12_STENCIL_OP_REPLACE;    // 测试通过，写入StencilRef的值
+	maskDepthStencilDesc.BackFace.StencilFailOp = D3D12_STENCIL_OP_KEEP;		// 测试失败，保持原值
+	maskDepthStencilDesc.BackFace.StencilDepthFailOp = D3D12_STENCIL_OP_KEEP;	// 深度测试失败，保持原值
+	stencilMaskDesc.DepthStencilState = maskDepthStencilDesc;
+	ThrowIfFailed(m_RenderDevice->CreateGraphicsPipelineState(&stencilMaskDesc, IID_PPV_ARGS(m_PSOs[static_cast<int>(EnumRenderLayer::kLayerStencilMask)].GetAddressOf())));
+	// 绘制镜像的不透明物件
+	D3D12_GRAPHICS_PIPELINE_STATE_DESC reflectionOpaqueDesc{ opaqueDesc };
+	reflectionOpaqueDesc.RasterizerState.FrontCounterClockwise = true;  // 因为镜像物件的绕序不会改变，镜像后，原本的外向三角面会变为内向三角面。通过改变光栅化的绕序约定，使内向三角面变为外向三角面
+	D3D12_DEPTH_STENCIL_DESC reflectionDepthStencilDesc{};
+	reflectionDepthStencilDesc.DepthEnable = true;
+	reflectionDepthStencilDesc.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
+	reflectionDepthStencilDesc.DepthFunc = D3D12_COMPARISON_FUNC_LESS;
+	reflectionDepthStencilDesc.StencilEnable = true;
+	reflectionDepthStencilDesc.StencilReadMask = 0xff;
+	reflectionDepthStencilDesc.StencilWriteMask = 0xff;
+	reflectionDepthStencilDesc.FrontFace.StencilFunc = D3D12_COMPARISON_FUNC_EQUAL; // 等于StencilRef的值，才允许通过
+	reflectionDepthStencilDesc.FrontFace.StencilPassOp = D3D12_STENCIL_OP_KEEP; // 测试通过，目的是允许写入后台缓冲区，不需要写入模板缓冲区
+	reflectionDepthStencilDesc.FrontFace.StencilFailOp = D3D12_STENCIL_OP_KEEP;
+	reflectionDepthStencilDesc.FrontFace.StencilDepthFailOp = D3D12_STENCIL_OP_KEEP;
+	reflectionDepthStencilDesc.BackFace.StencilFunc = D3D12_COMPARISON_FUNC_EQUAL; // 等于StencilRef的值，才允许通过
+	reflectionDepthStencilDesc.BackFace.StencilPassOp = D3D12_STENCIL_OP_KEEP; // 测试通过，目的是允许写入后台缓冲区，不需要写入模板缓冲区
+	reflectionDepthStencilDesc.BackFace.StencilFailOp = D3D12_STENCIL_OP_KEEP;
+	reflectionDepthStencilDesc.BackFace.StencilDepthFailOp = D3D12_STENCIL_OP_KEEP;
+	reflectionOpaqueDesc.DepthStencilState = reflectionDepthStencilDesc;
+	ThrowIfFailed(m_RenderDevice->CreateGraphicsPipelineState(&reflectionOpaqueDesc, IID_PPV_ARGS(m_PSOs[static_cast<int>(EnumRenderLayer::kLayerReflection)].GetAddressOf())));
 }
 
 void DXSampleForReview::UpdateObjCBs(float fDeltaTime, float fTotalTime)
@@ -1070,10 +1170,18 @@ void DXSampleForReview::UpdatePassCB(float fDeltaTime, float fTotalTime)
 	lightPos.z = 1.f * sinf(m_SunTheta) * sinf(m_SunPhi);
 	DirectX::XMVECTOR lightDir = -DirectX::XMVectorSet(lightPos.x, lightPos.y, lightPos.z, 1.f);
 	DirectX::XMStoreFloat3(&passCBData.m_AllLights[0].m_Direction, lightDir);
-
 	// 拷贝到渲染Pass常量缓冲区上
 	m_PerPassConstantBuffer->CopyData(0, passCBData);
+
+	// 镜像物件的Pass常量缓冲区，因为镜像物件光照方向和正常物件是相反的
+	PerPassConstants reflectionPassCB{ passCBData };
+	DirectX::XMVECTOR mirrorPlane = DirectX::XMVectorSet(0.f, 0.f, -1.f, 10.f);
+	DirectX::XMMATRIX mirrorMatrix = DirectX::XMMatrixReflect(mirrorPlane);
+	DirectX::XMStoreFloat3(&reflectionPassCB.m_AllLights[0].m_Direction, DirectX::XMVector3TransformNormal(lightDir, mirrorMatrix));
+	m_PerPassConstantBuffer->CopyData(1, reflectionPassCB);
 }
+
+
 
 void DXSampleForReview::UpdateCamera()
 {
@@ -1145,10 +1253,24 @@ void DXSampleForReview::PopulateCommandList()
 	m_CommandList->SetGraphicsRootDescriptorTable(4, samplerHandle);
 	DrawRenderItem(m_RenderItemsByRenderLayer[static_cast<int>(EnumRenderLayer::kLayerOpaque)]);
 
+	// 切换到写入模板缓冲区的渲染状态
+	m_CommandList->SetPipelineState(m_PSOs[static_cast<int>(EnumRenderLayer::kLayerStencilMask)].Get());
+	m_CommandList->ClearDepthStencilView(m_DsvHandle, D3D12_CLEAR_FLAG_STENCIL, 1.f, 0u, 0u, nullptr);
+	m_CommandList->OMSetStencilRef(1u);
+	DrawRenderItem(m_RenderItemsByRenderLayer[static_cast<int>(EnumRenderLayer::kLayerStencilMask)]);
+
+	// 切换到绘制镜像的非透明物件
+	m_CommandList->SetPipelineState(m_PSOs[static_cast<int>(EnumRenderLayer::kLayerReflection)].Get());
+	m_CommandList->OMSetStencilRef(1u);
+	D3D12_GPU_VIRTUAL_ADDRESS passCBAddr = m_PerPassConstantBuffer->GetResource()->GetGPUVirtualAddress();
+	passCBAddr += m_PerPassConstantBuffer->GetElementSize();
+	// 渲染过程常量缓冲区切换为镜像物件使用的常量缓冲区，因为镜像物件的光照和正常物件是相反的
+	m_CommandList->SetGraphicsRootConstantBufferView(2, passCBAddr);
+	DrawRenderItem(m_RenderItemsByRenderLayer[static_cast<int>(EnumRenderLayer::kLayerReflection)]);
 	// 切换到透明物体渲染项
 	m_CommandList->SetPipelineState(m_PSOs[static_cast<int>(EnumRenderLayer::kLayerTransparent)].Get());
+	m_CommandList->SetGraphicsRootConstantBufferView(2, m_PerPassConstantBuffer->GetResource()->GetGPUVirtualAddress());
 	DrawRenderItem(m_RenderItemsByRenderLayer[static_cast<int>(EnumRenderLayer::kLayerTransparent)]);
-
 	// 当前的交换链缓冲区切换为显示状态
 	m_CommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(
 		m_RenderTargetBuffers[m_CurrentFrameBufferIndex].Get()

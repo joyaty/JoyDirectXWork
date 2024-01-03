@@ -293,11 +293,11 @@ private:
 	/// <summary>
 	/// 雾开始出现距离(参照相机位置)
 	/// </summary>
-	float m_FogStart{ 10.f };
+	float m_FogStart{ 50.f };
 	/// <summary>
 	/// 雾不可见距离(参照相机位置)
 	/// </summary>
-	float m_FogEnd{ 50.f };
+	float m_FogEnd{ 150.f };
 
 private:
 	/// <summary>

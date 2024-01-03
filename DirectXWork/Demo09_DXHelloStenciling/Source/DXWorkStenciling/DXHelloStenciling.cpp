@@ -730,7 +730,7 @@ void DXHelloStenciling::BuildPSOs()
 	depthStencilDesc.FrontFace.StencilPassOp = D3D12_STENCIL_OP_REPLACE;
 	depthStencilDesc.FrontFace.StencilFailOp = D3D12_STENCIL_OP_KEEP;
 	depthStencilDesc.FrontFace.StencilDepthFailOp = D3D12_STENCIL_OP_KEEP;
-	// 背面被剔除，不用关系模板设置
+	// 背面被剔除，不用关心模板设置
 	depthStencilDesc.BackFace.StencilFunc = D3D12_COMPARISON_FUNC_ALWAYS;
 	depthStencilDesc.BackFace.StencilPassOp = D3D12_STENCIL_OP_REPLACE;
 	depthStencilDesc.BackFace.StencilFailOp = D3D12_STENCIL_OP_KEEP;
