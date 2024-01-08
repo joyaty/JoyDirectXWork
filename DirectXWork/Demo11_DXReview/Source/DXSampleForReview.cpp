@@ -791,6 +791,16 @@ void DXSampleForReview::BuildMaterials()
 	pMirrorMat->m_DiffuseMapIndex = 2;
 	// 保存到材质集合中
 	m_AllMaterials[pMirrorMat->m_Name] = std::move(pMirrorMat);
+
+	std::unique_ptr<Material> pShadowMat = std::make_unique<Material>();
+	pShadowMat->m_Name = "Shadow";
+	pShadowMat->m_DiffuseAlbedo = DirectX::XMFLOAT4(0.f, 0.f, 0.f, 0.5f);
+	pShadowMat->m_FresnelR0 = DirectX::XMFLOAT3(0.1f, 0.1f, 0.1f);
+	pShadowMat->m_Roughness = 0.f;
+	pShadowMat->m_CbvIndex = 6;
+	pShadowMat->m_DiffuseMapIndex = 4;
+	// 保存到材质集合中
+	m_AllMaterials[pShadowMat->m_Name] = std::move(pShadowMat);
 }
 
 void DXSampleForReview::BuildRenderItems()
@@ -897,6 +907,22 @@ void DXSampleForReview::BuildRenderItems()
 	DirectX::XMStoreFloat4x4(&pMirrorPlatformRenderItem->m_LoclToWorldMatrix, platformWorldMatrix * reflectionMatrix);
 	m_AllRenderItems.emplace_back(std::move(pMirrorPlatformRenderItem));
 	m_RenderItemsByRenderLayer[static_cast<int>(EnumRenderLayer::kLayerReflection)].emplace_back(m_AllRenderItems.back().get());
+
+	std::unique_ptr<DemoRenderItem> pShadowPlatformRenderItem = std::make_unique<DemoRenderItem>();
+	*pShadowPlatformRenderItem = *pNakePlatformRenderItem;
+	pShadowPlatformRenderItem->m_ObjectCBIndex = 2 * kNumPillar + 6;
+	DirectX::XMFLOAT3 lightDir{};
+	lightDir.x = 1.f * sinf(m_SunTheta) * cos(m_SunPhi);
+	lightDir.y = 1.f * cosf(m_SunTheta);
+	lightDir.z = 1.f * sinf(m_SunTheta) * sinf(m_SunPhi);
+	DirectX::XMVECTOR lightPos = DirectX::XMLoadFloat3(&lightDir);
+	DirectX::XMVECTOR shadowPlane = DirectX::XMVectorSet(0.f, 1.f, 0.f, 0.f);
+	DirectX::XMMATRIX matrixShadow = DirectX::XMMatrixShadow(shadowPlane, lightPos);
+	DirectX::XMMATRIX offsetMatrix = DirectX::XMMatrixTranslation(0.f, 0.01f, 0.f);
+	DirectX::XMStoreFloat4x4(&pShadowPlatformRenderItem->m_LoclToWorldMatrix, platformWorldMatrix * matrixShadow * offsetMatrix);
+	pShadowPlatformRenderItem->m_Material = m_AllMaterials["Shadow"].get();
+	m_AllRenderItems.emplace_back(std::move(pShadowPlatformRenderItem));
+	m_RenderItemsByRenderLayer[static_cast<int>(EnumRenderLayer::kLayerShadow)].emplace_back(m_AllRenderItems.back().get());
 }
 
 /// <summary>
@@ -1097,6 +1123,9 @@ void DXSampleForReview::BuildPSO()
 	reflectionDepthStencilDesc.BackFace.StencilDepthFailOp = D3D12_STENCIL_OP_KEEP;
 	reflectionOpaqueDesc.DepthStencilState = reflectionDepthStencilDesc;
 	ThrowIfFailed(m_RenderDevice->CreateGraphicsPipelineState(&reflectionOpaqueDesc, IID_PPV_ARGS(m_PSOs[static_cast<int>(EnumRenderLayer::kLayerReflection)].GetAddressOf())));
+
+	D3D12_GRAPHICS_PIPELINE_STATE_DESC shadowDesc{ transparentDesc };
+	ThrowIfFailed(m_RenderDevice->CreateGraphicsPipelineState(&shadowDesc, IID_PPV_ARGS(m_PSOs[static_cast<int>(EnumRenderLayer::kLayerShadow)].GetAddressOf())));
 }
 
 void DXSampleForReview::UpdateObjCBs(float fDeltaTime, float fTotalTime)
@@ -1252,6 +1281,9 @@ void DXSampleForReview::PopulateCommandList()
 	CD3DX12_GPU_DESCRIPTOR_HANDLE samplerHandle(m_SamplerDescriptorHeap->GetGPUDescriptorHandleForHeapStart());
 	m_CommandList->SetGraphicsRootDescriptorTable(4, samplerHandle);
 	DrawRenderItem(m_RenderItemsByRenderLayer[static_cast<int>(EnumRenderLayer::kLayerOpaque)]);
+	// 切换到绘制阴影的渲染状态
+	m_CommandList->SetPipelineState(m_PSOs[static_cast<int>(EnumRenderLayer::kLayerShadow)].Get());
+	DrawRenderItem(m_RenderItemsByRenderLayer[static_cast<int>(EnumRenderLayer::kLayerShadow)]);
 
 	// 切换到写入模板缓冲区的渲染状态
 	m_CommandList->SetPipelineState(m_PSOs[static_cast<int>(EnumRenderLayer::kLayerStencilMask)].Get());

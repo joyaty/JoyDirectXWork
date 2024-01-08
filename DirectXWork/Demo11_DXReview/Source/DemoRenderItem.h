@@ -23,6 +23,7 @@ enum class EnumRenderLayer
 	kLayerTransparent = 1,		// 透明物体
 	kLayerStencilMask = 2,		// 模版缓冲区写入层
 	kLayerReflection = 3,		// 反射物件层
+	kLayerShadow = 4,			// 阴影层
 
 	kLayerCount
 };
